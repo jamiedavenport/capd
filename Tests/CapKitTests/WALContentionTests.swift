@@ -30,7 +30,7 @@ struct WALContentionTests {
 
             // No steps: enrichment is then pure store traffic — claim and complete are
             // two write transactions per row, all racing the helper's inserts.
-            let runner = EnrichmentRunner(store: store, steps: [])
+            let enrichment = EnrichmentService(store: store, steps: [])
             var enriched = 0
             while true {
                 let helperWasDone = !helper.isRunning
@@ -44,7 +44,7 @@ struct WALContentionTests {
                         arguments: [EnrichmentState.pending.rawValue])
                 }
                 for id in pending {
-                    if try await runner.process(captureID: id) != nil {
+                    if try await enrichment.process(captureID: id) != nil {
                         enriched += 1
                     }
                 }
