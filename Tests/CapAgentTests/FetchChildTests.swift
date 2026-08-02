@@ -51,7 +51,7 @@ struct FetchChildTests {
             let start = ContinuousClock.now
             let result = await step.fetchInChild(url: "https://example.com/a")
             #expect(result.status == .failed)
-            #expect(ContinuousClock.now - start < .seconds(10))
+            #expect(ContinuousClock.now - start < promptReturn)
         }
     }
 
@@ -61,7 +61,7 @@ struct FetchChildTests {
             let start = ContinuousClock.now
             let result = await step.fetchInChild(url: "https://example.com/a")
             #expect(result.status == .failed)
-            #expect(ContinuousClock.now - start < .seconds(10))
+            #expect(ContinuousClock.now - start < promptReturn)
         }
     }
 
@@ -77,7 +77,7 @@ struct FetchChildTests {
             let result = await step.fetchInChild(url: "https://example.com/a")
             #expect(result.status == .ok)
             #expect(result.body == "words")
-            #expect(ContinuousClock.now - start < .seconds(10))
+            #expect(ContinuousClock.now - start < promptReturn)
         }
     }
 
@@ -92,6 +92,10 @@ struct FetchChildTests {
         #expect(!step.applies(to: Capture(kind: .text, createdAt: now)))
     }
 }
+
+/// A "returned promptly" bound with slack for starved CI runners, yet far below the
+/// 60-second sleeps a stalled parent would sit through.
+private let promptReturn: Duration = .seconds(30)
 
 private func withStubChild(
     _ script: String,
