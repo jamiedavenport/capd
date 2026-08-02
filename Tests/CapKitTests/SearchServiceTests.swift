@@ -118,6 +118,40 @@ struct SearchServiceTests {
         }
     }
 
+    /// A search field takes whatever is pasted into it. Past SQLite's LIKE pattern limit the
+    /// substring leg used to fail the whole query with "LIKE or GLOB pattern too complex".
+    @Test("A query far past SQLite's LIKE pattern limit still answers")
+    func oversizedQuerySkipsTheSubstringLeg() throws {
+        try withSeededStore { store in
+            let service = SearchService(store: store)
+            let pasted = "sqlite " + String(repeating: "lorem ipsum dolor ", count: 3_500)
+
+            #expect(pasted.utf8.count > 50_000)
+            let hits = try service.search(pasted)
+
+            #expect(hits.isEmpty)
+        }
+    }
+
+    /// `URL.host` preserves the case it was given, so nothing guarantees the column is
+    /// lowercase. Matching has to be case-insensitive on both arms or captures go missing.
+    @Test("site: matches a host stored in mixed case")
+    func siteFilterIsCaseInsensitive() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(host: "GitHub.com", title: "Root"),
+                    makeCapture(host: "Gist.GitHub.com", title: "Subdomain"),
+                ])
+
+            let hits = try SearchService(store: store).search("site:github.com")
+
+            #expect(Set(hits.map(\.capture.id)) == Set(ids))
+        }
+    }
+
     @Test("A wildcard in the site value matches only itself")
     func siteFilterEscapesWildcards() throws {
         try withTemporaryPaths { paths in
@@ -441,6 +475,8 @@ private func seed(_ store: Store, _ captures: [Capture]) throws -> [Int64] {
     }
 }
 
+/// The default URL is a fixed inert path rather than a UUID: UUID hex spells real words
+/// (`cafe`, `beef`, `decade`), so a random one turns any such search term into a flake.
 private func makeCapture(
     url: String? = nil,
     host: String? = "example.com",
@@ -450,7 +486,7 @@ private func makeCapture(
 ) -> Capture {
     Capture(
         kind: .link,
-        url: url ?? "https://example.com/\(UUID().uuidString)",
+        url: url ?? "https://example.com/x",
         host: host,
         title: title,
         body: body,

@@ -58,9 +58,9 @@ public struct SearchService: Sendable {
             guard hits.count < limit else { return hits }
 
             let matched = Set(hits.compactMap(\.capture.id))
-            // Every row already found can come back in the substring pass, so ask for enough
-            // that the merge still fills the limit once the duplicates are dropped.
-            let extra = try scannedHits(query, limit: limit - hits.count + matched.count, in: db)
+            // A full limit, not the shortfall: up to `hits.count` of these are rows the ranked
+            // leg already returned, and the merge below drops them.
+            let extra = try scannedHits(query, limit: limit, in: db)
 
             for hit in extra {
                 guard let id = hit.capture.id, !matched.contains(id) else { continue }
@@ -124,6 +124,11 @@ public struct SearchService: Sendable {
 
         if !query.text.isEmpty {
             let needle = "%\(Self.escapingWildcards(query.text))%"
+            // Past SQLITE_MAX_LIKE_PATTERN_LENGTH SQLite refuses the pattern outright, and a
+            // search box takes whatever gets pasted into it. Abandoning the leg is the whole
+            // leg, not just its clause — dropping only the clause would leave the filters
+            // behind and answer a garbage query with every capture in the database.
+            guard needle.utf8.count < Self.maxLikePatternBytes else { return [] }
             conditions.clauses.insert(
                 """
                 (\(Self.column(.url)) LIKE ? ESCAPE '\\' \
@@ -153,7 +158,11 @@ public struct SearchService: Sendable {
 
         if let site = query.site {
             let host = Self.column(.host)
-            conditions.clauses.append("(\(host) = ? OR \(host) LIKE ? ESCAPE '\\')")
+            // NOCASE because hosts are case-insensitive but nothing lowercases them on the way
+            // in: `URL.host` hands back whatever was typed, so `GitHub.com` reaches the column
+            // verbatim. LIKE is already NOCASE, so only the equality arm needs saying.
+            conditions.clauses.append(
+                "(\(host) = ? COLLATE NOCASE OR \(host) LIKE ? ESCAPE '\\')")
             conditions.arguments.append(site)
             conditions.arguments.append("%.\(Self.escapingWildcards(site))")
         }
@@ -187,6 +196,9 @@ extension SearchService {
     private static let closeMarker: Character = "\u{FFFB}"
     private static let ellipsis = "\u{2026}"
     private static let snippetTokens = 12
+
+    /// SQLite's own `SQLITE_MAX_LIKE_PATTERN_LENGTH` default, in bytes.
+    private static let maxLikePatternBytes = 50_000
 
     /// Not `rank`, which every FTS5 table already defines as a hidden column.
     private static let rankColumn = "bm25_rank"
