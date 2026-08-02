@@ -1,0 +1,188 @@
+[
+    {
+        "slug": "example-domain",
+        "file": "example-domain.html",
+        "kind": "page",
+        "url": "https://example.com/",
+        "title": "Example Domain",
+        "bodyContains": [
+            "documentation examples without needing permission"
+        ],
+        "query": "needing permission",
+        "extraction": "thin"
+    },
+    {
+        "slug": "wikipedia-pinboard",
+        "file": "wikipedia-pinboard.html",
+        "kind": "page",
+        "url": "https://en.wikipedia.org/wiki/Pinboard_(website)",
+        "title": "Pinboard (website) - Wikipedia",
+        "bodyContains": [
+            "bookmarking",
+            "Cegłowski"
+        ],
+        "query": "pinboard",
+        "extraction": "ok"
+    },
+    {
+        "slug": "rfc2324",
+        "file": "rfc2324.html",
+        "kind": "page",
+        "url": "https://www.rfc-editor.org/rfc/rfc2324.html",
+        "title": "Hyper Text Coffee Pot Control Protocol (HTCPCP/1.0)",
+        "bodyContains": [
+            "Hyper Text Coffee Pot Control Protocol",
+            "teapot"
+        ],
+        "query": "teapot",
+        "extraction": "ok"
+    },
+    {
+        "slug": "sqlite-fts5",
+        "file": "sqlite-fts5.html",
+        "kind": "page",
+        "url": "https://www.sqlite.org/fts5.html",
+        "title": "SQLite FTS5 Extension",
+        "bodyContains": [
+            "full-text search",
+            "bm25"
+        ],
+        "query": "fts5 tokenizer",
+        "extraction": "ok"
+    },
+    {
+        "slug": "python-tutorial",
+        "file": "python-tutorial.html",
+        "kind": "page",
+        "url": "https://docs.python.org/3/tutorial/introduction.html",
+        "title": "3. An Informal Introduction to Python",
+        "bodyContains": [
+            "An Informal Introduction to Python",
+            "interpreter"
+        ],
+        "query": "informal introduction",
+        "extraction": "ok"
+    },
+    {
+        "slug": "mdn-html",
+        "file": "mdn-html.html",
+        "kind": "page",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/HTML",
+        "title": "HTML: HyperText Markup Language | MDN",
+        "bodyContains": [
+            "HyperText Markup Language"
+        ],
+        "query": "hypertext markup language",
+        "extraction": "ok"
+    },
+    {
+        "slug": "markdown-syntax",
+        "file": "markdown-syntax.html",
+        "kind": "page",
+        "url": "https://daringfireball.net/projects/markdown/syntax",
+        "title": "Daring Fireball: Markdown Syntax Documentation",
+        "bodyContains": [
+            "blockquote",
+            "emphasis"
+        ],
+        "query": "markdown",
+        "extraction": "ok"
+    },
+    {
+        "slug": "hn-item-1",
+        "file": "hn-item-1.html",
+        "kind": "page",
+        "url": "https://news.ycombinator.com/item?id=1",
+        "title": "Y Combinator | Hacker News",
+        "bodyContains": [
+            "Y Combinator"
+        ],
+        "query": "combinator",
+        "extraction": "thin"
+    },
+    {
+        "slug": "wikipedia-haiku-ja",
+        "file": "wikipedia-haiku-ja.html",
+        "kind": "page",
+        "url": "https://ja.wikipedia.org/wiki/%E4%BF%B3%E5%8F%A5",
+        "title": "俳句 - Wikipedia",
+        "bodyContains": [
+            "俳句",
+            "季語"
+        ],
+        "query": "俳句",
+        "extraction": "ok"
+    },
+    {
+        "slug": "wikipedia-croissant-fr",
+        "file": "wikipedia-croissant-fr.html",
+        "kind": "page",
+        "url": "https://fr.wikipedia.org/wiki/Croissant_(viennoiserie)",
+        "title": "Croissant (viennoiserie) — Wikipédia",
+        "bodyContains": [
+            "viennoiserie",
+            "pâte feuilletée"
+        ],
+        "query": "viennoiserie",
+        "extraction": "ok"
+    },
+    {
+        "slug": "github-grdb",
+        "file": "github-grdb.html",
+        "kind": "page",
+        "url": "https://github.com/groue/GRDB.swift",
+        "title": "groue/GRDB.swift: A toolkit for SQLite databases",
+        "bodyContains": [
+            "toolkit for SQLite databases"
+        ],
+        "query": "grdb",
+        "extraction": "ok"
+    },
+    {
+        "slug": "apple-vision",
+        "file": "apple-vision.html",
+        "kind": "page",
+        "url": "https://developer.apple.com/documentation/vision",
+        "title": "Vision | Apple Developer Documentation",
+        "bodyContains": [
+            "requires JavaScript"
+        ],
+        "query": "apple developer documentation",
+        "extraction": "failed"
+    },
+    {
+        "slug": "swift-blog-swift6",
+        "file": "swift-blog-swift6.html",
+        "kind": "page",
+        "url": "https://www.swift.org/blog/announcing-swift-6/",
+        "title": "Announcing Swift 6 | Swift.org",
+        "bodyContains": [
+            "data-race safety",
+            "concurrency"
+        ],
+        "query": "data-race safety",
+        "extraction": "ok"
+    },
+    {
+        "slug": "screenshot-sourdough",
+        "file": "screenshot-sourdough.png",
+        "kind": "image",
+        "title": "Sourdough starter schedule",
+        "ocrContains": [
+            "sourdough",
+            "rye flour"
+        ],
+        "query": "sourdough"
+    },
+    {
+        "slug": "screenshot-zanzibar",
+        "file": "screenshot-zanzibar.png",
+        "kind": "image",
+        "title": "Deploy checklist screenshot",
+        "ocrContains": [
+            "zanzibar",
+            "notarization"
+        ],
+        "query": "zanzibar"
+    }
+]

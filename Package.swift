@@ -43,11 +43,18 @@ let package = Package(
                 "KeyboardShortcuts",
             ]
         ),
+        .executableTarget(
+            name: "CapTestHost",
+            dependencies: ["CapKit"],
+            path: "Tests/CapTestHost"
+        ),
         .testTarget(
             name: "CapKitTests",
             dependencies: [
                 "CapKit",
+                "CapTestHost",
                 .product(name: "GRDB", package: "GRDB.swift"),
+                "SwiftSoup",
             ],
             resources: [.copy("Fixtures")]
         ),
