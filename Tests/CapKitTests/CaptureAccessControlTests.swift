@@ -17,6 +17,10 @@ struct CaptureAccessControlTests {
                 let capture = Capture(kind: .text, createdAt: Date())
                 _ = try store.insertCapture(capture)
                 _ = store.dbPool
+                _ = try store.claimForEnrichment(id: 1, at: Date())
+                _ = try store.applyExtraction(
+                    id: 1, body: nil, bodyStatus: .failed, bodySource: .fetch,
+                    enrichmentState: .failed, at: Date())
             }
             """)
 
@@ -25,6 +29,8 @@ struct CaptureAccessControlTests {
         #expect(result.diagnostics.contains("inaccessible due to 'internal' protection level"))
         #expect(result.diagnostics.contains("insertCapture"))
         #expect(result.diagnostics.contains("dbPool"))
+        #expect(result.diagnostics.contains("claimForEnrichment"))
+        #expect(result.diagnostics.contains("applyExtraction"))
         #expect(result.diagnostics.contains("no exact matches in call to initializer"))
     }
 
@@ -38,6 +44,13 @@ struct CaptureAccessControlTests {
             func probe(store: Store) throws -> Capture {
                 let service = CaptureService(store: store)
                 return try service.ingest(CaptureRequest(url: "https://example.com/a"))
+            }
+
+            func enrich(store: Store) throws -> Capture {
+                let service = EnrichmentService(store: store)
+                _ = try service.claim(1)
+                return try service.complete(
+                    1, with: BodyExtractionResult(body: "words", status: .ok, source: .tab))
             }
             """)
 
