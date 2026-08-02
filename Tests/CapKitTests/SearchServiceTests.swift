@@ -133,8 +133,8 @@ struct SearchServiceTests {
         }
     }
 
-    /// `URL.host` preserves the case it was given, so nothing guarantees the column is
-    /// lowercase. Matching has to be case-insensitive on both arms or captures go missing.
+    /// Seeded past the ingest path, which is the one thing that lowercases the column today.
+    /// Reading has to stand on its own or the two match arms disagree with each other.
     @Test("site: matches a host stored in mixed case")
     func siteFilterIsCaseInsensitive() throws {
         try withTemporaryPaths { paths in

@@ -158,9 +158,9 @@ public struct SearchService: Sendable {
 
         if let site = query.site {
             let host = Self.column(.host)
-            // NOCASE because hosts are case-insensitive but nothing lowercases them on the way
-            // in: `URL.host` hands back whatever was typed, so `GitHub.com` reaches the column
-            // verbatim. LIKE is already NOCASE, so only the equality arm needs saying.
+            // NOCASE because hosts are case-insensitive and only the ingest path currently
+            // lowercases the column. LIKE is NOCASE already, so without this the two arms
+            // disagree with each other the moment a row arrives by any other route.
             conditions.clauses.append(
                 "(\(host) = ? COLLATE NOCASE OR \(host) LIKE ? ESCAPE '\\')")
             conditions.arguments.append(site)
