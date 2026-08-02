@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Formats staged Swift files with swift-format before the commit lands.
 #
@@ -9,36 +9,27 @@
 # Files that have BOTH staged and unstaged changes are skipped: formatting them in
 # place and re-staging would sweep the unstaged work-in-progress hunks into the
 # commit. Silently committing unstaged work is worse than an unformatted line.
+#
+# Paths are read NUL-delimited and always quoted. Word-splitting them would break
+# on a path containing whitespace, and glob-expanding them could make the `git add`
+# below stage files the user never staged — the exact failure this hook exists to
+# prevent.
 
 set -eu
 
-staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.swift')
-[ -n "$staged" ] || exit 0
-
-unstaged=$(git diff --name-only -- '*.swift')
-
-to_format=""
-for file in $staged; do
+to_format=()
+while IFS= read -r -d '' file; do
     [ -f "$file" ] || continue
 
-    skip=0
-    for dirty in $unstaged; do
-        if [ "$file" = "$dirty" ]; then
-            skip=1
-            break
-        fi
-    done
-
-    if [ "$skip" -eq 1 ]; then
-        echo "pre-commit: skipping $file (has unstaged changes) — run 'swift format --in-place $file' yourself" >&2
-    else
-        to_format="$to_format $file"
+    if ! git diff --quiet -- "$file"; then
+        echo "pre-commit: skipping $file (has unstaged changes) — format it yourself with 'swift format --in-place'" >&2
+        continue
     fi
-done
 
-[ -n "$to_format" ] || exit 0
+    to_format+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR -- '*.swift')
 
-# shellcheck disable=SC2086
-swift format --in-place --parallel $to_format
-# shellcheck disable=SC2086
-git add $to_format
+[ "${#to_format[@]}" -gt 0 ] || exit 0
+
+swift format --in-place --parallel -- "${to_format[@]}"
+git add -- "${to_format[@]}"

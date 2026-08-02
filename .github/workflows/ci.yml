@@ -23,7 +23,12 @@ jobs:
     # macOS minutes bill at 10x, so this is one job rather than three.
     runs-on: macos-26
     steps:
+      # persist-credentials: false keeps the job token out of .git/config after
+      # checkout. Nothing here needs authenticated git, and A5 is about this
+      # workflow having no credential surface at all.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # Pinned to match local development exactly. swift-format's default rules
       # drift between toolchain minors, so an unpinned Xcode makes lint pass
