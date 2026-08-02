@@ -55,6 +55,32 @@ struct FetchChildTests {
         }
     }
 
+    @Test("A grandchild keeping the pipe open does not stall the parent")
+    func stragglingGrandchildDoesNotStall() async throws {
+        try await withStubChild("sleep 60 &\nexit 0") { step in
+            let start = ContinuousClock.now
+            let result = await step.fetchInChild(url: "https://example.com/a")
+            #expect(result.status == .failed)
+            #expect(ContinuousClock.now - start < .seconds(10))
+        }
+    }
+
+    @Test("Output already written survives a straggling grandchild")
+    func writtenOutputSurvivesStraggler() async throws {
+        let script = """
+            echo '{"body":"words","status":"ok","source":"fetch"}'
+            sleep 60 &
+            exit 0
+            """
+        try await withStubChild(script) { step in
+            let start = ContinuousClock.now
+            let result = await step.fetchInChild(url: "https://example.com/a")
+            #expect(result.status == .ok)
+            #expect(result.body == "words")
+            #expect(ContinuousClock.now - start < .seconds(10))
+        }
+    }
+
     @Test("The step applies only to link captures with a URL")
     func appliesOnlyToLinks() {
         let step = FetchChildStep(agentExecutable: URL(fileURLWithPath: "/usr/bin/true"))

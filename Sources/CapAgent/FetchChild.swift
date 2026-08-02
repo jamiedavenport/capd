@@ -45,24 +45,40 @@ struct FetchChildStep: ProcessingStep {
         child.process.standardOutput = stdout
         child.process.standardError = FileHandle.nullDevice
 
+        // Output is collected incrementally and the wait is on process exit, never on
+        // pipe EOF: a grandchild that inherited the write end and outlived the kill
+        // would otherwise hold a blocking read open for its whole lifetime.
+        let output = OutputCollector()
+        stdout.fileHandleForReading.readabilityHandler = { handle in
+            let chunk = handle.availableData
+            if chunk.isEmpty {
+                handle.readabilityHandler = nil
+                output.finish()
+            } else {
+                output.append(chunk)
+            }
+        }
+
         do {
             try child.process.run()
         } catch {
+            stdout.fileHandleForReading.readabilityHandler = nil
             return failed
         }
 
         let watchdog = DispatchWorkItem { child.forceTerminate() }
         DispatchQueue.global().asyncAfter(deadline: .now() + seconds(deadline), execute: watchdog)
-        defer { watchdog.cancel() }
 
-        // The pipe reaches EOF when the child exits or is killed, so neither read blocks
-        // past the watchdog.
-        let output = (try? stdout.fileHandleForReading.readToEnd()) ?? Data()
         child.process.waitUntilExit()
+        watchdog.cancel()
+        // EOF lands immediately after exit unless a straggler holds the pipe; the grace
+        // period only bounds that case, and whatever the child wrote is already collected.
+        output.waitForEnd(timeout: .now() + 2)
+        stdout.fileHandleForReading.readabilityHandler = nil
 
         guard child.process.terminationReason == .exit,
             child.process.terminationStatus == EXIT_SUCCESS,
-            let result = try? JSONDecoder().decode(BodyExtractionResult.self, from: output)
+            let result = try? JSONDecoder().decode(BodyExtractionResult.self, from: output.data)
         else {
             return failed
         }
@@ -72,6 +88,33 @@ struct FetchChildStep: ProcessingStep {
     private static func seconds(_ duration: Duration) -> TimeInterval {
         TimeInterval(duration.components.seconds)
             + TimeInterval(duration.components.attoseconds) / 1e18
+    }
+}
+
+/// Accumulates pipe output as it arrives; every access is under the lock.
+private final class OutputCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private let ended = DispatchSemaphore(value: 0)
+    private var buffer = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        buffer.append(chunk)
+        lock.unlock()
+    }
+
+    func finish() {
+        ended.signal()
+    }
+
+    func waitForEnd(timeout: DispatchTime) {
+        _ = ended.wait(timeout: timeout)
+    }
+
+    var data: Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return buffer
     }
 }
 
