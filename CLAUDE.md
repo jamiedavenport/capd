@@ -3,6 +3,10 @@
 Open-source native macOS capture/bookmarking app — the Pinboard successor.
 Design doc: ~/.gstack/projects/cap/jamie-main-design-20260802-134500.md
 
+# Linear
+
+- Use Linear's branch names so that PRs are automatically linked.
+
 ## gstack
 
 - Use the /browse skill from gstack for all web browsing. NEVER use `mcp__claude-in-chrome__*` tools.
