@@ -100,6 +100,31 @@ public final class Store: Sendable {
         }
     }
 
+    func updateNote(id: Int64, note: String?, now: Date = Date()) throws -> Capture {
+        try dbPool.write { db in
+            guard let current = try Capture.fetchOne(db, key: id) else {
+                throw CaptureError.notFound(id)
+            }
+            var updated = current
+            updated.note = note
+            updated.updatedAt = now
+            try updated.updateChanges(db, from: current)
+            return updated
+        }
+    }
+
+    /// Emits the number of captures whose enrichment failed, first immediately and then on
+    /// every change, so the menu bar can badge without polling.
+    public func failedEnrichmentCounts() -> AsyncValueObservation<Int> {
+        ValueObservation
+            .tracking { db in
+                try Capture
+                    .filter(Capture.CodingKeys.enrichmentState == EnrichmentState.failed)
+                    .fetchCount(db)
+            }
+            .values(in: dbPool)
+    }
+
     /// A nil `ocrText` leaves the column alone; an empty string is a real result.
     func completeEnrichment(
         id: Int64,

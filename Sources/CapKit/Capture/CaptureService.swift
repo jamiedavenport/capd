@@ -5,6 +5,7 @@ public enum CaptureError: Error, Equatable, Sendable {
     case emptyRequest
     case invalidURL(String)
     case secureInputActive
+    case notFound(Int64)
 }
 
 extension CaptureError: LocalizedError {
@@ -13,6 +14,7 @@ extension CaptureError: LocalizedError {
         case .emptyRequest: "Nothing to capture."
         case .invalidURL(let candidate): "Not a capturable link: \(candidate)"
         case .secureInputActive: "Capture blocked — secure input active."
+        case .notFound(let id): "No capture with id \(id)."
         }
     }
 }
@@ -39,6 +41,12 @@ public struct CaptureService: Sendable {
 
         let classification = try Self.classify(request)
         return try store.upsertCapture(makeCapture(classification, from: request))
+    }
+
+    /// Sets the user's note on an existing capture; an empty or whitespace note clears it.
+    @discardableResult
+    public func annotate(_ id: Int64, note: String?) throws -> Capture {
+        try store.updateNote(id: id, note: Self.normalized(note))
     }
 
     private enum Classification {
