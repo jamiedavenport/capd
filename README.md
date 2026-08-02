@@ -48,6 +48,19 @@ swift test
 formats staged Swift files on commit. CI runs `swift format lint --strict` regardless.
 Conductor workspaces run it automatically via `.conductor/settings.toml`.
 
+## Releasing
+
+Pushing a `v*` tag matching `CapKit.version` runs `release.yml`: a universal
+(arm64 + x86_64) build packaged into `cap.app` — with the `cap` CLI and `cap-agent`
+inside `Contents/MacOS` — then Developer ID-signed, notarized, stapled, uploaded to a
+GitHub release as a `.dmg`, and published by bumping the cask in
+[jamiedavenport/homebrew-tap](https://github.com/jamiedavenport/homebrew-tap). The
+cask's `binary` stanza symlinks the bundled CLI onto `PATH`. Signing secrets exist
+only in that tag-triggered workflow; `ci.yml` builds unsigned and never sees them.
+
+`Scripts/package-app.sh` reproduces the build, bundle, and `.dmg` locally with an
+ad-hoc signature (set `CODESIGN_IDENTITY` to sign for real).
+
 ## Body extraction and the network
 
 Link captures store the readable body of the page for search. When the capture comes from a
