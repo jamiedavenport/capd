@@ -28,7 +28,9 @@ cap refetch                              # requeue failed enrichments; or: cap r
 Read commands take `--json` and `--format tsv`. The `--json` field set is a stable
 interface for scripts; human-readable output is not. Exit codes: 0 success, 1 no
 results, 2 bad usage, 3 store unavailable, 4 agent not running. `CAP_DIR` overrides
-the storage root (default `~/Library/Application Support/cap/`).
+the storage root (default `~/Library/Application Support/cap/`). The full field set,
+formats, and exit-code semantics are documented in
+[docs/cli-contract.md](docs/cli-contract.md).
 
 ## Development
 

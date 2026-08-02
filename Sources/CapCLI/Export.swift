@@ -18,11 +18,14 @@ struct Export: ParsableCommand {
     @Option(help: "Export format: json or markdown.")
     var format: ExportFormat = .json
 
+    @Flag(help: "Shorthand for --format json.")
+    var json = false
+
     func run() throws {
         let hits = try SearchService(store: openStore()).search(SearchQuery(limit: .max))
         let captures = hits.map(\.capture)
 
-        switch format {
+        switch json ? .json : format {
         case .json:
             print(try jsonString(captures))
         case .markdown:
