@@ -1,0 +1,109 @@
+---
+title: FAQ
+description: Permissions, the background agent, importing, syncing, and troubleshooting.
+---
+
+## Permissions
+
+### Why does cap want Accessibility access?
+
+Two reasons: reading the text you have selected, and detecting password fields so
+capture can refuse to run in them. It's optional — without it, capture falls back to
+the clipboard, and `cap add` and the search window work exactly the same.
+
+### cap stopped seeing my selection after an update
+
+macOS silently revokes Accessibility when an app's code signature changes, which can
+happen across updates. cap detects the loss, shows a re-grant prompt, and degrades
+the menu-bar icon until access is restored. If you missed the prompt: System Settings
+→ Privacy & Security → Accessibility, remove cap and re-add it. `cap doctor` reports
+the current state.
+
+### Why does macOS ask about Safari/Chrome/Arc separately?
+
+Reading a browser's front tab uses Apple Events, and macOS requires per-app consent.
+Onboarding triggers these prompts up front; declining one just means captures from
+that browser won't include the tab URL.
+
+## Capturing
+
+### Why doesn't the hotkey capture the URL in Firefox?
+
+Firefox doesn't support the Apple Events interface cap uses to ask for the front
+tab, so hotkey captures there get your selected text only. Copy the URL and capture,
+or use `cap add <url>`. Browsers cap doesn't recognize (including Gecko-based ones
+like Zen) are treated like any other app: selection only.
+
+### Why was my capture blocked?
+
+Secure input was active — the focused field is a password field, or an app such as a
+password manager was holding the system secure-input flag. cap refuses to read
+anything in that state. Click out of the secure field and capture again.
+
+### Why does a capture have no page body, or a "thin" one?
+
+The fetch may have failed (offline, timeout, a page over 10 MB) — those retry up to
+three times and can be requeued anytime with `cap refetch`. Pages behind logins or
+paywalls often yield only a stub when fetched over the network; capturing from the
+browser tab instead stores the page as you see it. Very short pages are marked thin
+rather than pretending to be articles. Either way the URL, title, and selection are
+saved and searchable.
+
+### Can I capture a screenshot region?
+
+No — image captures come from the clipboard. Copy any image (or press ⌃⇧⌘4 to
+screenshot a region straight to the clipboard), then press ⌃⌥C.
+
+## Data
+
+### Where is my data? How do I back it up?
+
+`~/Library/Application Support/cap/` — one SQLite database plus an `assets/` folder
+for images. Copy that folder for a complete backup, or run `cap export` for a
+lossless JSON export. Set `CAP_DIR` to relocate the storage root.
+
+### Can I import my Pinboard or browser bookmarks?
+
+There is no import command. For a plain list of URLs, the CLI covers it:
+
+```sh
+cat urls.txt | cap add -
+```
+
+Each URL line becomes its own capture, deduplicated and enriched like any other.
+
+### Does cap sync between Macs?
+
+No. cap is local-first by design — one database on one Mac, no service in the middle.
+
+## The background agent
+
+### What is `cap-agent` in my login items?
+
+The enrichment worker: it fetches page bodies and runs OCR in the background, so
+captures made from the CLI get enriched even when the app isn't running. launchd
+keeps it alive; it idles when the queue is empty.
+
+### Captures are stuck at "pending"
+
+Run `cap status` — it reports queue depth and whether an agent is actually running
+(exit code 4 if not). If the agent is missing or not loaded, `cap doctor` reinstalls
+it. Note that on battery the agent enriches one capture at a time, so a long queue
+drains slower away from the charger.
+
+## Other
+
+### Is there a config file?
+
+No. Settings live in the app (hotkeys, the two network toggles), and `CAP_DIR` is the
+only environment variable.
+
+### Why isn't cap in the Mac App Store?
+
+Reading the frontmost browser tab requires running outside the App Sandbox, which the
+App Store doesn't allow. See [Privacy](/privacy) for the full posture.
+
+### My hotkey doesn't fire
+
+Another app or a macOS system shortcut probably owns the combination. Rebind either
+hotkey in Settings — the recorder warns about known system conflicts.

@@ -1,0 +1,85 @@
+---
+title: Capturing
+description: What ⌃⌥C saves from each app, notes, images, duplicates, and enrichment.
+---
+
+Press **⌃⌥C** anywhere. cap looks at the frontmost app and saves the most useful
+thing it can read — always without touching what you're doing. The hotkey always
+captures: press it five times quickly and you get five captures.
+
+A toast appears in the top-right corner for a few seconds confirming what was saved.
+**Click the toast to attach a note** — ⏎ saves, Esc dismisses.
+
+## What gets captured where
+
+| Frontmost app | URL + title | Selected text | Page body for search |
+|---|---|---|---|
+| Safari, Chrome, Arc | ✓ from the front tab | ✓ | ✓ read from the rendered tab |
+| Firefox | — | ✓ | via network fetch when a URL is captured |
+| Any other app | — | ✓ | — |
+
+**Safari, Chrome, and Arc** give the full experience: cap asks the browser for the
+front tab's URL and title over Apple Events, grabs your selection, and extracts the
+readable page body directly from the rendered tab. Because the body comes from your
+own tab, paywalled or logged-in content you can see is captured without any network
+request.
+
+**Firefox** doesn't support the Apple Events interface cap uses, so the hotkey can't
+see the tab's URL — it captures your selected text only. To capture a Firefox link,
+copy the URL and press the hotkey, or use `cap add <url>`. Bodies for those captures
+come from cap's own hardened fetch instead of the tab.
+
+**Everything else** — editors, terminals, chat apps, PDF viewers — captures the
+selected text, remembering which app it came from.
+
+## Selection and the clipboard fallback
+
+cap first reads your selection through the Accessibility API. When an app doesn't
+expose its selection that way, cap falls back to a synthetic ⌘C: it snapshots your
+clipboard, copies, captures, and restores the clipboard exactly as it was.
+
+The fallback refuses to run when the clipboard holds promised files (like a
+drag-in-progress) or very large data — cap then captures what it can without it, and
+the toast says why.
+
+If **secure input** is active — a password field, or an app like a password manager
+holding the secure-input flag — cap refuses to capture at all. Nothing is read,
+nothing is stored, and the toast says capture was blocked.
+
+## What a capture is
+
+Each capture is a link, a text, or an image:
+
+- **Link** — a URL was found (from the browser tab or in the captured text). Stores
+  URL, title, your selection, and later the readable page body.
+- **Text** — no URL; the selected text itself is the capture.
+- **Image** — an image on the clipboard with no URL or text taking precedence. The
+  image is stored as a file, and any text inside it is recognized on-device and made
+  searchable. Images come from the clipboard only — there is no screenshot mode.
+
+## Duplicates
+
+Capturing the same thing twice doesn't create a second entry. cap normalizes URLs —
+dropping fragments and tracking parameters like `utm_*`, `fbclid`, and `gclid` —
+and hashes the content, so a re-capture bumps the existing entry's *seen* count and
+timestamp instead. The toast tells you: "Already captured 3w ago".
+
+Re-capturing something whose page fetch previously failed retries the fetch.
+
+## Enrichment
+
+Link captures are enriched in the background by `cap-agent`: the page body is
+extracted (from the tab where possible, otherwise fetched), cleaned to readable
+article text, and indexed for search.
+
+- A body under about 120 words — or one that looks like a login or paywall wall — is
+  marked **thin** rather than treated as the article.
+- Failures keep the capture (URL, title, selection) and are retried up to three
+  times; after that the capture is marked **failed** and the menu-bar icon shows a
+  badge. `cap refetch` requeues failures, as does simply re-capturing the page.
+- On battery the agent enriches one capture at a time; on mains power, three.
+
+## From the terminal
+
+`cap add` captures without the app: URLs, text, stdin, with `--note`, `--title`,
+`--no-fetch`, and `--wait`. See the [CLI overview](/cli).

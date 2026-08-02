@@ -1,0 +1,38 @@
+---
+title: What is cap?
+description: An open-source native macOS capture and bookmarking app.
+---
+
+cap is an open-source, native macOS capture and bookmarking app. Press a hotkey on
+anything worth keeping — a page, a paragraph, an image — and find it again later with
+full-text search.
+
+- **Capture with one keystroke.** ⌃⌥C saves whatever is in front of you: the page in
+  your browser, the text you have selected, or an image on the clipboard. A toast
+  confirms the capture; click it to attach a note.
+- **Recall instantly.** ⌥⇧Space opens a Spotlight-style search window over everything
+  you have saved — including the readable body of captured pages and text recognized
+  inside images.
+- **Local-first.** Everything lives in a single SQLite database under
+  `~/Library/Application Support/cap/`. No account, no sync service, no telemetry.
+- **Scriptable.** The `cap` CLI captures, searches, and exports from the terminal,
+  with stable `--json` output and documented exit codes.
+
+## How it works
+
+cap is a menu-bar app (no Dock icon) with two companions that install alongside it:
+
+- the **`cap` CLI**, symlinked onto your `PATH` by the Homebrew cask
+- **`cap-agent`**, a background worker managed by `launchd` that enriches captures —
+  fetching page bodies and running OCR — even when the app is not running
+
+Link captures store more than the URL: cap extracts the readable article body so
+search can match the words on the page, not just its title.
+
+## Start here
+
+- [Install](/install) — Homebrew or direct download, and what first-run setup asks for
+- [Capturing](/capture) — what the hotkey saves from each app, and why
+- [Search](/search) — the search window and the `site:` / date filter syntax
+- [CLI](/cli) — capture and search from the terminal
+- [Privacy](/privacy) — exactly what touches the network (two things, both optional)
