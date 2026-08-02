@@ -30,6 +30,10 @@ struct CapApp: App {
                 Text("Failed enrichments: \(state.failedEnrichmentCount)")
             }
             Divider()
+            Button("Search Captures…") {
+                state.showSearch()
+            }
+            Divider()
             Button("Quit cap") {
                 NSApplication.shared.terminate(nil)
             }
