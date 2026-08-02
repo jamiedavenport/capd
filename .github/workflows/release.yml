@@ -39,12 +39,12 @@ jobs:
 
       - name: Import signing certificate
         env:
-          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
           KEYCHAIN_PASSWORD=$(uuidgen)
-          echo "$MACOS_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 3600 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
@@ -67,13 +67,21 @@ jobs:
 
       - name: Notarize and staple
         env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          NOTARY_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         run: |
+          # Accept the key as raw PEM or base64-encoded.
+          case "$APP_STORE_CONNECT_API_KEY_P8" in
+            -----BEGIN*) printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$RUNNER_TEMP/notary-key.p8" ;;
+            *) echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8" ;;
+          esac
           xcrun notarytool submit "dist/cap-$VERSION.dmg" \
-            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
-            --password "$NOTARY_PASSWORD" --wait
+            --key "$RUNNER_TEMP/notary-key.p8" \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --wait
+          rm "$RUNNER_TEMP/notary-key.p8"
           xcrun stapler staple "dist/cap-$VERSION.dmg"
 
       - name: Verify Gatekeeper acceptance
@@ -93,10 +101,10 @@ jobs:
 
       - name: Bump cask in tap
         env:
-          TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
           SHA256=$(shasum -a 256 "dist/cap-$VERSION.dmg" | cut -d' ' -f1)
-          git clone "https://x-access-token:$TAP_PUSH_TOKEN@github.com/jamiedavenport/homebrew-tap.git" \
+          git clone "https://x-access-token:$TAP_GITHUB_TOKEN@github.com/jamiedavenport/homebrew-tap.git" \
             "$RUNNER_TEMP/tap"
           mkdir -p "$RUNNER_TEMP/tap/Casks"
           Scripts/make-cask.sh "$VERSION" "$SHA256" > "$RUNNER_TEMP/tap/Casks/cap.rb"
