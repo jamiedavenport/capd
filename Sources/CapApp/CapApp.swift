@@ -33,6 +33,11 @@ struct CapApp: App {
             if state.failedEnrichmentCount > 0 {
                 Text("Failed enrichments: \(state.failedEnrichmentCount)")
             }
+            if state.permissions.axLost {
+                Button("Accessibility access lost — Open System Settings") {
+                    state.permissions.openAccessibilitySettings()
+                }
+            }
             if let version = state.updates.availableVersion {
                 Divider()
                 Button("Update available (\(version)) — copy brew command") {
@@ -55,6 +60,7 @@ struct CapApp: App {
         } label: {
             Image(
                 systemName: state.failedEnrichmentCount > 0 || state.startupFailure != nil
+                    || state.permissions.axLost
                     ? "bookmark.slash" : "bookmark")
         }
 

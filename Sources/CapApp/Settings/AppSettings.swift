@@ -20,6 +20,10 @@ final class AppSettings {
         didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) }
     }
 
+    var axGrantedBefore: Bool {
+        didSet { defaults.set(axGrantedBefore, forKey: Key.axGrantedBefore) }
+    }
+
     var lastUpdateCheck: Date? {
         didSet { defaults.set(lastUpdateCheck, forKey: Key.lastUpdateCheck) }
     }
@@ -33,6 +37,7 @@ final class AppSettings {
         fetchesPageBodies = defaults.object(forKey: Key.fetchesPageBodies) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
+        axGrantedBefore = defaults.bool(forKey: Key.axGrantedBefore)
         lastUpdateCheck = defaults.object(forKey: Key.lastUpdateCheck) as? Date
         latestKnownVersion = defaults.string(forKey: Key.latestKnownVersion)
     }
@@ -41,6 +46,7 @@ final class AppSettings {
         static let fetchesPageBodies = "fetchesPageBodies"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let checksForUpdates = "checksForUpdates"
+        static let axGrantedBefore = "axGrantedBefore"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let latestKnownVersion = "latestKnownVersion"
     }
