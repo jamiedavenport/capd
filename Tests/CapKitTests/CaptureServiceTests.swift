@@ -15,7 +15,8 @@ struct CaptureServiceTests {
                 CaptureRequest(
                     url: "https://example.com/a",
                     text: "A quoted phrase",
-                    imageData: samplePNG))
+                    imageData: samplePNG)
+            ).capture
 
             #expect(capture.kind == .link)
             #expect(capture.url == "https://example.com/a")
@@ -30,7 +31,8 @@ struct CaptureServiceTests {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(text: "A quoted phrase", imageData: samplePNG))
+                CaptureRequest(text: "A quoted phrase", imageData: samplePNG)
+            ).capture
 
             #expect(capture.kind == .text)
             #expect(capture.selection == "A quoted phrase")
@@ -45,7 +47,8 @@ struct CaptureServiceTests {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: samplePNG))
+                CaptureRequest(imageData: samplePNG)
+            ).capture
 
             let digest = hexDigest(of: samplePNG)
             let assetPath = try #require(capture.assetPath)
@@ -148,7 +151,7 @@ struct CaptureServiceTests {
     func stateInitFollowsKindAndFetchFlag(expected: BirthState) throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let capture = try CaptureService(store: store).ingest(expected.request)
+            let capture = try CaptureService(store: store).ingest(expected.request).capture
 
             #expect(capture.kind == expected.kind)
             #expect(capture.enrichmentState == expected.enrichmentState)
@@ -169,7 +172,8 @@ struct CaptureServiceTests {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(url: "  HTTPS://EXAMPLE.COM/Path  "))
+                CaptureRequest(url: "  HTTPS://EXAMPLE.COM/Path  ")
+            ).capture
 
             #expect(capture.host == "example.com")
         }
@@ -181,9 +185,11 @@ struct CaptureServiceTests {
             let store = try Store(paths: paths)
             let service = CaptureService(store: store)
 
-            let link = try service.ingest(CaptureRequest(url: " https://example.com/a "))
-            let text = try service.ingest(CaptureRequest(text: " A standalone thought "))
-            let image = try service.ingest(CaptureRequest(imageData: samplePNG))
+            let link = try service.ingest(
+                CaptureRequest(url: " HTTPS://Example.com:443/a?utm_source=tw#frag ")
+            ).capture
+            let text = try service.ingest(CaptureRequest(text: " A standalone thought ")).capture
+            let image = try service.ingest(CaptureRequest(imageData: samplePNG)).capture
 
             #expect(link.contentHash == hexDigest(of: Data("https://example.com/a".utf8)))
             #expect(text.contentHash == hexDigest(of: Data("A standalone thought".utf8)))
@@ -191,33 +197,16 @@ struct CaptureServiceTests {
         }
     }
 
-    @Test("Capturing the same content twice hands back the row it collided with")
-    func duplicateCaptureIsRefusedWithTheExistingRow() throws {
-        try withTemporaryPaths { paths in
-            let store = try Store(paths: paths)
-            let service = CaptureService(store: store)
-
-            let first = try service.ingest(
-                CaptureRequest(
-                    url: "https://example.com/a", title: "First", capturedAt: wholeSecond)
-            )
-            let failure = #expect(throws: CaptureError.self) {
-                try service.ingest(CaptureRequest(url: "https://example.com/a", title: "Second"))
-            }
-
-            #expect(failure == .duplicate(existing: first))
-            #expect(try captureCount(store) == 1)
-        }
-    }
-
     @Test("Ingest returns exactly what was persisted")
     func ingestReturnsThePersistedCapture() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let capture = try CaptureService(store: store).ingest(
+            let outcome = try CaptureService(store: store).ingest(
                 CaptureRequest(
                     url: "https://example.com/a", title: "Persisted", capturedAt: wholeSecond))
 
+            let capture = outcome.capture
+            #expect(outcome == .captured(capture))
             #expect(capture.id != nil)
 
             let stored = try store.reader.read { db in
@@ -235,7 +224,8 @@ struct CaptureServiceTests {
                 CaptureRequest(
                     url: "https://example.com/a",
                     text: "Marmot husbandry",
-                    title: "Ptarmigan strategies"))
+                    title: "Ptarmigan strategies")
+            ).capture
             let id = try #require(capture.id)
 
             #expect(try matchingRowIDs(store, "ptarmigan") == [id])
@@ -264,7 +254,7 @@ struct CaptureServiceTests {
     func requestMetadataFlowsThrough() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let capture = try CaptureService(store: store).ingest(
+            let outcome = try CaptureService(store: store).ingest(
                 CaptureRequest(
                     url: "https://example.com/a",
                     title: "A title",
@@ -283,7 +273,7 @@ struct CaptureServiceTests {
             #expect(stored.createdAt == wholeSecond)
             #expect(stored.updatedAt == wholeSecond)
             #expect(stored.lastSeenAt == wholeSecond)
-            #expect(stored == capture)
+            #expect(outcome == .captured(stored))
         }
     }
 }

@@ -15,7 +15,7 @@ struct CaptureAccessControlTests {
 
             func probe(store: Store) throws {
                 let capture = Capture(kind: .text, createdAt: Date())
-                _ = try store.insertCapture(capture)
+                _ = try store.upsertCapture(capture)
                 _ = store.dbPool
             }
             """)
@@ -23,7 +23,7 @@ struct CaptureAccessControlTests {
         #expect(result.exitCode != 0)
         #expect(!result.diagnostics.contains("no such module"))
         #expect(result.diagnostics.contains("inaccessible due to 'internal' protection level"))
-        #expect(result.diagnostics.contains("insertCapture"))
+        #expect(result.diagnostics.contains("upsertCapture"))
         #expect(result.diagnostics.contains("dbPool"))
         #expect(result.diagnostics.contains("no exact matches in call to initializer"))
     }
@@ -37,7 +37,11 @@ struct CaptureAccessControlTests {
 
             func probe(store: Store) throws -> Capture {
                 let service = CaptureService(store: store)
-                return try service.ingest(CaptureRequest(url: "https://example.com/a"))
+                let outcome = try service.ingest(CaptureRequest(url: "https://example.com/a"))
+                switch outcome {
+                case .captured(let capture): return capture
+                case .alreadyCaptured(let capture, previousSeenAt: _): return capture
+                }
             }
             """)
 
