@@ -41,9 +41,9 @@ CapKit's `ProcessingStep` pipeline is the long-term moat: opening it to third-pa
 
 ## Timeline & Gate Impact
 Accepted scope adds roughly one week of evenings (CC: a few hours). Sequencing against the design doc's gates:
-- **Pre-dogfood (with the CLI core):** E1 and E2 — they are CapKit pipeline steps and must be in the dogfood build, since the dogfood week is supposed to test recall quality (premise 1) and recall quality is exactly what E1/E2 change.
+- **Pre-dogfood (with the CLI core):** E1 and E2 — they are CapKit pipeline steps and must be in the dogfood build, so the dogfood week exercises the real capture-and-enrichment path.
 - **Post-dogfood (launch phase):** E4 and E5.
-- The "daily-drivable within 3 weeks" criterion moves to **~4 weeks** (evenings scale); unchanged at CC scale. The dogfood gate itself is unchanged.
+- The "daily-drivable within 3 weeks" criterion moves to **~4 weeks** (evenings scale); unchanged at CC scale. The dogfood gate measures capture accuracy and capture speed only (X2) — the top-3 recall number is removed, because a one-week cold-start corpus cannot test recall honestly.
 
 ## Deferred to TODOS.md
 - E3 `cap import safari|chrome|pinboard <file>` — day-one non-empty search; the ex-Pinboard switching lever. Do at launch or first user request.
@@ -128,7 +128,7 @@ SwiftSoup fallback), in the pre-dogfood build. Staging and cutting both rejected
 - CEO E1 "network fetch on link capture" → tab-first extraction with network fallback (X1).
 - CEO dogfood gate "≥80% of searches find the item in top 3" → capture accuracy + speed; recall validation deferred post-launch (X2).
 - TODOS.md P3 "Dedupe on re-capture (v0.1.x delight)" → promoted into v0.1 scope (X4).
-- T5-A "optional passive version check" → decided: ships, default on (TD2).
+- T5-A "optional passive version check" → decided: ships, default on. T5-A's privacy line (ONE network exception) → TWO disclosed, opt-out exceptions: E1 page fetch + version check (TD2).
 
 ## NOT in scope
 
