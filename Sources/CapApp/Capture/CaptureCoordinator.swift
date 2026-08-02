@@ -10,6 +10,7 @@ struct CaptureEnvironment {
     var selectedText: @MainActor (FrontmostTarget) -> String?
     var browserTab: @MainActor (Browser) -> BrowserTab?
     var pasteboardFallback: @MainActor () async -> PasteboardFallbackResult
+    var fetchBody: @MainActor () -> Bool
     var ingest: @MainActor (CaptureRequest) throws -> CaptureOutcome
     var enrich: @MainActor (Capture) async -> Void
     var now: () -> Date
@@ -85,6 +86,7 @@ final class CaptureCoordinator {
             imageData: imageData,
             title: tab?.title,
             sourceAppBundleID: target?.bundleID,
+            fetchBody: environment.fetchBody(),
             capturedAt: environment.now())
 
         let content: HUDContent

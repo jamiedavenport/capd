@@ -53,11 +53,21 @@ browser tab, cap reads the rendered page from that tab and nothing touches the n
 Otherwise cap fetches the URL itself, hardened as follows: http/https only, an ephemeral
 `WKWebsiteDataStore` with no shared cookies, a 15-second timeout, a 10 MB cap, and navigation
 locked to the target URL. Failed extractions keep the capture (title, URL, selection) and are
-retryable.
+retryable. The fetch can be skipped per capture (`cap add --no-fetch`) or turned off entirely
+in the app's settings.
 
 Article extraction uses Mozilla's [Readability.js](https://github.com/mozilla/readability)
 with [SwiftSoup](https://github.com/scinfu/SwiftSoup) as the fallback — see
 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
+
+## Updates
+
+The menu-bar app asks the GitHub Releases API for the latest version at most once a week. The
+request carries nothing beyond the version lookup itself, and the check can be turned off in
+the app's settings. When a newer release exists, an "Update available" menu item copies
+`brew upgrade jamiedavenport/tap/cap` to the clipboard.
+
+The page fetch above and this version check are the only network traffic cap produces.
 
 ## License
 
