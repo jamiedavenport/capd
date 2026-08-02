@@ -42,3 +42,8 @@ jobs:
 
       - name: Test
         run: swift test
+
+      # The perf gate only means something against optimized code; the debug run above
+      # skips it.
+      - name: Performance (release)
+        run: swift test -c release --filter SearchPerformanceTests

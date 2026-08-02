@@ -29,11 +29,21 @@ struct CapApp: App {
             if state.failedEnrichmentCount > 0 {
                 Text("Failed enrichments: \(state.failedEnrichmentCount)")
             }
+            if let version = state.updates.availableVersion {
+                Divider()
+                Button("Update available (\(version)) — copy brew command") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(
+                        UpdateChecker.upgradeCommand, forType: .string)
+                }
+            }
             Divider()
             Button("Search Captures…") {
                 state.showSearch()
             }
             Divider()
+            SettingsLink()
+                .keyboardShortcut(",")
             Button("Quit cap") {
                 NSApplication.shared.terminate(nil)
             }
@@ -42,6 +52,10 @@ struct CapApp: App {
             Image(
                 systemName: state.failedEnrichmentCount > 0 || state.startupFailure != nil
                     ? "bookmark.slash" : "bookmark")
+        }
+
+        Settings {
+            SettingsView(settings: state.settings)
         }
     }
 }
