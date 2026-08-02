@@ -440,6 +440,18 @@ struct SearchServiceTests {
             #expect(typed == structured)
         }
     }
+
+    @Test("A capture is fetchable by id")
+    func captureByID() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(store, [makeCapture(title: "Kept")])
+            let service = SearchService(store: store)
+
+            #expect(try service.capture(id: ids[0])?.title == "Kept")
+            #expect(try service.capture(id: ids[0] + 1) == nil)
+        }
+    }
 }
 
 private func withTemporaryPaths(_ body: (StoragePaths) throws -> Void) throws {

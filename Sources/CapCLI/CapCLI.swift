@@ -1,16 +1,39 @@
 import ArgumentParser
 import CapKit
+import Darwin
+import Foundation
 
 /// The `cap` command-line interface.
-@main
 struct Cap: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "cap",
         abstract: "Capture and recall anything you have seen.",
-        version: CapKit.version
+        version: CapKit.version,
+        subcommands: [Add.self, Search.self, List.self, Rm.self, Export.self, Refetch.self]
     )
 
     func run() throws {
         throw CleanExit.helpRequest(self)
+    }
+}
+
+/// Hand-rolled entry point because ArgumentParser exits with sysexits codes, and the CLI
+/// contract promises 0 ok / 1 no results / 2 bad usage / 3 store unavailable / 4 agent
+/// not running.
+@main
+enum CapMain {
+    static func main() {
+        do {
+            var command = try Cap.parseAsRoot()
+            try command.run()
+        } catch let error as CLIError {
+            error.terminate()
+        } catch {
+            guard Cap.exitCode(for: error) != .success else {
+                Cap.exit(withError: error)
+            }
+            printToStderr(Cap.fullMessage(for: error))
+            Darwin.exit(Cap.exitCode(for: error) == .validationFailure ? 2 : 1)
+        }
     }
 }
