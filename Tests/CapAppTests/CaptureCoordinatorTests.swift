@@ -149,6 +149,20 @@ struct CaptureCoordinatorTests {
         #expect(harness.enriched.count == 1)
         #expect(harness.enriched.first?.url == "https://example.com/a")
     }
+
+    @Test("The fetch opt-out stores the link without queuing enrichment")
+    func fetchOptOutSkipsEnrichment() async throws {
+        let harness = try Harness()
+        harness.fetchBody = false
+        harness.tab = BrowserTab(url: "https://example.com/a", title: nil)
+
+        harness.coordinator.capture()
+        await harness.coordinator.drain()
+
+        #expect(harness.requests.first?.fetchBody == false)
+        #expect(harness.enriched.isEmpty)
+        #expect(harness.presented.first?.style == .captured)
+    }
 }
 
 /// A coordinator wired to stub inputs and a real store in a throwaway directory.
@@ -162,6 +176,7 @@ private final class Harness {
     var enriched: [Capture] = []
     var fallbackCalls = 0
     var fallbackResult: PasteboardFallbackResult = .nothing
+    var fetchBody = true
     var secureInput = false
     var target: FrontmostTarget? = FrontmostTarget(
         bundleID: "com.apple.Safari", name: "Safari", processIdentifier: 1)
@@ -184,6 +199,7 @@ private final class Harness {
                     fallbackCalls += 1
                     return fallbackResult
                 },
+                fetchBody: { [unowned self] in fetchBody },
                 ingest: { [unowned self] request in
                     requests.append(request)
                     return try service.ingest(request)
