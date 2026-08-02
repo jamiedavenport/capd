@@ -50,7 +50,5 @@ let package = Package(
             ]
         ),
     ],
-    // C2: Swift 6 language mode from commit 1. Set at package level so every target
-    // gets it and no future target can silently opt out.
     swiftLanguageModes: [.v6]
 )

@@ -1,9 +1,3 @@
-# Build and test on every PR. Unsigned, no secrets.
-#
-# A5: this workflow must NEVER reference `secrets.*`. Signing and notarization
-# credentials belong only in the tag-triggered release.yml, which never runs on
-# `pull_request`. Keeping them apart means a PR from a fork can never reach them.
-
 name: CI
 
 on:
@@ -20,19 +14,14 @@ concurrency:
 
 jobs:
   build-test:
-    # macOS minutes bill at 10x, so this is one job rather than three.
     runs-on: macos-26
     steps:
-      # persist-credentials: false keeps the job token out of .git/config after
-      # checkout. Nothing here needs authenticated git, and A5 is about this
-      # workflow having no credential surface at all.
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      # Pinned to match local development exactly. swift-format's default rules
-      # drift between toolchain minors, so an unpinned Xcode makes lint pass
-      # locally and fail here. Bump this and the developer toolchain together.
+      # swift-format's default rules drift between toolchain minors, so an
+      # unpinned Xcode lets lint pass locally and fail here.
       - name: Select Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app
 
@@ -45,8 +34,6 @@ jobs:
           key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: spm-${{ runner.os }}-
 
-      # The pre-commit hook formats staged files, but it is opt-in per clone and
-      # --in-place cannot fix lint-only rules. This is the backstop.
       - name: Lint
         run: swift format lint --strict --recursive --parallel Sources Tests Package.swift
 
