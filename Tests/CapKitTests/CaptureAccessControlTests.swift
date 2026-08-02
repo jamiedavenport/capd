@@ -17,6 +17,8 @@ struct CaptureAccessControlTests {
                 let capture = Capture(kind: .text, createdAt: Date())
                 _ = try store.insertCapture(capture)
                 _ = store.dbPool
+                _ = try store.claimForEnrichment(id: 1)
+                _ = try store.completeEnrichment(id: 1, ocrText: nil, state: .ok)
             }
             """)
 
@@ -25,6 +27,8 @@ struct CaptureAccessControlTests {
         #expect(result.diagnostics.contains("inaccessible due to 'internal' protection level"))
         #expect(result.diagnostics.contains("insertCapture"))
         #expect(result.diagnostics.contains("dbPool"))
+        #expect(result.diagnostics.contains("claimForEnrichment"))
+        #expect(result.diagnostics.contains("completeEnrichment"))
         #expect(result.diagnostics.contains("no exact matches in call to initializer"))
     }
 
@@ -38,6 +42,14 @@ struct CaptureAccessControlTests {
             func probe(store: Store) throws -> Capture {
                 let service = CaptureService(store: store)
                 return try service.ingest(CaptureRequest(url: "https://example.com/a"))
+            }
+
+            func enrich(store: Store, capture: Capture) async throws -> Capture? {
+                let step = OCRStep()
+                _ = step.applies(to: capture)
+                _ = try await step.run(capture, context: ProcessingContext(paths: store.paths))
+                let runner = EnrichmentRunner(store: store, steps: [step])
+                return try await runner.process(captureID: 1)
             }
             """)
 
