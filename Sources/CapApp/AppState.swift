@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import CapKit
 import KeyboardShortcuts
 import Observation
@@ -17,6 +18,8 @@ final class AppState {
     @ObservationIgnored private var coordinator: CaptureCoordinator?
     @ObservationIgnored private var hud: HUDPanelController?
     @ObservationIgnored private var search: SearchWindowController?
+    @ObservationIgnored private var onboarding: OnboardingWindowController?
+    @ObservationIgnored private var totalCaptures: (() -> Int)?
     @ObservationIgnored private var badgeTask: Task<Void, Never>?
     @ObservationIgnored private var updateTask: Task<Void, Never>?
 
@@ -31,6 +34,10 @@ final class AppState {
             startupFailure = error.localizedDescription
         }
 
+        if !settings.hasCompletedOnboarding {
+            presentOnboarding()
+        }
+
         // Runs even when the store fails to open: the update signal is the one path
         // that must reach an install broken enough to need it.
         updateTask = Task { [updates] in
@@ -42,6 +49,7 @@ final class AppState {
     }
 
     func showSearch() {
+        onboarding?.noteSearchOpened()
         search?.show()
     }
 
@@ -68,14 +76,17 @@ final class AppState {
                 }),
             present: { hud.show($0) })
 
+        let searchService = SearchService(store: store)
         search = SearchWindowController(
-            environment: .live(searchService: SearchService(store: store), store: store))
+            environment: .live(searchService: searchService, store: store))
+        totalCaptures = { (try? searchService.totalCaptureCount()) ?? 0 }
 
         KeyboardShortcuts.onKeyDown(for: .capture) { [weak self] in
             self?.coordinator?.capture()
         }
 
         KeyboardShortcuts.onKeyDown(for: .search) { [weak self] in
+            self?.onboarding?.noteSearchOpened()
             self?.search?.toggle()
         }
 
@@ -87,6 +98,64 @@ final class AppState {
                 }
             } catch {}
         }
+    }
+
+    private func presentOnboarding() {
+        let controller = OnboardingWindowController(
+            environment: .live(captureCount: { [weak self] in self?.totalCaptures?() ?? 0 }))
+        controller.onFinished = { [weak self] in
+            self?.settings.hasCompletedOnboarding = true
+        }
+        controller.onClosed = { [weak self] in
+            self?.onboarding = nil
+        }
+        onboarding = controller
+        controller.show()
+    }
+}
+
+extension OnboardingEnvironment {
+    static func live(captureCount: @escaping @MainActor () -> Int) -> OnboardingEnvironment {
+        OnboardingEnvironment(
+            shortcut: { KeyboardShortcuts.getShortcut(for: $0) },
+            isShortcutTakenBySystem: { $0.isTakenBySystem },
+            isAXTrusted: { AXIsProcessTrusted() },
+            requestAXTrust: {
+                // kAXTrustedCheckOptionPrompt spelled out: Swift 6 rejects the C global
+                // as shared mutable state.
+                let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+                _ = AXIsProcessTrustedWithOptions(options)
+            },
+            openAXSettings: {
+                openSystemSettings(pane: "Privacy_Accessibility")
+            },
+            openAutomationSettings: {
+                openSystemSettings(pane: "Privacy_Automation")
+            },
+            runningBrowsers: {
+                Browser.allCases.filter { browser in
+                    !NSRunningApplication
+                        .runningApplications(withBundleIdentifier: browser.rawValue).isEmpty
+                }
+            },
+            automationStatus: { AutomationConsent.status(for: $0, askIfNeeded: false) },
+            requestAutomationConsent: { browser in
+                // The consent dialog blocks the calling thread until answered.
+                await Task.detached {
+                    AutomationConsent.status(for: browser, askIfNeeded: true)
+                }.value
+            },
+            captureCount: captureCount,
+            installAgent: { AgentBootstrap.installAgent() },
+            isAgentLoaded: { AgentBootstrap.isAgentLoaded() })
+    }
+
+    private static func openSystemSettings(pane: String) {
+        guard
+            let url = URL(
+                string: "x-apple.systempreferences:com.apple.preference.security?\(pane)")
+        else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 
