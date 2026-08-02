@@ -7,6 +7,15 @@ public enum StoreError: Error, Equatable {
     case databaseIsNewerThanApp
 }
 
+extension StoreError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .databaseIsNewerThanApp:
+            "The capture database was written by a newer version of cap."
+        }
+    }
+}
+
 /// The database every cap process shares.
 ///
 /// The menu-bar app, `cap-agent`, and the `cap` CLI are three unsandboxed processes on one
@@ -40,6 +49,56 @@ public final class Store: Sendable {
             var inserted = capture
             try inserted.insert(db)
             return inserted
+        }
+    }
+
+    /// Removes captures and their content-addressed assets, returning what was deleted.
+    ///
+    /// Asset removal is best-effort: the rows are already gone, and a missing file must not
+    /// resurrect them as an error.
+    public func deleteCaptures(ids: [Int64]) throws -> [Capture] {
+        let deleted = try dbPool.write { db in
+            let doomed = try Capture.filter(ids.contains(Capture.CodingKeys.id)).fetchAll(db)
+            try Capture.filter(ids.contains(Capture.CodingKeys.id)).deleteAll(db)
+            return doomed
+        }
+        for capture in deleted {
+            guard let assetPath = capture.assetPath else { continue }
+            try? FileManager.default.removeItem(at: paths.assetURL(forRelativePath: assetPath))
+        }
+        return deleted
+    }
+
+    /// Puts the given captures back in the enrichment queue, returning how many moved.
+    ///
+    /// Any terminal row moves — requeueing an `ok` capture is a deliberate refresh. A
+    /// `pending` row is already queued, and a `fetching` row belongs to whichever agent is
+    /// mid-flight on it, so neither is touched.
+    public func requeueCaptures(ids: [Int64]) throws -> Int {
+        try requeue(
+            Capture.filter(ids.contains(Capture.CodingKeys.id)),
+            from: [.ok, .thin, .failed])
+    }
+
+    /// Requeues every capture whose enrichment ended badly.
+    public func requeueFailedCaptures() throws -> Int {
+        try requeue(Capture.all(), from: [.thin, .failed])
+    }
+
+    private func requeue(
+        _ scope: QueryInterfaceRequest<Capture>,
+        from states: [EnrichmentState]
+    ) throws -> Int {
+        try dbPool.write { db in
+            try scope
+                .filter(states.map(\.rawValue).contains(Capture.CodingKeys.enrichmentState))
+                .updateAll(
+                    db,
+                    Capture.CodingKeys.enrichmentState.set(to: EnrichmentState.pending),
+                    // Reset, or a capture that already burned its retries would requeue
+                    // straight back to failed.
+                    Capture.CodingKeys.attemptCount.set(to: 0),
+                    Capture.CodingKeys.updatedAt.set(to: Date()))
         }
     }
 

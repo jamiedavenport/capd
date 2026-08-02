@@ -366,6 +366,103 @@ struct StoreTests {
         #expect(explicit.updatedAt == later)
         #expect(explicit.lastSeenAt == later)
     }
+
+    @Test("Deleting captures removes rows, index entries, and assets")
+    func deleteCapturesCleansUp() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+
+            let assetPath = "ab/abcdef.png"
+            let assetURL = paths.assetURL(forRelativePath: assetPath)
+            try FileManager.default.createDirectory(
+                at: assetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data([1, 2, 3]).write(to: assetURL)
+
+            let link = try store.insertCapture(makeCapture(title: "Doomed link"))
+            let image = try store.insertCapture(
+                Capture(kind: .image, assetPath: assetPath, createdAt: Date()))
+            let survivor = try store.insertCapture(makeCapture(title: "Survivor"))
+
+            let deleted = try store.deleteCaptures(ids: [link.id!, image.id!, 999])
+            #expect(Set(deleted.compactMap(\.id)) == Set([link.id!, image.id!]))
+            #expect(!FileManager.default.fileExists(atPath: assetURL.path))
+
+            try store.dbPool.read { db in
+                let remaining = try Capture.fetchAll(db)
+                #expect(remaining.map(\.id) == [survivor.id])
+                let indexed = try Int.fetchOne(
+                    db, sql: "SELECT count(*) FROM \(Schema.capturesFTS)")
+                #expect(indexed == 1)
+            }
+
+            #expect(try store.deleteCaptures(ids: [999]).isEmpty)
+        }
+    }
+
+    @Test("Requeueing ids moves only terminal rows and resets their attempts")
+    func requeueCapturesRespectsStates() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            var byState: [EnrichmentState: Int64] = [:]
+            for state in EnrichmentState.allCases {
+                let inserted = try store.insertCapture(
+                    Capture(
+                        kind: .link,
+                        url: "https://example.com/\(state.rawValue)",
+                        enrichmentState: state,
+                        attemptCount: 3,
+                        createdAt: Date()))
+                byState[state] = inserted.id
+            }
+
+            let moved = try store.requeueCaptures(ids: Array(byState.values))
+            #expect(moved == 3)
+
+            try store.dbPool.read { db in
+                for (was, id) in byState {
+                    let row = try Capture.fetchOne(db, key: id)!
+                    switch was {
+                    case .ok, .thin, .failed:
+                        #expect(row.enrichmentState == .pending)
+                        #expect(row.attemptCount == 0)
+                    case .pending, .fetching:
+                        #expect(row.enrichmentState == was)
+                        #expect(row.attemptCount == 3)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test("Requeueing failures leaves healthy captures alone")
+    func requeueFailedLeavesHealthyRows() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            var byState: [EnrichmentState: Int64] = [:]
+            for state in [EnrichmentState.ok, .thin, .failed, .pending] {
+                let inserted = try store.insertCapture(
+                    Capture(
+                        kind: .link,
+                        url: "https://example.com/\(state.rawValue)",
+                        enrichmentState: state,
+                        createdAt: Date()))
+                byState[state] = inserted.id
+            }
+
+            #expect(try store.requeueFailedCaptures() == 2)
+
+            try store.dbPool.read { db in
+                let ok = try Capture.fetchOne(db, key: byState[.ok])!
+                #expect(ok.enrichmentState == .ok)
+                for state in [EnrichmentState.thin, .failed] {
+                    let row = try Capture.fetchOne(db, key: byState[state])!
+                    #expect(row.enrichmentState == .pending)
+                }
+            }
+
+            #expect(try store.requeueFailedCaptures() == 0)
+        }
+    }
 }
 
 private struct Pair: Hashable {
