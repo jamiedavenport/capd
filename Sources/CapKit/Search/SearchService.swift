@@ -35,6 +35,10 @@ public struct SearchService: Sendable {
         self.parser = parser
     }
 
+    public func capture(id: Int64) throws -> Capture? {
+        try reader.read { db in try Capture.fetchOne(db, key: id) }
+    }
+
     public func search(
         _ rawQuery: String,
         limit: Int = QueryParser.defaultLimit

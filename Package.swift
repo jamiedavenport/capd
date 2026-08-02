@@ -54,7 +54,20 @@ let package = Package(
         ),
         .testTarget(
             name: "CapAppTests",
-            dependencies: ["CapApp"]
+            dependencies: [
+                "CapApp",
+                "CapKit",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
+        ),
+        .testTarget(
+            name: "CapCLITests",
+            dependencies: [
+                "CapCLI",
+                "CapKit",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            resources: [.copy("Fixtures")]
         ),
         .testTarget(
             name: "CapAgentTests",

@@ -13,6 +13,11 @@ public struct StoragePaths: Sendable, Equatable {
 
     public static var live: StoragePaths {
         get throws {
+            // Env rather than a flag so all three processes — app, agent, CLI — can be
+            // pointed at the same alternate root, which is how integration tests isolate.
+            if let override = ProcessInfo.processInfo.environment["CAP_DIR"], !override.isEmpty {
+                return StoragePaths(root: URL(fileURLWithPath: override, isDirectory: true))
+            }
             let support = try FileManager.default.url(
                 for: .applicationSupportDirectory,
                 in: .userDomainMask,
