@@ -118,6 +118,15 @@ struct CaptureServiceTests {
                 hasAsset: false
             ),
             BirthState(
+                request: CaptureRequest(url: "https://example.com/a"),
+                kind: .link,
+                enrichmentState: .pending,
+                url: "https://example.com/a",
+                host: "example.com",
+                selection: nil,
+                hasAsset: false
+            ),
+            BirthState(
                 request: CaptureRequest(text: "A standalone thought", fetchBody: true),
                 kind: .text,
                 enrichmentState: .ok,
