@@ -5,6 +5,18 @@ public enum CaptureError: Error, Equatable, Sendable {
     case emptyRequest
     case invalidURL(String)
     case duplicate(existing: Capture)
+    case secureInputActive
+}
+
+extension CaptureError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .emptyRequest: "Nothing to capture."
+        case .invalidURL(let candidate): "Not a capturable link: \(candidate)"
+        case .duplicate: "Already captured."
+        case .secureInputActive: "Capture blocked — secure input active."
+        }
+    }
 }
 
 /// A veto on a capture, consulted before the request is read or anything is written.
