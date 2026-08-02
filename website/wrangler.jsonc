@@ -1,0 +1,9 @@
+{
+  "name": "cap-docs",
+  "compatibility_date": "2026-08-02",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  },
+  "routes": [{ "pattern": "cap.jxd.dev", "custom_domain": true }]
+}

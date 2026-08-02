@@ -1,0 +1,52 @@
+---
+title: Privacy
+description: Everything stays on your Mac. Exactly two things touch the network, and both can be turned off.
+---
+
+Everything cap stores stays on your Mac: one SQLite database and an assets folder
+under `~/Library/Application Support/cap/`. There is no account, no sync service, no
+analytics, and no telemetry of any kind.
+
+cap produces exactly two kinds of network traffic. Both are disclosed here, and both
+can be turned off.
+
+## 1. The page fetch
+
+When you capture a link, cap stores the readable body of the page so search can match
+its words. If the capture came from a Safari, Chrome, or Arc tab, cap reads the
+rendered page **from that tab** and nothing touches the network. Otherwise — CLI
+captures, scripts, Firefox — cap fetches the URL itself, hardened as follows:
+
+- http and https only
+- an ephemeral browsing context: no shared cookies, nothing persisted
+- navigation locked to the target URL — no redirects to other pages
+- a 15-second timeout and a 10 MB size cap
+
+A failed fetch keeps the capture (title, URL, selection) and is retryable.
+
+**Opting out:** per capture with `cap add --no-fetch`, or globally with the *Fetch
+page content for link captures* toggle in Settings.
+
+## 2. The version check
+
+The menu-bar app asks the GitHub Releases API for the latest version at most once a
+week. The request carries nothing beyond the version lookup itself. When a newer
+release exists, an "Update available" menu item appears — updating itself is always
+manual, via Homebrew.
+
+**Opting out:** the *Check weekly for a new version* toggle in Settings.
+
+## On-device processing
+
+Text recognition in captured images runs entirely on-device using Apple's Vision
+framework. Nothing you capture is sent anywhere for processing.
+
+## Sandboxing
+
+cap runs unsandboxed, with the hardened runtime on release builds. Reading the
+frontmost browser tab through Accessibility and Apple Events is not possible inside
+the App Sandbox — that is also why cap is distributed through Homebrew rather than
+the Mac App Store. Release builds are Developer ID-signed and notarized by Apple.
+
+The source is MIT-licensed and open — audit any of this at
+[github.com/jamiedavenport/cap](https://github.com/jamiedavenport/cap).

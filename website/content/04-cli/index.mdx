@@ -1,0 +1,77 @@
+---
+title: CLI
+description: Capture, search, and export from the terminal with the cap CLI.
+---
+
+The `cap` binary is a first-class way to use cap — everything the hotkey saves can
+also be captured, searched, and exported from a script. Read commands take `--json`,
+whose field set is a stable interface; the exact contract lives in the
+[CLI reference](/cli/reference).
+
+## Capturing
+
+```sh
+cap add https://example.com/article      # capture a link; the page fetch is queued
+cap add https://example.com --no-fetch   # capture the link only, skip the fetch
+cap add "remember this" --note "why"     # capture text, with a note
+cap add https://example.com --title "…"  # supply the title yourself
+pbpaste | cap add -                      # capture stdin
+cap add https://example.com --wait       # block until enrichment finishes
+```
+
+`cap add -` reads stdin: when every non-empty line is a URL, each line becomes its
+own capture; otherwise the whole input is one text capture. When some lines of a bulk
+add fail, the successes print on stdout, the failures go to stderr, and the exit code
+is 2.
+
+`--wait` gives up after 60 seconds by default; tune it with `--timeout <seconds>`.
+Captures made with `cap add` are deduplicated exactly like hotkey captures — adding a
+URL you already have reports the existing capture instead.
+
+## Searching and listing
+
+```sh
+cap search swift concurrency --site swift.org --since 2026-01-01
+cap search 'error handling until:2026-06-30'   # inline filters work too
+cap list --limit 20
+```
+
+`search` and `list` take `--limit` (default 50) and `--format plain|tsv|json`.
+The [filter syntax](/search#filter-syntax) is the same as the search window's.
+
+## Managing captures
+
+```sh
+cap rm 12 14          # delete by id (ids are shown by list and search)
+cap refetch           # requeue all failed or thin page fetches
+cap refetch 12        # requeue specific captures, whatever their state
+```
+
+## Exporting
+
+```sh
+cap export                      # JSON: every stored field, the lossless backup format
+cap export --format markdown    # a link list with notes and selections quoted
+```
+
+## Health
+
+```sh
+cap status    # queue depth and ETA, capture counts, database size, agent state
+cap doctor    # integrity check, index rebuild, orphan sweep, agent verify + repair
+```
+
+`cap status` exits 4 when no agent is running — useful in scripts. `cap doctor`
+repairs what it can (rebuilding the search index, reinstalling the launchd agent) and
+exits 1 if a problem remains. `cap doctor --uninstall-agent` removes the background
+agent; `--skip-agent` checks only the store.
+
+## Conventions
+
+- Data goes to stdout, diagnostics to stderr.
+- Exit codes: 0 success, 1 no results, 2 bad usage, 3 store unavailable, 4 agent not
+  running.
+- `CAP_DIR` overrides the storage root for the CLI, app, and agent alike.
+- `--json` output is stable; plain output is for people and may change.
+
+See the [CLI reference](/cli/reference) for the precise guarantees.

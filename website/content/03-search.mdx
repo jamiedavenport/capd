@@ -1,0 +1,56 @@
+---
+title: Search
+description: The search window, keyboard shortcuts, and the site/date filter syntax.
+---
+
+Press **⌥⇧Space** to open the search window — a Spotlight-style panel that searches
+as you type. Press it again (or Esc) to dismiss.
+
+Search is full-text over everything cap stores: titles, hosts, notes, selections,
+extracted page bodies, and text recognized inside images. Matches on the title and
+host rank highest, then notes and selections, then body text. While you're typing,
+the last word matches as a prefix — `concur` finds *concurrency*. Queries that don't
+match the full-text index also try a URL substring match, so pasting a fragment of a
+URL works.
+
+## Keyboard
+
+| Key | Action |
+|---|---|
+| ↑ / ↓ | Move the selection |
+| ↩ | Open — links in the browser, images in the viewer; text is copied |
+| ⌘↩ | Copy the URL (or the text) |
+| ⌘⌫ | Delete the capture |
+| Esc | Dismiss |
+
+## Filter syntax
+
+Filters can be typed straight into the query, in the window or the CLI:
+
+```
+swift concurrency site:swift.org after:2026-01-01
+```
+
+| Filter | Meaning |
+|---|---|
+| `site:swift.org` | Only captures from that host, subdomains included |
+| `since:2026-01-01` / `after:2026-01-01` | Captured on or after that day |
+| `until:2026-06-30` | Captured up to and including that day |
+| `before:2026-06-30` | Captured before that day |
+
+Dates are `YYYY-MM-DD`. A token that doesn't parse as a filter is searched as
+ordinary text. Malformed queries never error — stray quotes, `AND`, `*`, and emoji
+just search literally.
+
+## From the terminal
+
+`cap search` takes the same query syntax, plus explicit flags that win over inline
+tokens:
+
+```sh
+cap search swift concurrency --site swift.org --since 2026-01-01 --until 2026-06-30
+cap search rust --limit 10 --json
+```
+
+Results come back as plain text, `--format tsv`, or `--json` — see the
+[CLI reference](/cli/reference) for the exact field set.

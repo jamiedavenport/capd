@@ -1,0 +1,89 @@
+---
+title: Install
+description: Homebrew or direct download, first-run setup, permissions, updating, and uninstalling.
+---
+
+cap requires **macOS 26 or later**. It runs on both Apple silicon and Intel Macs — the
+released binary is universal.
+
+## Homebrew
+
+```sh
+brew install jamiedavenport/tap/cap
+```
+
+The cask installs `cap.app` into `/Applications` and symlinks the `cap` CLI from
+inside the bundle onto your `PATH`.
+
+## Direct download
+
+Download the notarized `.dmg` from
+[GitHub releases](https://github.com/jamiedavenport/cap/releases) and drag `cap.app`
+to Applications. The CLI then lives at `/Applications/cap.app/Contents/MacOS/cap`;
+add it to your `PATH` or alias it yourself.
+
+## Build from source
+
+Requires macOS 26 and Xcode 26.3.
+
+```sh
+git clone https://github.com/jamiedavenport/cap
+cd cap
+./Scripts/bootstrap.sh
+swift build
+```
+
+`Scripts/package-app.sh` produces a complete `cap.app` and `.dmg` locally with an
+ad-hoc signature.
+
+## First run
+
+Launching cap for the first time opens a short onboarding window:
+
+1. **Hotkeys.** Shows the two defaults — ⌃⌥C to capture, ⌥⇧Space to search — and lets
+   you rebind either. It warns if a chosen combination collides with a macOS system
+   shortcut.
+2. **Accessibility access.** cap reads the text you have selected through the
+   Accessibility API, and uses the same API to refuse capture inside password fields.
+   Granting is optional: if you decline, capture falls back to the clipboard only.
+3. **Browser access.** For each supported browser you have running, macOS asks once
+   for permission to read the front tab's address. Onboarding triggers these prompts
+   up front so they don't interrupt your first real capture.
+4. **Try it.** A guided first capture and first search.
+
+cap also installs its background enrichment agent during first launch — see below.
+You can re-check every permission later with `cap doctor`.
+
+## The background agent
+
+`cap-agent` runs as a launchd LaunchAgent labelled `dev.jxd.cap.agent`
+(`~/Library/LaunchAgents/dev.jxd.cap.agent.plist`). launchd starts it at login and
+restarts it if it stops. It processes the enrichment queue — page fetches and image
+OCR — so captures made from the CLI or scripts get enriched even when the app is
+closed.
+
+Check on it with `cap status`; repair or reinstall it with `cap doctor`. Remove it
+with `cap doctor --uninstall-agent`.
+
+## Updating
+
+The app checks GitHub Releases for a newer version at most once a week (you can turn
+this off in Settings). When one exists, an **Update available** item appears in the
+menu; clicking it copies the upgrade command:
+
+```sh
+brew upgrade jamiedavenport/tap/cap
+```
+
+## Uninstalling
+
+With Homebrew:
+
+```sh
+brew uninstall cap          # quits the app, removes the agent and the bundle
+brew uninstall --zap cap    # also deletes your captures and the launchd plist
+```
+
+Installed from the `.dmg`? Run `cap doctor --uninstall-agent`, quit cap from the menu
+bar, then delete `/Applications/cap.app`. Your data stays in
+`~/Library/Application Support/cap/` until you delete that folder too.

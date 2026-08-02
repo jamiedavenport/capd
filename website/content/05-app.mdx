@@ -1,0 +1,69 @@
+---
+title: Menu bar & settings
+description: The menu-bar icon, settings, where your data lives, and diagnostics.
+---
+
+cap lives in the menu bar — there is no Dock icon or main window.
+
+## The menu
+
+- **Search Captures…** — opens the search window (same as ⌥⇧Space)
+- **Update available** — appears when a newer release exists; copies the
+  `brew upgrade` command
+- **Failed enrichments: N** — appears when page fetches have failed; run
+  `cap refetch` or re-capture the page to retry
+- **Settings…** (⌘,) and **Quit cap** (⌘Q)
+
+The bookmark icon switches to a slashed variant when something needs attention:
+failed enrichments, a startup problem, or lost Accessibility access — in that last
+case a menu item deep-links to the right pane of System Settings.
+
+## Settings
+
+- **Hotkeys** — rebind capture (⌃⌥C) and search (⌥⇧Space)
+- **Fetch page content for link captures** — turn off cap's network fetch entirely;
+  bodies then come only from browser tabs
+- **Check weekly for a new version** — turn off the update check
+
+That's the whole settings surface. There is no configuration file; the only
+environment variable is `CAP_DIR`, which moves the storage root (default
+`~/Library/Application Support/cap/`) for the app, agent, and CLI together.
+
+## Where your data lives
+
+| Path | Contents |
+|---|---|
+| `cap.sqlite` | every capture, plus the full-text index |
+| `assets/` | captured images, content-addressed by hash |
+| `agent.lock` | lock file proving a live agent |
+
+All inside the storage root. Backing up that folder — or `cap export`, whose JSON
+carries every stored field — is a complete backup.
+
+## Permissions
+
+cap asks for two permissions, both optional:
+
+- **Accessibility** — reading your selected text, and detecting password fields so
+  capture can refuse them. Without it, capture uses the clipboard fallback only.
+- **Automation (Apple Events)** — asking Safari, Chrome, or Arc for the front tab's
+  URL and title. macOS prompts once per browser.
+
+macOS silently revokes Accessibility when an app's code signature changes, which can
+happen across updates. cap detects this and prompts to re-grant; the menu-bar icon
+degrades until access is restored.
+
+## Diagnostics
+
+`cap status` reports queue depth and ETA, capture counts by state, database size, and
+agent health. `cap doctor` checks database integrity, rebuilds the search index,
+sweeps orphaned image files, verifies (and reinstalls) the launchd agent, and reports
+Accessibility state.
+
+For a live view of what cap is doing:
+
+```sh
+log stream --predicate 'subsystem == "dev.jxd.cap"'
+```
+
+Log categories are `capture`, `pipeline`, `store`, and `agent`.
