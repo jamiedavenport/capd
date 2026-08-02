@@ -23,7 +23,7 @@ enum Migrations {
             t.column(Capture.CodingKeys.body.rawValue, .text)
             t.column(Capture.CodingKeys.ocrText.rawValue, .text)
             t.column(Capture.CodingKeys.assetPath.rawValue, .text)
-            t.column(Capture.CodingKeys.sourceApp.rawValue, .text)
+            t.column(Capture.CodingKeys.sourceAppBundleID.rawValue, .text)
 
             t.column(Capture.CodingKeys.enrichmentState.rawValue, .text).notNull()
                 .defaults(to: EnrichmentState.pending.rawValue)
@@ -33,8 +33,7 @@ enum Migrations {
                 .defaults(to: BodyStatus.none.rawValue)
                 .check { BodyStatus.allCases.map(\.rawValue).contains($0) }
 
-            // Nullable, and that is intentional: SQLite passes a CHECK whose expression is
-            // NULL, so this constrains the vocabulary without requiring a source.
+            // Nullable on purpose: SQLite passes a CHECK whose expression is NULL.
             t.column(Capture.CodingKeys.bodySource.rawValue, .text)
                 .check { BodySource.allCases.map(\.rawValue).contains($0) }
 
@@ -59,9 +58,8 @@ enum Migrations {
             }
         }
 
-        // A capture may legitimately have no hash — a text or image capture whose content was
-        // never hashed — and SQLite treats every NULL as distinct, so the partial index keeps
-        // those out rather than letting the first one claim the slot.
+        // Partial because SQLite treats every NULL as distinct, and captures with no hash
+        // are legitimate.
         try db.create(
             index: "captures_on_content_hash",
             on: Schema.captures,
@@ -91,8 +89,8 @@ enum Migrations {
             columns: [Capture.CodingKeys.host.rawValue]
         )
 
-        // Substring search can't seek in an index, but it can scan one. These keep the fallback
-        // off the table itself, where every row drags a full page body along with it.
+        // Substring search can't seek an index but can scan one, which keeps the fallback off
+        // the table, where every row drags a full page body along with it.
         try db.create(
             index: "captures_on_url",
             on: Schema.captures,

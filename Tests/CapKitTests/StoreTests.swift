@@ -145,8 +145,7 @@ struct StoreTests {
         }
     }
 
-    /// The first two cases are what `remove_diacritics=2` buys over SQLite's legacy default,
-    /// which only folds the Latin-1 range: a macron and a caron both sit in Latin Extended-A.
+    /// The macron and caron cases are what `remove_diacritics=2` buys over the legacy default.
     @Test(
         "Accents fold away beyond the Latin-1 range",
         arguments: [
@@ -168,8 +167,7 @@ struct StoreTests {
         }
     }
 
-    /// Stroked and ligatured letters are not diacritics, and no `remove_diacritics` mode
-    /// folds them. Pinned so the limitation is a known boundary rather than a surprise.
+    /// Stroked letters are not diacritics, so no mode folds them. Pinned as a known boundary.
     @Test("Stroked letters are not folded", arguments: [("Łódź city guide", "lodz")])
     func strokedLettersAreNotFolded(title: String, query: String) throws {
         try withTemporaryPaths { paths in
@@ -305,7 +303,7 @@ struct StoreTests {
                 body: "The extracted body",
                 ocrText: "Text lifted off the pixels",
                 assetPath: "ab/cd.png",
-                sourceApp: "com.apple.Safari",
+                sourceAppBundleID: "com.apple.Safari",
                 enrichmentState: .thin,
                 bodyStatus: .thin,
                 bodySource: .tab,
@@ -335,10 +333,8 @@ struct StoreTests {
         }
     }
 
-    /// Migration 001 bakes these vocabularies into CHECK constraints and FTS columns, so
-    /// widening an enum or the ranking list only takes effect on databases created afterwards.
-    /// Existing installs would reject the new value at runtime. Pinning them here means adding
-    /// a case fails this test rather than shipping — write the migration, then update this list.
+    /// Migration 001 freezes these into CHECK constraints and FTS columns, so widening one
+    /// only reaches databases created afterwards. Adding a case must fail here, not at runtime.
     @Test("The persisted vocabularies match what migration 001 froze")
     func persistedVocabulariesArePinned() {
         #expect(CaptureKind.allCases.map(\.rawValue) == ["link", "text", "image"])
