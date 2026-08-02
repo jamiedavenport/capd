@@ -108,6 +108,45 @@ struct EnrichmentServiceTests {
         }
     }
 
+    @Test("A fetched title fills a capture that has none")
+    func completeFillsMissingTitle() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try pendingLink(in: store)
+            _ = try store.claimForEnrichment(id: id)
+
+            let extraction = BodyExtractionResult(
+                body: "An essay about ptarmigans", status: .ok, source: .fetch,
+                title: "Ptarmigans")
+            let completed = try store.completeEnrichment(
+                id: id,
+                result: StepResult(bodyExtraction: extraction),
+                state: extraction.enrichmentState)
+
+            #expect(completed.title == "Ptarmigans")
+        }
+    }
+
+    @Test("A fetched title never overwrites one from capture time")
+    func completeKeepsCaptureTimeTitle() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let outcome = try CaptureService(store: store).ingest(
+                CaptureRequest(url: "https://example.com/a", title: "From the tab"))
+            let id = try #require(outcome.capture.id)
+            _ = try store.claimForEnrichment(id: id)
+
+            let extraction = BodyExtractionResult(
+                body: "An essay", status: .ok, source: .fetch, title: "From the page")
+            let completed = try store.completeEnrichment(
+                id: id,
+                result: StepResult(bodyExtraction: extraction),
+                state: extraction.enrichmentState)
+
+            #expect(completed.title == "From the tab")
+        }
+    }
+
     @Test("A failed extraction records the failure and loses nothing")
     func completeFailedKeepsTheCapture() throws {
         try withTemporaryPaths { paths in

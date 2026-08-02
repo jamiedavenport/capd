@@ -70,6 +70,11 @@ extension Store {
                 updated.body = extraction.body
                 updated.bodyStatus = extraction.status
                 updated.bodySource = extraction.source
+                // Fills a hole, never overwrites: a title from capture time or the user
+                // beats one scraped out of the page.
+                if updated.title == nil {
+                    updated.title = extraction.title
+                }
             }
             updated.enrichmentState = state
             updated.updatedAt = now

@@ -37,9 +37,11 @@ struct BrowserTabReaderTests {
                 """)
     }
 
-    @Test("Firefox has no tab script")
-    func firefoxHasNoScript() {
-        #expect(BrowserTabReader.script(for: .firefox) == nil)
+    @Test(
+        "Gecko browsers have no tab script",
+        arguments: [Browser.firefox, .zen, .librewolf, .waterfox])
+    func geckoHasNoScript(browser: Browser) {
+        #expect(BrowserTabReader.script(for: browser) == nil)
     }
 
     @Test("The first line is the URL and the rest is the title")

@@ -228,7 +228,11 @@ extension CaptureEnvironment {
             selectedText: {
                 SelectionReader().selectedText(inAppWithProcessIdentifier: $0.processIdentifier)
             },
-            browserTab: { BrowserTabReader.read($0) },
+            browserTab: { browser, target in
+                browser.isGecko
+                    ? await GeckoTabReader.read(processIdentifier: target.processIdentifier)
+                    : BrowserTabReader.read(browser)
+            },
             pasteboardFallback: { await PasteboardFallback().copySelection() },
             fetchBody: fetchBody,
             ingest: ingest,
