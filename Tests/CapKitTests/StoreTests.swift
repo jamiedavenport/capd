@@ -145,6 +145,44 @@ struct StoreTests {
         }
     }
 
+    /// The first two cases are what `remove_diacritics=2` buys over SQLite's legacy default,
+    /// which only folds the Latin-1 range: a macron and a caron both sit in Latin Extended-A.
+    @Test(
+        "Accents fold away beyond the Latin-1 range",
+        arguments: [
+            ("Te reo Māori", "maori"),
+            ("Karel Čapek bibliography", "capek"),
+            ("Der Wärmepumpe Bericht", "warmepumpe"),
+            ("Un café à Paris", "cafe"),
+        ])
+    func diacriticsAreFolded(title: String, query: String) throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try store.dbPool.write { db -> Int64 in
+                var capture = makeCapture(title: title)
+                try capture.insert(db)
+                return capture.id!
+            }
+
+            #expect(try matchingRowIDs(store, query) == [id])
+        }
+    }
+
+    /// Stroked and ligatured letters are not diacritics, and no `remove_diacritics` mode
+    /// folds them. Pinned so the limitation is a known boundary rather than a surprise.
+    @Test("Stroked letters are not folded", arguments: [("Łódź city guide", "lodz")])
+    func strokedLettersAreNotFolded(title: String, query: String) throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            try store.dbPool.write { db in
+                var capture = makeCapture(title: title)
+                try capture.insert(db)
+            }
+
+            #expect(try matchingRowIDs(store, query).isEmpty)
+        }
+    }
+
     @Test("bm25 weights rank a title match above a body match")
     func titleOutranksBody() throws {
         try withTemporaryPaths { paths in

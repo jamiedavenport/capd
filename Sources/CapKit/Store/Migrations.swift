@@ -50,7 +50,10 @@ enum Migrations {
 
         try db.create(virtualTable: Schema.capturesFTS, using: FTS5()) { t in
             t.synchronize(withTable: Schema.captures)
-            t.tokenizer = .porter(wrapping: .unicode61())
+            // remove_diacritics=2 rather than SQLite's legacy default, which only folds
+            // accents across part of the Latin range. The mode is compiled into the table,
+            // so getting it wrong costs a full re-index of every capture.
+            t.tokenizer = .porter(wrapping: .unicode61(diacritics: .remove))
             for entry in Schema.ranking {
                 t.column(entry.column)
             }
