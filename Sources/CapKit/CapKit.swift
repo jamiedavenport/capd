@@ -1,6 +1,5 @@
 import Foundation
 import GRDB
-import SwiftSoup
 
 /// Namespace for CapKit-wide constants.
 public enum CapKit {

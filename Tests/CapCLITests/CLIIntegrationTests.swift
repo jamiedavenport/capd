@@ -187,7 +187,8 @@ struct CLIIntegrationTests {
 
             let store = try Store(paths: StoragePaths(root: root))
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(url: "https://example.com/broken"))
+                CaptureRequest(url: "https://example.com/broken")
+            ).capture
             try store.dbPool.write { db in
                 try Capture
                     .filter(Capture.CodingKeys.id == capture.id)

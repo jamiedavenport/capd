@@ -378,10 +378,11 @@ struct StoreTests {
                 at: assetURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data([1, 2, 3]).write(to: assetURL)
 
-            let link = try store.insertCapture(makeCapture(title: "Doomed link"))
-            let image = try store.insertCapture(
-                Capture(kind: .image, assetPath: assetPath, createdAt: Date()))
-            let survivor = try store.insertCapture(makeCapture(title: "Survivor"))
+            let link = try store.upsertCapture(makeCapture(title: "Doomed link")).capture
+            let image = try store.upsertCapture(
+                Capture(kind: .image, assetPath: assetPath, createdAt: Date())
+            ).capture
+            let survivor = try store.upsertCapture(makeCapture(title: "Survivor")).capture
 
             let deleted = try store.deleteCaptures(ids: [link.id!, image.id!, 999])
             #expect(Set(deleted.compactMap(\.id)) == Set([link.id!, image.id!]))
@@ -405,14 +406,14 @@ struct StoreTests {
             let store = try Store(paths: paths)
             var byState: [EnrichmentState: Int64] = [:]
             for state in EnrichmentState.allCases {
-                let inserted = try store.insertCapture(
+                let inserted = try store.upsertCapture(
                     Capture(
                         kind: .link,
                         url: "https://example.com/\(state.rawValue)",
                         enrichmentState: state,
                         attemptCount: 3,
                         createdAt: Date()))
-                byState[state] = inserted.id
+                byState[state] = inserted.capture.id
             }
 
             let moved = try store.requeueCaptures(ids: Array(byState.values))
@@ -440,13 +441,13 @@ struct StoreTests {
             let store = try Store(paths: paths)
             var byState: [EnrichmentState: Int64] = [:]
             for state in [EnrichmentState.ok, .thin, .failed, .pending] {
-                let inserted = try store.insertCapture(
+                let inserted = try store.upsertCapture(
                     Capture(
                         kind: .link,
                         url: "https://example.com/\(state.rawValue)",
                         enrichmentState: state,
                         createdAt: Date()))
-                byState[state] = inserted.id
+                byState[state] = inserted.capture.id
             }
 
             #expect(try store.requeueFailedCaptures() == 2)

@@ -45,14 +45,17 @@ struct Add: ParsableCommand {
         let requests = try makeRequests()
         let bulk = requests.count > 1
 
-        var results: [(capture: Capture, isNew: Bool)] = []
+        var results: [(capture: Capture, previousSeenAt: Date?)] = []
         var failed = false
 
         for request in requests {
             do {
-                results.append((try captures.ingest(request), true))
-            } catch CaptureError.duplicate(let existing) {
-                results.append((existing, false))
+                switch try captures.ingest(request) {
+                case .captured(let capture):
+                    results.append((capture, nil))
+                case .alreadyCaptured(let capture, let previousSeenAt):
+                    results.append((capture, previousSeenAt))
+                }
             } catch {
                 guard bulk else { throw CLIError.badUsage(describe(error)) }
                 failed = true
@@ -65,19 +68,19 @@ struct Add: ParsableCommand {
             results = try results.map { result in
                 guard let id = result.capture.id, let current = try search.capture(id: id)
                 else { return result }
-                return (current, result.isNew)
+                return (current, result.previousSeenAt)
             }
         }
 
         if json {
             print(try jsonString(results.map(\.capture)))
         } else {
-            for (capture, isNew) in results {
-                if isNew {
-                    print("Captured #\(capture.id ?? 0): \(headline(capture))")
-                } else {
-                    let seen = day(capture.createdAt)
+            for (capture, previousSeenAt) in results {
+                if let previousSeenAt {
+                    let seen = day(previousSeenAt)
                     print("Already captured #\(capture.id ?? 0) (\(seen)): \(headline(capture))")
+                } else {
+                    print("Captured #\(capture.id ?? 0): \(headline(capture))")
                 }
             }
         }

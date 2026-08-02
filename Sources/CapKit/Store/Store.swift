@@ -16,6 +16,11 @@ extension StoreError: LocalizedError {
     }
 }
 
+enum EnrichmentError: Error, Equatable {
+    case captureNotFound(Int64)
+    case illegalTransition(from: EnrichmentState, to: EnrichmentState)
+}
+
 /// The database every cap process shares.
 ///
 /// The menu-bar app, `cap-agent`, and the `cap` CLI are three unsandboxed processes on one
@@ -36,19 +41,88 @@ public final class Store: Sendable {
     }
 
     /// The hash check shares the write transaction rather than relying on the unique index,
-    /// because the losing writer needs the row it collided with, not a constraint error.
-    func insertCapture(_ capture: Capture) throws -> Capture {
+    /// so the choice between inserting and merging is atomic across the three processes.
+    func upsertCapture(_ capture: Capture) throws -> CaptureOutcome {
         try dbPool.write { db in
-            if let hash = capture.contentHash {
-                let collision = Capture.filter(Capture.CodingKeys.contentHash == hash)
-                if let existing = try collision.fetchOne(db) {
-                    throw CaptureError.duplicate(existing: existing)
+            if let hash = capture.contentHash,
+                var existing = try Capture.filter(Capture.CodingKeys.contentHash == hash)
+                    .fetchOne(db)
+            {
+                let previousSeenAt = existing.lastSeenAt
+                existing.seenCount += 1
+                existing.lastSeenAt = capture.createdAt
+                existing.updatedAt = capture.createdAt
+                existing.title = existing.title ?? capture.title
+                existing.note = existing.note ?? capture.note
+                existing.selection = existing.selection ?? capture.selection
+
+                // An incoming `.pending` means this request wants enrichment; a broken row is
+                // repaired by re-queueing it, but a healthy one is left alone.
+                if capture.enrichmentState == .pending,
+                    existing.enrichmentState == .failed || existing.enrichmentState == .thin
+                {
+                    existing.enrichmentState = .pending
+                    existing.attemptCount = 0
+                    existing.lastAttemptAt = nil
                 }
+
+                try existing.update(db)
+                return .alreadyCaptured(existing, previousSeenAt: previousSeenAt)
             }
 
             var inserted = capture
             try inserted.insert(db)
-            return inserted
+            return .captured(inserted)
+        }
+    }
+
+    /// The `WHERE` guard is the claim: of the processes sharing this file, only the one
+    /// that flips `pending` to `fetching` may enrich the row.
+    func claimForEnrichment(id: Int64, now: Date = Date()) throws -> Capture? {
+        try dbPool.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE \(Schema.captures)
+                    SET enrichment_state = :fetching,
+                        attempt_count = attempt_count + 1,
+                        last_attempt_at = :now,
+                        updated_at = :now
+                    WHERE id = :id AND enrichment_state = :pending
+                    """,
+                arguments: [
+                    "fetching": EnrichmentState.fetching.rawValue,
+                    "pending": EnrichmentState.pending.rawValue,
+                    "now": now,
+                    "id": id,
+                ])
+            guard db.changesCount == 1 else { return nil }
+            return try Capture.fetchOne(db, key: id)
+        }
+    }
+
+    /// A nil `ocrText` leaves the column alone; an empty string is a real result.
+    func completeEnrichment(
+        id: Int64,
+        ocrText: String?,
+        state: EnrichmentState,
+        now: Date = Date()
+    ) throws -> Capture {
+        try dbPool.write { db in
+            guard let current = try Capture.fetchOne(db, key: id) else {
+                throw EnrichmentError.captureNotFound(id)
+            }
+            guard current.enrichmentState.canTransition(to: state) else {
+                throw EnrichmentError.illegalTransition(from: current.enrichmentState, to: state)
+            }
+
+            var updated = current
+            if let ocrText {
+                updated.ocrText = ocrText
+            }
+            updated.enrichmentState = state
+            updated.updatedAt = now
+            try updated.updateChanges(db, from: current)
+            return updated
         }
     }
 
