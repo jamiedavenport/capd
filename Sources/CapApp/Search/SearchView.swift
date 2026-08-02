@@ -22,6 +22,15 @@ struct SearchView: View {
         .frame(width: 640, height: 470)
         .background(.regularMaterial, in: PanelStyle.shape)
         .contentShape(PanelStyle.shape)
+        .background {
+            // ⌘⌫ must be a key equivalent: the field editor consumes it as
+            // deleteToBeginningOfLine: during keyDown, before onKeyPress sees it.
+            Button(action: model.deleteSelected) { EmptyView() }
+                .keyboardShortcut(.delete, modifiers: .command)
+                .buttonStyle(.plain)
+                .opacity(0)
+                .accessibilityHidden(true)
+        }
     }
 
     private var searchBar: some View {
@@ -51,9 +60,6 @@ struct SearchView: View {
             return .handled
         case .return where press.modifiers.contains(.command):
             model.copySelected()
-            return .handled
-        case .delete where press.modifiers.contains(.command):
-            model.deleteSelected()
             return .handled
         default:
             return .ignored
