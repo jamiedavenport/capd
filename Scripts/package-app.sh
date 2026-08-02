@@ -69,4 +69,8 @@ for attempt in 1 2 3; do
 done
 rm -rf "$STAGING"
 
+# Gatekeeper's dmg assessment (spctl -t open) requires a signature on the
+# image itself; notarizing and stapling it is not enough.
+codesign --force "$TIMESTAMP" --sign "$IDENTITY" "dist/cap-$VERSION.dmg"
+
 echo "packaged dist/cap-$VERSION.dmg"
