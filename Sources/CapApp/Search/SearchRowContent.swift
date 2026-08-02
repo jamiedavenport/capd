@@ -3,7 +3,7 @@ import Foundation
 
 /// One result row, flattened out of a hit so the view has nothing left to compute.
 struct SearchRowContent: Equatable {
-    var badge: String
+    var kind: CaptureKind
     var title: String
     var subtitle: String?
     var snippet: AttributedString?
@@ -13,19 +13,11 @@ struct SearchRowContent: Equatable {
 extension SearchRowContent {
     init(_ hit: SearchHit, now: Date) {
         let capture = hit.capture
-        badge = Self.badge(for: capture.kind)
+        kind = capture.kind
         title = Self.title(for: capture)
         subtitle = Self.subtitle(for: capture)
         snippet = hit.snippet.map(Self.attributed) ?? Self.preview(of: capture)
         age = Self.compactAge(from: capture.createdAt, to: now)
-    }
-
-    static func badge(for kind: CaptureKind) -> String {
-        switch kind {
-        case .link: "LINK"
-        case .text: "TEXT"
-        case .image: "IMG"
-        }
     }
 
     static func title(for capture: Capture) -> String {

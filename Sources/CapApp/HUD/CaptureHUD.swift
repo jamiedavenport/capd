@@ -26,7 +26,7 @@ struct CaptureHUDView: View {
     static let margin: CGFloat = 8
 
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
+        PanelStyle.shape
     }
 
     var body: some View {
@@ -38,24 +38,22 @@ struct CaptureHUDView: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Image(systemName: symbol)
-                    .foregroundStyle(symbolColor)
-                    .symbolEffect(.bounce, value: model.revision)
+            HStack(alignment: .top, spacing: 10) {
+                IconTile(symbol: symbol, tint: symbolTint, bounce: model.revision)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(headline)
-                        .font(.headline)
+                        .font(.system(size: 13, weight: .medium))
                         .contentTransition(.opacity)
                     if let detail = model.content?.detail {
                         Text(detail)
-                            .font(.caption)
+                            .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                             .contentTransition(.opacity)
                     }
                     if model.content?.canAnnotate == true, !model.isAnnotating {
                         Text("Click to add a note")
-                            .font(.caption2)
+                            .font(.system(size: 11))
                             .foregroundStyle(model.isHovering ? .secondary : .tertiary)
                     }
                 }
@@ -117,17 +115,17 @@ struct CaptureHUDView: View {
 
     private var symbol: String {
         switch model.content?.style {
-        case .captured, .none: "checkmark.circle.fill"
+        case .captured, .none: "checkmark"
         case .duplicate: "clock.arrow.circlepath"
         case .blocked: "lock.fill"
-        case .failed: "exclamationmark.circle.fill"
+        case .failed: "exclamationmark.triangle.fill"
         }
     }
 
-    private var symbolColor: Color {
+    private var symbolTint: Color {
         switch model.content?.style {
         case .captured, .none: .green
-        case .duplicate: .secondary
+        case .duplicate: .gray
         case .blocked, .failed: .orange
         }
     }
