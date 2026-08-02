@@ -58,15 +58,11 @@ struct CaptureAccessControlTests {
                 let step = OCRStep()
                 _ = step.applies(to: capture)
                 _ = try await step.run(capture, context: ProcessingContext(paths: store.paths))
-                let runner = EnrichmentRunner(store: store, steps: [step])
-                return try await runner.process(captureID: 1)
-            }
-
-            func enrichBody(store: Store) throws -> Capture {
-                let service = EnrichmentService(store: store)
-                _ = try service.claim(1)
-                return try service.complete(
-                    1, with: BodyExtractionResult(body: "words", status: .ok, source: .tab))
+                let service = EnrichmentService(store: store, steps: [step])
+                _ = try service.reclaimStale()
+                _ = try service.pendingCount()
+                _ = try await service.processNext()
+                return try await service.process(captureID: 1)
             }
             """)
 

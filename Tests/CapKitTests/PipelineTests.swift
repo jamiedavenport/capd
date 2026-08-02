@@ -71,8 +71,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            let processed = try #require(try await runner.process(captureID: id))
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
+            let processed = try #require(try await service.process(captureID: id))
 
             #expect(processed.enrichmentState == .ok)
             #expect(processed.attemptCount == 1)
@@ -96,8 +96,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            let processed = try #require(try await runner.process(captureID: id))
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
+            let processed = try #require(try await service.process(captureID: id))
 
             #expect(processed.enrichmentState == .ok)
             #expect(processed.ocrText == "")
@@ -114,9 +114,9 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
             await #expect(throws: (any Error).self) {
-                try await runner.process(captureID: id)
+                try await service.process(captureID: id)
             }
 
             let stored = try storedCapture(store, id: id)
@@ -151,8 +151,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            #expect(try await runner.process(captureID: id) == nil)
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
+            #expect(try await service.process(captureID: id) == nil)
 
             let stored = try storedCapture(store, id: id)
             #expect(stored.enrichmentState == .ok)
@@ -196,7 +196,7 @@ struct PipelineTests {
             let step = StubBodyStep(
                 result: BodyExtractionResult(body: body, status: status, source: .fetch))
             let processed = try #require(
-                try await EnrichmentRunner(store: store, steps: [step]).process(captureID: id))
+                try await EnrichmentService(store: store, steps: [step]).process(captureID: id))
 
             #expect(processed.enrichmentState == expected)
             #expect(processed.body == body)
@@ -215,10 +215,10 @@ struct PipelineTests {
             let second = try #require(
                 try service.ingest(CaptureRequest(url: "https://example.com/b")).capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [])
-            #expect(try await runner.processNext()?.id == first)
-            #expect(try await runner.processNext()?.id == second)
-            #expect(try await runner.processNext() == nil)
+            let enrichment = EnrichmentService(store: store, steps: [])
+            #expect(try await enrichment.processNext()?.id == first)
+            #expect(try await enrichment.processNext()?.id == second)
+            #expect(try await enrichment.processNext() == nil)
         }
     }
 
@@ -231,8 +231,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [])
-            let processed = try #require(try await runner.process(captureID: id))
+            let service = EnrichmentService(store: store, steps: [])
+            let processed = try #require(try await service.process(captureID: id))
 
             #expect(processed.enrichmentState == .ok)
             #expect(processed.ocrText == nil)

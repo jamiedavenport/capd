@@ -56,12 +56,11 @@ struct CapAgent {
                 exit(EXIT_FAILURE)
             }
 
-            let enrichment = EnrichmentService(store: store)
-            let runner = EnrichmentRunner(
+            let enrichment = EnrichmentService(
                 store: store,
                 steps: [FetchChildStep(agentExecutable: executable), OCRStep()])
             let queue = EnrichmentQueue(
-                runner: runner, isOnMainsPower: PowerStatus.isOnMainsPower)
+                enrichment: enrichment, isOnMainsPower: PowerStatus.isOnMainsPower)
 
             logger.info("cap-agent \(CapKit.version, privacy: .public) started")
 

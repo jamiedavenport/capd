@@ -7,12 +7,12 @@ actor EnrichmentQueue {
     static let mainsPowerWidth = 3
     static let batteryWidth = 1
 
-    private let runner: EnrichmentRunner
+    private let enrichment: EnrichmentService
     private let isOnMainsPower: @Sendable () -> Bool
     private var draining = false
 
-    init(runner: EnrichmentRunner, isOnMainsPower: @escaping @Sendable () -> Bool) {
-        self.runner = runner
+    init(enrichment: EnrichmentService, isOnMainsPower: @escaping @Sendable () -> Bool) {
+        self.enrichment = enrichment
         self.isOnMainsPower = isOnMainsPower
     }
 
@@ -28,12 +28,12 @@ actor EnrichmentQueue {
         let width = isOnMainsPower() ? Self.mainsPowerWidth : Self.batteryWidth
         await withTaskGroup(of: Void.self) { group in
             for _ in 0..<width {
-                group.addTask { [runner] in
+                group.addTask { [enrichment] in
                     do {
-                        while try await runner.processNext() != nil {}
+                        while try await enrichment.processNext() != nil {}
                     } catch {
-                        // The runner already recorded the failure on the row; the rest of
-                        // the queue waits for the next drain rather than risking a spin.
+                        // The service already recorded the failure on the row; the rest
+                        // of the queue waits for the next drain rather than risking a spin.
                     }
                 }
             }

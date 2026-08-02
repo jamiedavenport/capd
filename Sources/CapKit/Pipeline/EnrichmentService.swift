@@ -1,6 +1,10 @@
 import Foundation
 
-/// The one path by which enrichment results reach a capture.
+/// The one path by which enrichment reaches a capture: claim it, run every applicable
+/// step, write the merged outcome.
+///
+/// The service, not the steps, owns the state machine — there is no legal path from
+/// `pending` straight to `ok`, and steps stay pure so they never need write access.
 public struct EnrichmentService: Sendable {
     /// Claims a capture gets before a reclaim declares it failed.
     public static let maxAttempts = 3
@@ -10,36 +14,30 @@ public struct EnrichmentService: Sendable {
     public static let staleClaimAge: TimeInterval = 120
 
     let store: Store
+    let steps: [any ProcessingStep]
 
-    public init(store: Store) {
+    public init(store: Store, steps: [any ProcessingStep] = []) {
         self.store = store
+        self.steps = steps
     }
 
-    /// Claims a pending capture for extraction and starts an attempt. Returns nil when the
-    /// capture is absent or already claimed, so racing processes produce one winner and the
-    /// losers treat it as a no-op.
+    /// Processes one capture. Returns nil when it is absent or not pending, so racing
+    /// processes produce one winner and the losers treat it as a no-op.
     @discardableResult
-    public func claim(_ id: Int64, now: Date = Date()) throws -> Capture? {
-        try store.claimForEnrichment(id: id, now: now)
+    public func process(captureID: Int64) async throws -> Capture? {
+        guard let claimed = try store.claimForEnrichment(id: captureID) else {
+            return nil
+        }
+        return try await enrich(claimed, id: captureID)
     }
 
-    /// Claims the oldest pending capture; nil means the queue is empty.
+    /// Claims and processes the oldest pending capture; nil means the queue is empty.
     @discardableResult
-    public func claimNext(now: Date = Date()) throws -> Capture? {
-        try store.claimNextForEnrichment(now: now)
-    }
-
-    /// Records what extraction produced and moves the capture to its terminal state. The
-    /// full-text index picks up the body through the store's triggers.
-    @discardableResult
-    public func complete(
-        _ id: Int64, with result: BodyExtractionResult, now: Date = Date()
-    ) throws -> Capture {
-        try store.completeEnrichment(
-            id: id,
-            result: StepResult(bodyExtraction: result),
-            state: result.enrichmentState,
-            now: now)
+    public func processNext() async throws -> Capture? {
+        guard let claimed = try store.claimNextForEnrichment(), let id = claimed.id else {
+            return nil
+        }
+        return try await enrich(claimed, id: id)
     }
 
     /// Returns abandoned claims to the queue: `fetching` rows older than `age` go back to
@@ -58,5 +56,21 @@ public struct EnrichmentService: Sendable {
 
     public func pendingCount() throws -> Int {
         try store.pendingEnrichmentCount()
+    }
+
+    private func enrich(_ claimed: Capture, id: Int64) async throws -> Capture {
+        let context = ProcessingContext(paths: store.paths)
+        var merged = StepResult()
+        do {
+            for step in steps where step.applies(to: claimed) {
+                merged.merge(try await step.run(claimed, context: context))
+            }
+        } catch {
+            // The failure is recorded before rethrowing so the row never sticks in fetching.
+            _ = try store.completeEnrichment(id: id, result: StepResult(), state: .failed)
+            throw error
+        }
+
+        return try store.completeEnrichment(id: id, result: merged, state: merged.enrichmentState)
     }
 }

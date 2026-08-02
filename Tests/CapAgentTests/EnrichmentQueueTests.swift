@@ -14,8 +14,8 @@ struct EnrichmentQueueTests {
             try ingestLinks(50, into: store)
 
             let gauge = Gauge()
-            let runner = EnrichmentRunner(store: store, steps: [GaugedStep(gauge: gauge)])
-            let queue = EnrichmentQueue(runner: runner, isOnMainsPower: { true })
+            let enrichment = EnrichmentService(store: store, steps: [GaugedStep(gauge: gauge)])
+            let queue = EnrichmentQueue(enrichment: enrichment, isOnMainsPower: { true })
 
             await queue.drain()
 
@@ -33,8 +33,8 @@ struct EnrichmentQueueTests {
             try ingestLinks(10, into: store)
 
             let gauge = Gauge()
-            let runner = EnrichmentRunner(store: store, steps: [GaugedStep(gauge: gauge)])
-            let queue = EnrichmentQueue(runner: runner, isOnMainsPower: { false })
+            let enrichment = EnrichmentService(store: store, steps: [GaugedStep(gauge: gauge)])
+            let queue = EnrichmentQueue(enrichment: enrichment, isOnMainsPower: { false })
 
             await queue.drain()
 
@@ -53,8 +53,8 @@ struct EnrichmentQueueTests {
             let good = try #require(
                 try service.ingest(CaptureRequest(url: "https://example.com/good")).capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [TrapStep()])
-            let queue = EnrichmentQueue(runner: runner, isOnMainsPower: { false })
+            let enrichment = EnrichmentService(store: store, steps: [TrapStep()])
+            let queue = EnrichmentQueue(enrichment: enrichment, isOnMainsPower: { false })
 
             // The first drain dies on the bad row; the second finishes the queue.
             await queue.drain()
