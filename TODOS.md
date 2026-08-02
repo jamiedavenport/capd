@@ -17,6 +17,15 @@ Deferred scope from /office-hours + /plan-ceo-review (2026-08-02). Full context:
   reserved slots. Semantic-search backend decision (NLEmbedding vs CoreML MiniLM vs
   BYOK) after v0.1 usage data.
 
+- [ ] **Recall validation at scale** (S, after E3) — import a real multi-thousand-item
+  Pinboard/Safari export, write 30 "I know I saved this" queries from memory, measure
+  top-3 hit rate, tune bm25 weights against the result.
+  Why deferred: the v0.1 dogfood gate runs cold-start (~70 items, all captured that
+  week, all remembered) — recall is untestable there, so the gate now measures capture
+  accuracy and speed instead. This item is the missing half: the product's central
+  claim ("search that actually finds things") is otherwise never verified at a scale
+  where it's hard. Depends on: E3 import. [eng review 2026-08-02, decision X2/TD3]
+
 ## P3 — demand-driven
 
 - [ ] **E6: `cap serve` Pinboard-compatible localhost API** (M) — revisit when a
@@ -27,8 +36,6 @@ Deferred scope from /office-hours + /plan-ceo-review (2026-08-02). Full context:
 
 - [ ] **Sparkle in-app updates** (M) — only if direct-.dmg users materialize; brew
   tap covers the launch audience. Costs appcast hosting + EdDSA keys + cask drift.
-
-- [ ] **Dedupe on re-capture** ("captured 3w ago" HUD variant) (S) — v0.1.x delight.
 
 - [ ] **Paste-URL detection in search window** (S) — v0.1.x delight.
 
