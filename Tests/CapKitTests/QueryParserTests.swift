@@ -73,6 +73,14 @@ struct QueryParserTests {
         #expect(parser.exclusiveDayEnd("nonsense") == nil)
     }
 
+    @Test("Digits outside ASCII are not a date")
+    func nonASCIIDigitsAreRejected() {
+        #expect(parser.inclusiveDayStart("٢٠٢٦-٠١-٠١") == nil)
+        #expect(parser.exclusiveDayEnd("٢٠٢٦-٠١-٠١") == nil)
+        #expect(parser.parse("after:٢٠٢٦-٠١-٠١").createdAfter == nil)
+        #expect(parser.parse("after:٢٠٢٦-٠١-٠١").text == "after:٢٠٢٦-٠١-٠١")
+    }
+
     @Test("A last-wins date filter replaces the earlier one")
     func repeatedDateFilters() {
         let query = parser.parse("after:2026-01-01 after:2026-06-01")

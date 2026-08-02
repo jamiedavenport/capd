@@ -118,6 +118,40 @@ struct SearchServiceTests {
         }
     }
 
+    @Test("A wildcard in the site value matches only itself")
+    func siteFilterEscapesWildcards() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(host: "a_c.com", title: "Literal"),
+                    makeCapture(host: "sub.a_c.com", title: "Literal subdomain"),
+                    makeCapture(host: "abc.com", title: "Wildcard would catch this"),
+                    makeCapture(host: "sub.abc.com", title: "Wildcard would catch this too"),
+                ])
+
+            let hits = try SearchService(store: store).search("site:a_c.com")
+
+            #expect(Set(hits.map(\.capture.id)) == Set([ids[0], ids[1]]))
+        }
+    }
+
+    @Test("A backslash in the query text is matched literally")
+    func backslashIsEscaped() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(url: "https://example.com/a\\b", title: "Backslash"),
+                    makeCapture(url: "https://example.com/ab", title: "No backslash"),
+                ])
+
+            #expect(try SearchService(store: store).search("a\\b").map(\.capture.id) == [ids[0]])
+        }
+    }
+
     @Test("site: matches the host itself and its subdomains, nothing else")
     func siteFilter() throws {
         try withTemporaryPaths { paths in
