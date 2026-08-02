@@ -11,6 +11,7 @@ import SwiftUI
 final class AppState {
     let settings: AppSettings
     let updates: UpdateChecker
+    let permissions: PermissionMonitor
 
     private(set) var failedEnrichmentCount = 0
     private(set) var startupFailure: String?
@@ -22,11 +23,13 @@ final class AppState {
     @ObservationIgnored private var totalCaptures: (() -> Int)?
     @ObservationIgnored private var badgeTask: Task<Void, Never>?
     @ObservationIgnored private var updateTask: Task<Void, Never>?
+    @ObservationIgnored private var permissionTask: Task<Void, Never>?
 
     init() {
         let settings = AppSettings()
         self.settings = settings
         updates = UpdateChecker(settings: settings, client: .gitHubReleases)
+        permissions = PermissionMonitor(environment: .live(settings: settings))
 
         do {
             try start()
@@ -44,6 +47,17 @@ final class AppState {
             while !Task.isCancelled {
                 await updates.checkIfDue()
                 try? await Task.sleep(for: .seconds(6 * 60 * 60))
+            }
+        }
+
+        permissions.onLoss = { [weak self] in
+            self?.presentAXLossPrompt()
+        }
+        // The first check runs off init so the loss alert never blocks launch.
+        permissionTask = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.permissions.check()
+                try? await Task.sleep(for: .seconds(10))
             }
         }
     }
@@ -100,6 +114,21 @@ final class AppState {
         }
     }
 
+    private func presentAXLossPrompt() {
+        let alert = NSAlert()
+        alert.messageText = "cap lost Accessibility access"
+        alert.informativeText =
+            "macOS drops the grant when the app's code signature changes, such as after "
+            + "an update. Until it's re-granted, capture can't read selected text and "
+            + "falls back to the clipboard."
+        alert.addButton(withTitle: "Open System Settings")
+        alert.addButton(withTitle: "Later")
+        NSApp.activate()
+        if alert.runModal() == .alertFirstButtonReturn {
+            permissions.openAccessibilitySettings()
+        }
+    }
+
     private func presentOnboarding() {
         let controller = OnboardingWindowController(
             environment: .live(captureCount: { [weak self] in self?.totalCaptures?() ?? 0 }))
@@ -111,6 +140,16 @@ final class AppState {
         }
         onboarding = controller
         controller.show()
+    }
+}
+
+extension PermissionMonitorEnvironment {
+    static func live(settings: AppSettings) -> PermissionMonitorEnvironment {
+        PermissionMonitorEnvironment(
+            isAXTrusted: { AXIsProcessTrusted() },
+            wasGrantedBefore: { settings.axGrantedBefore },
+            setWasGrantedBefore: { settings.axGrantedBefore = $0 },
+            openAXSettings: { openSystemSettings(pane: "Privacy_Accessibility") })
     }
 }
 
@@ -149,14 +188,14 @@ extension OnboardingEnvironment {
             installAgent: { AgentBootstrap.installAgent() },
             isAgentLoaded: { AgentBootstrap.isAgentLoaded() })
     }
+}
 
-    private static func openSystemSettings(pane: String) {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?\(pane)")
-        else { return }
-        NSWorkspace.shared.open(url)
-    }
+private func openSystemSettings(pane: String) {
+    guard
+        let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?\(pane)")
+    else { return }
+    NSWorkspace.shared.open(url)
 }
 
 extension SearchEnvironment {
