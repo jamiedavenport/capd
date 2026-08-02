@@ -22,7 +22,8 @@ let package = Package(
             dependencies: [
                 .product(name: "GRDB", package: "GRDB.swift"),
                 "SwiftSoup",
-            ]
+            ],
+            resources: [.copy("Resources/Readability.js")]
         ),
         .executableTarget(
             name: "CapCLI",
@@ -47,7 +48,12 @@ let package = Package(
             dependencies: [
                 "CapKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
-            ]
+            ],
+            resources: [.copy("Fixtures")]
+        ),
+        .testTarget(
+            name: "CapAppTests",
+            dependencies: ["CapApp"]
         ),
     ],
     swiftLanguageModes: [.v6]

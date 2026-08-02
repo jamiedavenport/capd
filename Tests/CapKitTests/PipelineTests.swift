@@ -24,7 +24,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: renderedPNG("PTARMIGAN HUSBANDRY")))
+                CaptureRequest(imageData: renderedPNG("PTARMIGAN HUSBANDRY"))
+            ).capture
 
             let result = try await OCRStep().run(capture, context: ProcessingContext(paths: paths))
 
@@ -38,7 +39,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: renderedPNG(nil)))
+                CaptureRequest(imageData: renderedPNG(nil))
+            ).capture
 
             let result = try await OCRStep().run(capture, context: ProcessingContext(paths: paths))
 
@@ -51,7 +53,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: undecodablePNG))
+                CaptureRequest(imageData: undecodablePNG)
+            ).capture
 
             await #expect(throws: (any Error).self) {
                 try await OCRStep().run(capture, context: ProcessingContext(paths: paths))
@@ -64,7 +67,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: renderedPNG("PTARMIGAN HUSBANDRY")))
+                CaptureRequest(imageData: renderedPNG("PTARMIGAN HUSBANDRY"))
+            ).capture
             let id = try #require(capture.id)
 
             let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
@@ -88,7 +92,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: renderedPNG(nil)))
+                CaptureRequest(imageData: renderedPNG(nil))
+            ).capture
             let id = try #require(capture.id)
 
             let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
@@ -105,7 +110,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: undecodablePNG))
+                CaptureRequest(imageData: undecodablePNG)
+            ).capture
             let id = try #require(capture.id)
 
             let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
@@ -125,7 +131,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: undecodablePNG))
+                CaptureRequest(imageData: undecodablePNG)
+            ).capture
             let id = try #require(capture.id)
 
             let claimed = try #require(try store.claimForEnrichment(id: id))
@@ -140,7 +147,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(text: "A standalone thought"))
+                CaptureRequest(text: "A standalone thought")
+            ).capture
             let id = try #require(capture.id)
 
             let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
@@ -157,7 +165,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: undecodablePNG))
+                CaptureRequest(imageData: undecodablePNG)
+            ).capture
             let id = try #require(capture.id)
 
             #expect(throws: EnrichmentError.illegalTransition(from: .pending, to: .ok)) {
@@ -172,7 +181,8 @@ struct PipelineTests {
         try await withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let capture = try CaptureService(store: store).ingest(
-                CaptureRequest(imageData: undecodablePNG))
+                CaptureRequest(imageData: undecodablePNG)
+            ).capture
             let id = try #require(capture.id)
 
             let runner = EnrichmentRunner(store: store, steps: [])

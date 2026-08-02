@@ -19,6 +19,9 @@ struct CaptureAccessControlTests {
                 _ = store.dbPool
                 _ = try store.claimForEnrichment(id: 1)
                 _ = try store.completeEnrichment(id: 1, ocrText: nil, state: .ok)
+                _ = try store.applyExtraction(
+                    id: 1, body: nil, bodyStatus: .failed, bodySource: .fetch,
+                    enrichmentState: .failed, now: Date())
             }
             """)
 
@@ -29,6 +32,7 @@ struct CaptureAccessControlTests {
         #expect(result.diagnostics.contains("dbPool"))
         #expect(result.diagnostics.contains("claimForEnrichment"))
         #expect(result.diagnostics.contains("completeEnrichment"))
+        #expect(result.diagnostics.contains("applyExtraction"))
         #expect(result.diagnostics.contains("no exact matches in call to initializer"))
     }
 
@@ -54,6 +58,13 @@ struct CaptureAccessControlTests {
                 _ = try await step.run(capture, context: ProcessingContext(paths: store.paths))
                 let runner = EnrichmentRunner(store: store, steps: [step])
                 return try await runner.process(captureID: 1)
+            }
+
+            func enrichBody(store: Store) throws -> Capture {
+                let service = EnrichmentService(store: store)
+                _ = try service.claim(1)
+                return try service.complete(
+                    1, with: BodyExtractionResult(body: "words", status: .ok, source: .tab))
             }
             """)
 
