@@ -260,6 +260,64 @@ struct CaptureServiceTests {
         }
     }
 
+    @Test("An active secure-input probe stops the capture before anything is written")
+    func activeSecureInputProbeWritesNothing() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = CaptureService(
+                store: store, guards: [SecureInputGuard(probes: [StubProbe(active: true)])])
+
+            #expect(throws: CaptureError.secureInputActive) {
+                try service.ingest(CaptureRequest(url: "https://example.com/a"))
+            }
+            #expect(throws: CaptureError.secureInputActive) {
+                try service.ingest(CaptureRequest(imageData: samplePNG))
+            }
+            #expect(try captureCount(store) == 0)
+            #expect(try writtenAssets(paths).isEmpty)
+        }
+    }
+
+    @Test("Inactive secure-input probes let the capture through")
+    func inactiveSecureInputProbesAllowCapture() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = CaptureService(
+                store: store,
+                guards: [
+                    SecureInputGuard(probes: [StubProbe(active: false), StubProbe(active: false)])
+                ])
+
+            let capture = try service.ingest(CaptureRequest(url: "https://example.com/a"))
+
+            #expect(capture.kind == .link)
+            #expect(try captureCount(store) == 1)
+        }
+    }
+
+    @Test("The first refusing probe short-circuits later probes")
+    func refusingProbeShortCircuitsLaterProbes() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = CaptureService(
+                store: store,
+                guards: [
+                    SecureInputGuard(probes: [StubProbe(active: true), UnconsultedProbe()])
+                ])
+
+            #expect(throws: CaptureError.secureInputActive) {
+                try service.ingest(CaptureRequest(url: "https://example.com/a"))
+            }
+        }
+    }
+
+    @Test("The secure-input refusal carries its user-facing message")
+    func secureInputRefusalCarriesItsMessage() {
+        #expect(
+            CaptureError.secureInputActive.errorDescription
+                == "Capture blocked — secure input active.")
+    }
+
     @Test("Everything the caller supplied reaches the row")
     func requestMetadataFlowsThrough() throws {
         try withTemporaryPaths { paths in
@@ -303,6 +361,21 @@ private struct GuardRefusal: Error, Equatable {}
 private struct RefusingGuard: CaptureGuard {
     func check(_ request: CaptureRequest) throws {
         throw GuardRefusal()
+    }
+}
+
+private struct StubProbe: SecureInputProbe {
+    let active: Bool
+
+    func isSecureInputActive() -> Bool {
+        active
+    }
+}
+
+private struct UnconsultedProbe: SecureInputProbe {
+    func isSecureInputActive() -> Bool {
+        Issue.record("a probe was consulted after an earlier probe already refused")
+        return false
     }
 }
 
