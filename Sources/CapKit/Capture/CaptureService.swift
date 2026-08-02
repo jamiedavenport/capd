@@ -1,0 +1,135 @@
+import CryptoKit
+import Foundation
+
+public enum CaptureError: Error, Equatable, Sendable {
+    case emptyRequest
+    case invalidURL(String)
+    case duplicate(existing: Capture)
+}
+
+/// A veto on a capture, consulted before the request is read or anything is written.
+public protocol CaptureGuard: Sendable {
+    func check(_ request: CaptureRequest) throws
+}
+
+/// The one path by which a capture comes into existence.
+public struct CaptureService: Sendable {
+    let store: Store
+    let guards: [any CaptureGuard]
+
+    public init(store: Store, guards: [any CaptureGuard] = []) {
+        self.store = store
+        self.guards = guards
+    }
+
+    public func ingest(_ request: CaptureRequest) throws -> Capture {
+        for captureGuard in guards {
+            try captureGuard.check(request)
+        }
+
+        let classification = try Self.classify(request)
+        return try store.insertCapture(makeCapture(classification, from: request))
+    }
+
+    private enum Classification {
+        case link(URL, selection: String?)
+        case text(String)
+        case image(Data)
+    }
+
+    private static func classify(_ request: CaptureRequest) throws -> Classification {
+        let selection = normalized(request.text)
+
+        if let candidate = normalized(request.url) {
+            guard let url = URL(string: candidate),
+                let scheme = url.scheme?.lowercased(),
+                scheme == "http" || scheme == "https",
+                let host = url.host(), !host.isEmpty
+            else {
+                throw CaptureError.invalidURL(candidate)
+            }
+            return .link(url, selection: selection)
+        }
+        if let selection {
+            return .text(selection)
+        }
+        if let imageData = request.imageData, !imageData.isEmpty {
+            return .image(imageData)
+        }
+        throw CaptureError.emptyRequest
+    }
+
+    private func makeCapture(
+        _ classification: Classification,
+        from request: CaptureRequest
+    ) throws -> Capture {
+        switch classification {
+        case .link(let url, let selection):
+            return Capture(
+                kind: .link,
+                url: url.absoluteString,
+                host: url.host()?.lowercased(),
+                title: request.title,
+                note: request.note,
+                selection: selection,
+                sourceAppBundleID: request.sourceAppBundleID,
+                // A link captured with no fetch is born terminal, and `ok -> pending` stays a
+                // legal transition so a later refetch can put it back in the queue.
+                enrichmentState: request.fetchBody ? .pending : .ok,
+                contentHash: Self.hexDigest(of: Data(url.absoluteString.utf8)),
+                createdAt: request.capturedAt
+            )
+
+        case .text(let text):
+            return Capture(
+                kind: .text,
+                title: request.title,
+                note: request.note,
+                // The selection column, not the body: bm25 weights it at 2, and `body` means
+                // an extracted page.
+                selection: text,
+                sourceAppBundleID: request.sourceAppBundleID,
+                enrichmentState: .ok,
+                contentHash: Self.hexDigest(of: Data(text.utf8)),
+                createdAt: request.capturedAt
+            )
+
+        case .image(let imageData):
+            let digest = Self.hexDigest(of: imageData)
+            return Capture(
+                kind: .image,
+                title: request.title,
+                note: request.note,
+                assetPath: try writeAsset(imageData, digest: digest),
+                sourceAppBundleID: request.sourceAppBundleID,
+                enrichmentState: .pending,
+                contentHash: digest,
+                createdAt: request.capturedAt
+            )
+        }
+    }
+
+    /// Content-addressed, so re-ingesting the same bytes rewrites one file rather than
+    /// orphaning the last one.
+    private func writeAsset(_ imageData: Data, digest: String) throws -> String {
+        let relativePath = "\(digest.prefix(2))/\(digest).png"
+        let url = store.paths.assetURL(forRelativePath: relativePath)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try imageData.write(to: url, options: .atomic)
+        return relativePath
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !trimmed.isEmpty
+        else {
+            return nil
+        }
+        return trimmed
+    }
+
+    private static func hexDigest(of data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
