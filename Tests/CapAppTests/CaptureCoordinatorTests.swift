@@ -61,6 +61,65 @@ struct CaptureCoordinatorTests {
         #expect(harness.enriched.isEmpty)
     }
 
+    @Test("A copied URL alone becomes a link capture")
+    func fallbackURLBecomesLinkCapture() async throws {
+        let harness = try Harness()
+        harness.target = FrontmostTarget(
+            bundleID: "app.zen-browser.zen", name: "Zen", processIdentifier: 7)
+        harness.fallbackResult = .text("  https://example.com/copied\n")
+
+        harness.coordinator.capture()
+        await harness.coordinator.drain()
+
+        let request = try #require(harness.requests.first)
+        #expect(request.url == "https://example.com/copied")
+        #expect(request.text == nil)
+        #expect(harness.enriched.count == 1)
+    }
+
+    @Test("A selected URL becomes a link capture when no tab is readable")
+    func selectedURLBecomesLinkCapture() async throws {
+        let harness = try Harness()
+        harness.target = FrontmostTarget(
+            bundleID: "com.apple.dt.Xcode", name: "Xcode", processIdentifier: 7)
+        harness.selection = "https://example.com/selected"
+
+        harness.coordinator.capture()
+        await harness.coordinator.drain()
+
+        let request = try #require(harness.requests.first)
+        #expect(request.url == "https://example.com/selected")
+        #expect(request.text == nil)
+    }
+
+    @Test("Prose that mentions a link stays a text capture")
+    func proseWithLinkStaysText() async throws {
+        let harness = try Harness()
+        harness.target = FrontmostTarget(
+            bundleID: "com.apple.dt.Xcode", name: "Xcode", processIdentifier: 7)
+        harness.fallbackResult = .text("check https://example.com too")
+
+        harness.coordinator.capture()
+        await harness.coordinator.drain()
+
+        #expect(harness.requests.first?.url == nil)
+        #expect(harness.requests.first?.text == "check https://example.com too")
+    }
+
+    @Test("The tab's URL beats a URL-shaped selection")
+    func tabURLBeatsSelectedURL() async throws {
+        let harness = try Harness()
+        harness.tab = BrowserTab(url: "https://example.com/tab", title: nil)
+        harness.selection = "https://example.com/selected"
+
+        harness.coordinator.capture()
+        await harness.coordinator.drain()
+
+        let request = try #require(harness.requests.first)
+        #expect(request.url == "https://example.com/tab")
+        #expect(request.text == "https://example.com/selected")
+    }
+
     @Test("A copied image becomes an image capture and is left for the agent")
     func fallbackImageBecomesImageCapture() async throws {
         let harness = try Harness()
@@ -194,7 +253,7 @@ private final class Harness {
                 isSecureInputActive: { [unowned self] in secureInput },
                 frontmostTarget: { [unowned self] in target },
                 selectedText: { [unowned self] _ in selection },
-                browserTab: { [unowned self] _ in tab },
+                browserTab: { [unowned self] _, _ in tab },
                 pasteboardFallback: { [unowned self] in
                     fallbackCalls += 1
                     return fallbackResult

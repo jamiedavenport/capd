@@ -8,7 +8,7 @@ struct CaptureEnvironment {
     var isSecureInputActive: @MainActor () -> Bool
     var frontmostTarget: @MainActor () -> FrontmostTarget?
     var selectedText: @MainActor (FrontmostTarget) -> String?
-    var browserTab: @MainActor (Browser) -> BrowserTab?
+    var browserTab: @MainActor (Browser, FrontmostTarget) async -> BrowserTab?
     var pasteboardFallback: @MainActor () async -> PasteboardFallbackResult
     var fetchBody: @MainActor () -> Bool
     var ingest: @MainActor (CaptureRequest) throws -> CaptureOutcome
@@ -61,7 +61,10 @@ final class CaptureCoordinator {
 
         let target = environment.frontmostTarget()
         let browser = target?.bundleID.flatMap(Browser.init(bundleID:))
-        let tab = browser.flatMap { environment.browserTab($0) }
+        var tab: BrowserTab?
+        if let browser, let target {
+            tab = await environment.browserTab(browser, target)
+        }
         let selection = target.flatMap { environment.selectedText($0) }
 
         var text = selection
@@ -80,8 +83,16 @@ final class CaptureCoordinator {
             }
         }
 
+        var url = tab?.url
+        if url == nil, let candidate = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+            LinkDetection.looksLikeURL(candidate)
+        {
+            url = candidate
+            text = nil
+        }
+
         let request = CaptureRequest(
-            url: tab?.url,
+            url: url,
             text: text,
             imageData: imageData,
             title: tab?.title,

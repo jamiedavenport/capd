@@ -39,12 +39,13 @@ struct TabExtractorTests {
                 """)
     }
 
-    @Test("Firefox has no tab extraction and routes to the network fetch")
-    func firefoxHasNoScript() {
-        let firefox = Browser(bundleID: "org.mozilla.firefox")
-        #expect(firefox == .firefox)
-        #expect(firefox?.supportsTabExtraction == false)
-        #expect(TabExtractor.script(for: .firefox, javaScript: "1 + 1") == nil)
+    @Test(
+        "Gecko browsers have no tab extraction and route to the network fetch",
+        arguments: [Browser.firefox, .zen, .librewolf, .waterfox])
+    func geckoHasNoScript(browser: Browser) {
+        #expect(browser.isGecko)
+        #expect(browser.supportsTabExtraction == false)
+        #expect(TabExtractor.script(for: browser, javaScript: "1 + 1") == nil)
     }
 
     @Test(
@@ -54,6 +55,9 @@ struct TabExtractorTests {
             ("com.google.Chrome", Browser.chrome),
             ("company.thebrowser.Browser", Browser.arc),
             ("org.mozilla.firefox", Browser.firefox),
+            ("app.zen-browser.zen", Browser.zen),
+            ("org.mozilla.librewolf", Browser.librewolf),
+            ("net.waterfox.waterfox", Browser.waterfox),
         ])
     func bundleIDsMapExactly(bundleID: String, expected: Browser) {
         #expect(Browser(bundleID: bundleID) == expected)

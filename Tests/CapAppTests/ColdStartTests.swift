@@ -25,7 +25,7 @@ struct ColdStartTests {
                         bundleID: "com.apple.Safari", name: "Safari", processIdentifier: 1)
                 },
                 selectedText: { _ in nil },
-                browserTab: { _ in
+                browserTab: { _, _ in
                     BrowserTab(
                         url: "https://example.com/swift-testing",
                         title: "Swift Testing guide")

@@ -18,7 +18,7 @@ enum BrowserTabReader {
         case .chrome, .arc:
             tab = "active tab of front window"
             titleProperty = "title"
-        case .firefox:
+        case .firefox, .zen, .librewolf, .waterfox:
             return nil
         }
         return """

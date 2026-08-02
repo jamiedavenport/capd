@@ -8,6 +8,9 @@ extension Browser {
         case .chrome: "Chrome"
         case .arc: "Arc"
         case .firefox: "Firefox"
+        case .zen: "Zen"
+        case .librewolf: "LibreWolf"
+        case .waterfox: "Waterfox"
         }
     }
 }

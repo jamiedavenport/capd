@@ -101,7 +101,7 @@ struct Add: ParsableCommand {
         let lines = piped.split(whereSeparator: \.isNewline)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        if !lines.isEmpty, lines.allSatisfy(Self.looksLikeURL) {
+        if !lines.isEmpty, lines.allSatisfy(LinkDetection.looksLikeURL) {
             return lines.map(request(for:))
         }
         let text = piped.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -109,20 +109,13 @@ struct Add: ParsableCommand {
     }
 
     private func request(for content: String) -> CaptureRequest {
-        let isURL = Self.looksLikeURL(content)
+        let isURL = LinkDetection.looksLikeURL(content)
         return CaptureRequest(
             url: isURL ? content : nil,
             text: isURL ? nil : content,
             title: title,
             note: note,
             fetchBody: !noFetch)
-    }
-
-    /// "://" rather than a full parse: ingest owns URL validity; this only decides which
-    /// field the input rides in, and a scheme-less string is a note, not a broken link.
-    /// Whitespace disqualifies, or prose that merely mentions a link would ride as one.
-    private static func looksLikeURL(_ candidate: String) -> Bool {
-        candidate.contains("://") && !candidate.contains(where: \.isWhitespace)
     }
 
     private func awaitEnrichment(of captured: [Capture], in search: SearchService) throws {

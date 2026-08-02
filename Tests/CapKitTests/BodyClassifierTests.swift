@@ -59,10 +59,11 @@ struct BodyClassifierTests {
     @Test("Classification decides what a result stores")
     func resultStoresBodyUnlessFailed() {
         let ok = BodyExtractionResult(
-            classifying: ExtractedBody(text: words(600)), source: .tab)
+            classifying: ExtractedBody(text: words(600), title: "A page"), source: .tab)
         #expect(ok.status == .ok)
         #expect(ok.body == words(600))
         #expect(ok.source == .tab)
+        #expect(ok.title == "A page")
 
         let thin = BodyExtractionResult(
             classifying: ExtractedBody(text: words(30)), source: .fetch)
@@ -72,6 +73,7 @@ struct BodyClassifierTests {
         let failed = BodyExtractionResult(classifying: nil, source: .fetch)
         #expect(failed.status == .failed)
         #expect(failed.body == nil)
+        #expect(failed.title == nil)
     }
 }
 

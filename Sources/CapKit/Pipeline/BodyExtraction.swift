@@ -19,18 +19,24 @@ public struct BodyExtractionResult: Sendable, Equatable, Codable {
     public var body: String?
     public var status: BodyStatus
     public var source: BodySource
+    public var title: String?
 
-    public init(body: String?, status: BodyStatus, source: BodySource) {
+    public init(body: String?, status: BodyStatus, source: BodySource, title: String? = nil) {
         self.body = body
         self.status = status
         self.source = source
+        self.title = title
     }
 
     /// A thin body is stored anyway — the user did see those words, and a refetch replaces
     /// them. A failed extraction stores nothing.
     public init(classifying extracted: ExtractedBody?, source: BodySource) {
         let status = BodyClassifier.classify(extracted)
-        self.init(body: status == .failed ? nil : extracted?.text, status: status, source: source)
+        self.init(
+            body: status == .failed ? nil : extracted?.text,
+            status: status,
+            source: source,
+            title: status == .failed ? nil : extracted?.title)
     }
 
     /// The enrichment state this outcome lands the capture on.

@@ -5,15 +5,25 @@ enum Browser: String, CaseIterable {
     case chrome = "com.google.Chrome"
     case arc = "company.thebrowser.Browser"
     case firefox = "org.mozilla.firefox"
+    case zen = "app.zen-browser.zen"
+    case librewolf = "org.mozilla.librewolf"
+    case waterfox = "net.waterfox.waterfox"
 
     init?(bundleID: String) {
         self.init(rawValue: bundleID)
     }
 
-    /// Firefox has no way to run JavaScript over Apple Events, so its captures go straight
-    /// to the network fetch.
+    /// Gecko speaks no Apple Events beyond the basics: the tab URL comes over
+    /// Accessibility instead, and the body over the network fetch.
+    var isGecko: Bool {
+        switch self {
+        case .safari, .chrome, .arc: false
+        case .firefox, .zen, .librewolf, .waterfox: true
+        }
+    }
+
     var supportsTabExtraction: Bool {
-        self != .firefox
+        !isGecko
     }
 }
 
@@ -40,7 +50,7 @@ struct TabExtractor {
                 "do JavaScript \"\(literal)\" in current tab of front window"
             case .chrome, .arc:
                 "execute active tab of front window javascript \"\(literal)\""
-            case .firefox:
+            case .firefox, .zen, .librewolf, .waterfox:
                 ""
             }
         return """
