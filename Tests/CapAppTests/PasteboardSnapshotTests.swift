@@ -1,9 +1,16 @@
 import AppKit
+import Foundation
 import Testing
 
 @testable import CapApp
 
-@Suite("PasteboardSnapshot")
+/// Real NSPasteboard, which needs the pboard daemon; CI runner sessions have none and
+/// AppKit traps the whole test process on first contact, so CI skips these.
+@Suite(
+    "PasteboardSnapshot",
+    .disabled(
+        if: ProcessInfo.processInfo.environment["CI"] != nil,
+        "the pasteboard daemon is unreachable from CI's session"))
 struct PasteboardSnapshotTests {
     @Test("The clipboard survives being overwritten and restored")
     func roundTrip() throws {
