@@ -26,6 +26,23 @@ public final class Store: Sendable {
         dbPool = try Self.openCoordinated(at: paths.databaseURL)
     }
 
+    /// The hash check shares the write transaction rather than relying on the unique index,
+    /// because the losing writer needs the row it collided with, not a constraint error.
+    func insertCapture(_ capture: Capture) throws -> Capture {
+        try dbPool.write { db in
+            if let hash = capture.contentHash {
+                let collision = Capture.filter(Capture.CodingKeys.contentHash == hash)
+                if let existing = try collision.fetchOne(db) {
+                    throw CaptureError.duplicate(existing: existing)
+                }
+            }
+
+            var inserted = capture
+            try inserted.insert(db)
+            return inserted
+        }
+    }
+
     /// Opens under an `NSFileCoordinator` so that two processes racing to create the database
     /// on first launch don't both try to lay down the schema.
     private static func openCoordinated(at url: URL) throws -> DatabasePool {
