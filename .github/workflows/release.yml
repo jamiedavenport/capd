@@ -1,0 +1,116 @@
+name: Release
+
+# The only workflow with access to signing secrets. It runs solely on version
+# tags, never on pull_request, so fork PRs can't exfiltrate them.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
+
+      - uses: actions/cache@v6
+        with:
+          path: .build
+          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-release-${{ runner.os }}-
+
+      - name: Check tag matches source version
+        run: |
+          VERSION=$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/CapKit/CapKit.swift)
+          if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "tag $GITHUB_REF_NAME does not match CapKit.version $VERSION" >&2
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Import signing certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm "$RUNNER_TEMP/cert.p12"
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)
+          if [ -z "$IDENTITY" ]; then
+            echo "no Developer ID Application identity in the imported certificate" >&2
+            exit 1
+          fi
+          echo "CODESIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+
+      - name: Build, sign, and package
+        run: Scripts/package-app.sh
+
+      - name: Notarize and staple
+        env:
+          APP_STORE_CONNECT_API_KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          # Accept the key as raw PEM or base64-encoded.
+          case "$APP_STORE_CONNECT_API_KEY_P8" in
+            -----BEGIN*) printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$RUNNER_TEMP/notary-key.p8" ;;
+            *) echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8" ;;
+          esac
+          xcrun notarytool submit "dist/cap-$VERSION.dmg" \
+            --key "$RUNNER_TEMP/notary-key.p8" \
+            --key-id "$APP_STORE_CONNECT_KEY_ID" \
+            --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --wait
+          rm "$RUNNER_TEMP/notary-key.p8"
+          xcrun stapler staple "dist/cap-$VERSION.dmg"
+
+      - name: Verify Gatekeeper acceptance
+        run: |
+          spctl -a -t open --context context:primary-signature -vv "dist/cap-$VERSION.dmg"
+          MOUNT="$RUNNER_TEMP/cap-dmg"
+          hdiutil attach "dist/cap-$VERSION.dmg" -nobrowse -readonly -mountpoint "$MOUNT"
+          spctl -a -vv "$MOUNT/cap.app"
+          hdiutil detach "$MOUNT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/cap-$VERSION.dmg" \
+            --title "cap $VERSION" --verify-tag --generate-notes
+
+      - name: Bump cask in tap
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          SHA256=$(shasum -a 256 "dist/cap-$VERSION.dmg" | cut -d' ' -f1)
+          git clone "https://x-access-token:$TAP_GITHUB_TOKEN@github.com/jamiedavenport/homebrew-tap.git" \
+            "$RUNNER_TEMP/tap"
+          mkdir -p "$RUNNER_TEMP/tap/Casks"
+          Scripts/make-cask.sh "$VERSION" "$SHA256" > "$RUNNER_TEMP/tap/Casks/cap.rb"
+          cd "$RUNNER_TEMP/tap"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/cap.rb
+          git commit -m "cap $VERSION"
+          git push

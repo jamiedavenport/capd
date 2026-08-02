@@ -2,6 +2,19 @@
 
 An open-source native macOS capture and bookmarking app.
 
+## Install
+
+Requires macOS 26 or later.
+
+```sh
+brew install jamiedavenport/tap/cap
+```
+
+The cask installs `cap.app` and symlinks the `cap` CLI from inside the bundle onto
+`PATH`. Alternatively, download the notarized `.dmg` from
+[GitHub releases](https://github.com/jamiedavenport/cap/releases) and drag `cap.app`
+to Applications; the CLI then lives at `/Applications/cap.app/Contents/MacOS/cap`.
+
 ## Layout
 
 - `CapKit` — library holding the data model, store, capture pipeline, and search
@@ -47,6 +60,19 @@ swift test
 `bootstrap.sh` resolves dependencies and points `core.hooksPath` at `.githooks`, which
 formats staged Swift files on commit. CI runs `swift format lint --strict` regardless.
 Conductor workspaces run it automatically via `.conductor/settings.toml`.
+
+## Releasing
+
+Pushing a `v*` tag matching `CapKit.version` runs `release.yml`: a universal
+(arm64 + x86_64) build packaged into `cap.app` — with the `cap` CLI and `cap-agent`
+inside `Contents/MacOS` — then Developer ID-signed, notarized, stapled, uploaded to a
+GitHub release as a `.dmg`, and published by bumping the cask in
+[jamiedavenport/homebrew-tap](https://github.com/jamiedavenport/homebrew-tap). The
+cask's `binary` stanza symlinks the bundled CLI onto `PATH`. Signing secrets exist
+only in that tag-triggered workflow; `ci.yml` builds unsigned and never sees them.
+
+`Scripts/package-app.sh` reproduces the build, bundle, and `.dmg` locally with an
+ad-hoc signature (set `CODESIGN_IDENTITY` to sign for real).
 
 ## Body extraction and the network
 
