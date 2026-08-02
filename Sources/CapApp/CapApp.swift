@@ -38,6 +38,10 @@ struct CapApp: App {
                 }
             }
             Divider()
+            Button("Search Captures…") {
+                state.showSearch()
+            }
+            Divider()
             SettingsLink()
                 .keyboardShortcut(",")
             Button("Quit cap") {

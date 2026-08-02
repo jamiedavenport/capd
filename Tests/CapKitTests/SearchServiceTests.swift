@@ -441,6 +441,14 @@ struct SearchServiceTests {
         }
     }
 
+    @Test("The total count spans the whole library, ignoring any query")
+    func totalCount() throws {
+        try withSeededStore { store in
+            let count = try SearchService(store: store).totalCaptureCount()
+            #expect(count == 2)
+        }
+    }
+
     @Test("A capture is fetchable by id")
     func captureByID() throws {
         try withTemporaryPaths { paths in

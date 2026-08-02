@@ -39,6 +39,11 @@ public struct SearchService: Sendable {
         try reader.read { db in try Capture.fetchOne(db, key: id) }
     }
 
+    /// The whole library's size, for the search window's "N of M captures" footer.
+    public func totalCaptureCount() throws -> Int {
+        try reader.read { db in try Capture.fetchCount(db) }
+    }
+
     public func search(
         _ rawQuery: String,
         limit: Int = QueryParser.defaultLimit
