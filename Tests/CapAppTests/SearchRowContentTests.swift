@@ -23,13 +23,6 @@ struct SearchRowContentTests {
         #expect(age == expected)
     }
 
-    @Test("Badges abbreviate the kind")
-    func badges() {
-        #expect(SearchRowContent.badge(for: .link) == "LINK")
-        #expect(SearchRowContent.badge(for: .text) == "TEXT")
-        #expect(SearchRowContent.badge(for: .image) == "IMG")
-    }
-
     @Test("Display URLs drop the scheme, www, and a bare trailing slash")
     func displayURLs() {
         #expect(

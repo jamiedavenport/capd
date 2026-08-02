@@ -20,27 +20,23 @@ struct SearchView: View {
             statusBar
         }
         .frame(width: 640, height: 470)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .background(.regularMaterial, in: PanelStyle.shape)
+        .contentShape(PanelStyle.shape)
     }
 
     private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField("Search captures", text: $model.queryText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 18))
-                .focused($searchFieldFocused)
-                .onSubmit { model.openSelected() }
-                .onKeyPress(action: handleKey)
-                .onExitCommand { model.dismiss() }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .onChange(of: model.focusToken, initial: true) {
-            searchFieldFocused = true
-        }
+        TextField("Search captures…", text: $model.queryText)
+            .textFieldStyle(.plain)
+            .font(.system(size: 20))
+            .focused($searchFieldFocused)
+            .onSubmit { model.openSelected() }
+            .onKeyPress(action: handleKey)
+            .onExitCommand { model.dismiss() }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .onChange(of: model.focusToken, initial: true) {
+                searchFieldFocused = true
+            }
     }
 
     /// Arrows and the command chords are steered here while the field keeps focus, so
@@ -74,7 +70,7 @@ struct SearchView: View {
             let now = Date()
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 1) {
                         ForEach(model.hits.indices, id: \.self) { index in
                             SearchResultRow(
                                 content: SearchRowContent(model.hits[index], now: now),
@@ -88,6 +84,8 @@ struct SearchView: View {
                             .onTapGesture { model.select(index) }
                         }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
                 }
                 .onChange(of: model.selectedIndex) {
                     proxy.scrollTo(model.selectedIndex)
@@ -119,15 +117,25 @@ struct SearchView: View {
     }
 
     private var statusBar: some View {
-        HStack {
+        HStack(spacing: 12) {
             Text("\(model.hits.count.formatted()) of \(model.totalCount.formatted()) captures")
+                .foregroundStyle(.secondary)
             Spacer()
-            Text("↩ open · ⌘↩ copy url · ⌘⌫ delete")
+            ShortcutHint(label: "Open", keys: ["↩"])
+            statusDivider
+            ShortcutHint(label: "Copy URL", keys: ["⌘", "↩"])
+            statusDivider
+            ShortcutHint(label: "Delete", keys: ["⌘", "⌫"])
         }
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
+        .font(.system(size: 12))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    private var statusDivider: some View {
+        Rectangle()
+            .fill(.quaternary)
+            .frame(width: 1, height: 12)
     }
 }
 
@@ -136,49 +144,54 @@ private struct SearchResultRow: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(content.badge)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(secondaryColor)
-                .frame(width: 34)
-                .padding(.vertical, 1)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(secondaryColor.opacity(0.5)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text(content.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(primaryColor)
-                    .lineLimit(1)
-                if let subtitle = content.subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 11))
-                        .foregroundStyle(secondaryColor)
+        HStack(spacing: 10) {
+            IconTile(symbol: symbol, tint: tint)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(content.title)
+                        .font(.system(size: 13, weight: .medium))
                         .lineLimit(1)
+                        .layoutPriority(1)
+                    if let subtitle = content.subtitle {
+                        Text(subtitle)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
                 if let snippet = content.snippet {
                     Text(snippet)
                         .font(.system(size: 11))
-                        .foregroundStyle(secondaryColor)
-                        .lineLimit(2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
             Spacer(minLength: 12)
             Text(content.age)
                 .font(.system(size: 11))
-                .foregroundStyle(secondaryColor)
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
-        .contentShape(Rectangle())
-        .background(isSelected ? Color(nsColor: .selectedContentBackgroundColor) : .clear)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .background(
+            isSelected ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear),
+            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
-    private var primaryColor: Color {
-        isSelected ? .white : .primary
+    private var symbol: String {
+        switch content.kind {
+        case .link: "link"
+        case .text: "text.alignleft"
+        case .image: "photo"
+        }
     }
 
-    private var secondaryColor: Color {
-        isSelected ? .white.opacity(0.75) : .secondary
+    private var tint: Color {
+        switch content.kind {
+        case .link: .blue
+        case .text: .orange
+        case .image: .purple
+        }
     }
 }
