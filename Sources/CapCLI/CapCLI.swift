@@ -9,7 +9,10 @@ struct Cap: ParsableCommand {
         commandName: "cap",
         abstract: "Capture and recall anything you have seen.",
         version: CapKit.version,
-        subcommands: [Add.self, Search.self, List.self, Rm.self, Export.self, Refetch.self]
+        subcommands: [
+            Add.self, Search.self, List.self, Rm.self, Export.self, Refetch.self,
+            Status.self, Doctor.self,
+        ]
     )
 
     func run() throws {

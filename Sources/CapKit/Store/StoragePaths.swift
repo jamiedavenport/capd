@@ -36,6 +36,10 @@ public struct StoragePaths: Sendable, Equatable {
         root.appendingPathComponent("assets", isDirectory: true)
     }
 
+    public var agentLockURL: URL {
+        root.appendingPathComponent("agent.lock", isDirectory: false)
+    }
+
     public func assetURL(forRelativePath path: String) -> URL {
         assetsDirectory.appendingPathComponent(path, isDirectory: false)
     }

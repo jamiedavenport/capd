@@ -19,7 +19,7 @@ struct EnrichmentQueueTests {
 
             await queue.drain()
 
-            #expect(await gauge.peak <= EnrichmentQueue.mainsPowerWidth)
+            #expect(await gauge.peak <= DrainPolicy.mainsPowerWidth)
             #expect(await gauge.peak > 1)
             #expect(try EnrichmentService(store: store).pendingCount() == 0)
             #expect(try states(in: store) == [.ok])
@@ -38,7 +38,7 @@ struct EnrichmentQueueTests {
 
             await queue.drain()
 
-            #expect(await gauge.peak == EnrichmentQueue.batteryWidth)
+            #expect(await gauge.peak == DrainPolicy.batteryWidth)
             #expect(try EnrichmentService(store: store).pendingCount() == 0)
         }
     }

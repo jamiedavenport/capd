@@ -24,7 +24,7 @@ struct CaptureEnvironment {
 final class CaptureCoordinator {
     private let environment: CaptureEnvironment
     private let present: (HUDContent) -> Void
-    private let logger = Logger(subsystem: CapKit.bundleIdentifier, category: "capture")
+    private let logger = Log.capture
     private var chain: Task<Void, Never>?
     private var enrichments: [UUID: Task<Void, Never>] = [:]
 

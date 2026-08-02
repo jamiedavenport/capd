@@ -115,6 +115,7 @@ public final class Store: Sendable {
             guard let assetPath = capture.assetPath else { continue }
             try? FileManager.default.removeItem(at: paths.assetURL(forRelativePath: assetPath))
         }
+        Log.store.info("deleted \(deleted.count) capture(s)")
         return deleted
     }
 
@@ -138,7 +139,7 @@ public final class Store: Sendable {
         _ scope: QueryInterfaceRequest<Capture>,
         from states: [EnrichmentState]
     ) throws -> Int {
-        try dbPool.write { db in
+        let count = try dbPool.write { db in
             try scope
                 .filter(states.map(\.rawValue).contains(Capture.CodingKeys.enrichmentState))
                 .updateAll(
@@ -149,6 +150,8 @@ public final class Store: Sendable {
                     Capture.CodingKeys.attemptCount.set(to: 0),
                     Capture.CodingKeys.updatedAt.set(to: Date()))
         }
+        Log.store.info("requeued \(count) capture(s) for enrichment")
+        return count
     }
 
     /// Opens under an `NSFileCoordinator` so that two processes racing to create the database

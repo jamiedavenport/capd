@@ -62,3 +62,8 @@ func jsonArray(_ text: String) throws -> [[String: Any]] {
     let parsed = try JSONSerialization.jsonObject(with: Data(text.utf8))
     return try #require(parsed as? [[String: Any]])
 }
+
+func jsonObject(_ text: String) throws -> [String: Any] {
+    let parsed = try JSONSerialization.jsonObject(with: Data(text.utf8))
+    return try #require(parsed as? [String: Any])
+}

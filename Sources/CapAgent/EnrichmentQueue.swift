@@ -1,12 +1,8 @@
 import CapKit
 import Foundation
-import IOKit.ps
 
 /// Drains pending captures with bounded parallelism.
 actor EnrichmentQueue {
-    static let mainsPowerWidth = 3
-    static let batteryWidth = 1
-
     private let enrichment: EnrichmentService
     private let isOnMainsPower: @Sendable () -> Bool
     private var draining = false
@@ -25,7 +21,7 @@ actor EnrichmentQueue {
         draining = true
         defer { draining = false }
 
-        let width = isOnMainsPower() ? Self.mainsPowerWidth : Self.batteryWidth
+        let width = DrainPolicy.width(onMainsPower: isOnMainsPower())
         await withTaskGroup(of: Void.self) { group in
             for _ in 0..<width {
                 group.addTask { [enrichment] in
@@ -38,12 +34,5 @@ actor EnrichmentQueue {
                 }
             }
         }
-    }
-}
-
-enum PowerStatus {
-    /// launchd carries no power context, so the agent asks IOKit directly.
-    static func isOnMainsPower() -> Bool {
-        IOPSGetTimeRemainingEstimate() == kIOPSTimeRemainingUnlimited
     }
 }
