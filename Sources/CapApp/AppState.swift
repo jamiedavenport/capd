@@ -50,7 +50,7 @@ final class AppState {
         let captureService = CaptureService(
             store: store,
             guards: [SecureInputGuard(probes: [SystemSecureInputProbe(), AXReader()])])
-        let enricher = BodyEnricher(enrichment: EnrichmentService(store: store))
+        let enrichment = EnrichmentService(store: store, steps: [TabFirstBodyStep()])
 
         let hud = HUDPanelController(saveNote: { id, note in
             _ = try? captureService.annotate(id, note: note)
@@ -62,7 +62,10 @@ final class AppState {
             environment: .live(
                 fetchBody: { settings.fetchesPageBodies },
                 ingest: { try captureService.ingest($0) },
-                enrich: { await enricher.enrich($0) }),
+                enrich: { capture in
+                    guard let id = capture.id else { return }
+                    _ = try? await enrichment.process(captureID: id)
+                }),
             present: { hud.show($0) })
 
         search = SearchWindowController(

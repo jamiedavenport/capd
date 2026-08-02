@@ -161,8 +161,8 @@ struct GoldenCorpusTests {
                     title: entry.title))
             let id = try #require(outcome.capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            let processed = try #require(try await runner.process(captureID: id))
+            let enrichment = EnrichmentService(store: store, steps: [OCRStep()])
+            let processed = try #require(try await enrichment.process(captureID: id))
             #expect(processed.enrichmentState == .ok)
 
             let ocrText = try #require(processed.ocrText).lowercased()

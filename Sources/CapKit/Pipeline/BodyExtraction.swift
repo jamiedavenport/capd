@@ -13,8 +13,9 @@ public struct ExtractedBody: Sendable, Equatable {
     }
 }
 
-/// What body extraction produced for a capture, ready to persist.
-public struct BodyExtractionResult: Sendable, Equatable {
+/// What body extraction produced for a capture, ready to persist. Codable because the
+/// fetch child hands one to the agent as JSON over a pipe.
+public struct BodyExtractionResult: Sendable, Equatable, Codable {
     public var body: String?
     public var status: BodyStatus
     public var source: BodySource
@@ -30,6 +31,18 @@ public struct BodyExtractionResult: Sendable, Equatable {
     public init(classifying extracted: ExtractedBody?, source: BodySource) {
         let status = BodyClassifier.classify(extracted)
         self.init(body: status == .failed ? nil : extracted?.text, status: status, source: source)
+    }
+
+    /// The enrichment state this outcome lands the capture on.
+    public var enrichmentState: EnrichmentState {
+        switch status {
+        case .ok, .none:
+            .ok
+        case .thin:
+            .thin
+        case .failed:
+            .failed
+        }
     }
 }
 

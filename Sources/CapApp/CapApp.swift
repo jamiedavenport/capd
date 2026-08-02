@@ -20,6 +20,10 @@ extension KeyboardShortcuts.Name {
 struct CapApp: App {
     @State private var state = AppState()
 
+    init() {
+        AgentBootstrap.installAgent()
+    }
+
     var body: some Scene {
         MenuBarExtra {
             Text("cap \(CapKit.version)")

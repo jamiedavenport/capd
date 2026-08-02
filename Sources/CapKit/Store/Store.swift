@@ -76,30 +76,6 @@ public final class Store: Sendable {
         }
     }
 
-    /// The `WHERE` guard is the claim: of the processes sharing this file, only the one
-    /// that flips `pending` to `fetching` may enrich the row.
-    func claimForEnrichment(id: Int64, now: Date = Date()) throws -> Capture? {
-        try dbPool.write { db in
-            try db.execute(
-                sql: """
-                    UPDATE \(Schema.captures)
-                    SET enrichment_state = :fetching,
-                        attempt_count = attempt_count + 1,
-                        last_attempt_at = :now,
-                        updated_at = :now
-                    WHERE id = :id AND enrichment_state = :pending
-                    """,
-                arguments: [
-                    "fetching": EnrichmentState.fetching.rawValue,
-                    "pending": EnrichmentState.pending.rawValue,
-                    "now": now,
-                    "id": id,
-                ])
-            guard db.changesCount == 1 else { return nil }
-            return try Capture.fetchOne(db, key: id)
-        }
-    }
-
     func updateNote(id: Int64, note: String?, now: Date = Date()) throws -> Capture {
         try dbPool.write { db in
             guard let current = try Capture.fetchOne(db, key: id) else {
@@ -123,32 +99,6 @@ public final class Store: Sendable {
                     .fetchCount(db)
             }
             .values(in: dbPool)
-    }
-
-    /// A nil `ocrText` leaves the column alone; an empty string is a real result.
-    func completeEnrichment(
-        id: Int64,
-        ocrText: String?,
-        state: EnrichmentState,
-        now: Date = Date()
-    ) throws -> Capture {
-        try dbPool.write { db in
-            guard let current = try Capture.fetchOne(db, key: id) else {
-                throw EnrichmentError.captureNotFound(id)
-            }
-            guard current.enrichmentState.canTransition(to: state) else {
-                throw EnrichmentError.illegalTransition(from: current.enrichmentState, to: state)
-            }
-
-            var updated = current
-            if let ocrText {
-                updated.ocrText = ocrText
-            }
-            updated.enrichmentState = state
-            updated.updatedAt = now
-            try updated.updateChanges(db, from: current)
-            return updated
-        }
     }
 
     /// Removes captures and their content-addressed assets, returning what was deleted.

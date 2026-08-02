@@ -71,8 +71,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            let processed = try #require(try await runner.process(captureID: id))
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
+            let processed = try #require(try await service.process(captureID: id))
 
             #expect(processed.enrichmentState == .ok)
             #expect(processed.attemptCount == 1)
@@ -96,8 +96,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            let processed = try #require(try await runner.process(captureID: id))
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
+            let processed = try #require(try await service.process(captureID: id))
 
             #expect(processed.enrichmentState == .ok)
             #expect(processed.ocrText == "")
@@ -114,9 +114,9 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
             await #expect(throws: (any Error).self) {
-                try await runner.process(captureID: id)
+                try await service.process(captureID: id)
             }
 
             let stored = try storedCapture(store, id: id)
@@ -151,8 +151,8 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [OCRStep()])
-            #expect(try await runner.process(captureID: id) == nil)
+            let service = EnrichmentService(store: store, steps: [OCRStep()])
+            #expect(try await service.process(captureID: id) == nil)
 
             let stored = try storedCapture(store, id: id)
             #expect(stored.enrichmentState == .ok)
@@ -170,9 +170,55 @@ struct PipelineTests {
             let id = try #require(capture.id)
 
             #expect(throws: EnrichmentError.illegalTransition(from: .pending, to: .ok)) {
-                try store.completeEnrichment(id: id, ocrText: "text", state: .ok)
+                try store.completeEnrichment(
+                    id: id, result: StepResult(ocrText: "text"), state: .ok)
             }
             #expect(try storedCapture(store, id: id).enrichmentState == .pending)
+        }
+    }
+
+    @Test(
+        "A body step's status decides the enrichment state",
+        arguments: [
+            (BodyStatus.ok, EnrichmentState.ok),
+            (BodyStatus.thin, EnrichmentState.thin),
+            (BodyStatus.failed, EnrichmentState.failed),
+        ])
+    func runnerLandsBodyStatusOnTheRow(status: BodyStatus, expected: EnrichmentState) async throws {
+        try await withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let capture = try CaptureService(store: store).ingest(
+                CaptureRequest(url: "https://example.com/a")
+            ).capture
+            let id = try #require(capture.id)
+
+            let body = status == .failed ? nil : "the words on the page"
+            let step = StubBodyStep(
+                result: BodyExtractionResult(body: body, status: status, source: .fetch))
+            let processed = try #require(
+                try await EnrichmentService(store: store, steps: [step]).process(captureID: id))
+
+            #expect(processed.enrichmentState == expected)
+            #expect(processed.body == body)
+            #expect(processed.bodyStatus == status)
+            #expect(processed.bodySource == .fetch)
+        }
+    }
+
+    @Test("processNext claims oldest first and reports an empty queue")
+    func processNextDrainsInOrder() async throws {
+        try await withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = CaptureService(store: store)
+            let first = try #require(
+                try service.ingest(CaptureRequest(url: "https://example.com/a")).capture.id)
+            let second = try #require(
+                try service.ingest(CaptureRequest(url: "https://example.com/b")).capture.id)
+
+            let enrichment = EnrichmentService(store: store, steps: [])
+            #expect(try await enrichment.processNext()?.id == first)
+            #expect(try await enrichment.processNext()?.id == second)
+            #expect(try await enrichment.processNext() == nil)
         }
     }
 
@@ -185,12 +231,24 @@ struct PipelineTests {
             ).capture
             let id = try #require(capture.id)
 
-            let runner = EnrichmentRunner(store: store, steps: [])
-            let processed = try #require(try await runner.process(captureID: id))
+            let service = EnrichmentService(store: store, steps: [])
+            let processed = try #require(try await service.process(captureID: id))
 
             #expect(processed.enrichmentState == .ok)
             #expect(processed.ocrText == nil)
         }
+    }
+}
+
+private struct StubBodyStep: ProcessingStep {
+    let result: BodyExtractionResult
+
+    func applies(to capture: Capture) -> Bool {
+        capture.kind == .link
+    }
+
+    func run(_ capture: Capture, context: ProcessingContext) async throws -> StepResult {
+        StepResult(bodyExtraction: result)
     }
 }
 

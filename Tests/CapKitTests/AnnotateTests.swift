@@ -53,7 +53,6 @@ struct AnnotateTests {
             .appendingPathComponent("cap-annotate-tests-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let store = try Store(paths: StoragePaths(root: root))
-        let enrichment = EnrichmentService(store: store)
         let id = try #require(
             try CaptureService(store: store).ingest(
                 CaptureRequest(url: "https://example.com/a")
@@ -62,9 +61,8 @@ struct AnnotateTests {
         var counts = store.failedEnrichmentCounts().makeAsyncIterator()
         #expect(try await counts.next() == 0)
 
-        try enrichment.claim(id)
-        _ = try enrichment.complete(
-            id, with: BodyExtractionResult(body: nil, status: .failed, source: .fetch))
+        _ = try store.claimForEnrichment(id: id)
+        _ = try store.completeEnrichment(id: id, result: StepResult(), state: .failed)
 
         while let count = try await counts.next() {
             if count == 1 { break }

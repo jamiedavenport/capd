@@ -12,9 +12,26 @@ public struct ProcessingContext: Sendable {
 /// Field updates a step produced; nil means the column is left alone.
 public struct StepResult: Sendable, Equatable {
     public var ocrText: String?
+    public var bodyExtraction: BodyExtractionResult?
 
-    public init(ocrText: String? = nil) {
+    public init(ocrText: String? = nil, bodyExtraction: BodyExtractionResult? = nil) {
         self.ocrText = ocrText
+        self.bodyExtraction = bodyExtraction
+    }
+
+    public mutating func merge(_ other: StepResult) {
+        if let ocrText = other.ocrText {
+            self.ocrText = ocrText
+        }
+        if let bodyExtraction = other.bodyExtraction {
+            self.bodyExtraction = bodyExtraction
+        }
+    }
+
+    /// The terminal state the merged results add up to: body extraction decides when it
+    /// ran, and everything else that completes is `ok`.
+    public var enrichmentState: EnrichmentState {
+        bodyExtraction?.enrichmentState ?? .ok
     }
 }
 

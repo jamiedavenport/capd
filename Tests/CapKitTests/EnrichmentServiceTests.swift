@@ -4,7 +4,8 @@ import Testing
 
 @testable import CapKit
 
-@Suite("EnrichmentService")
+/// The store's claim/complete primitives and the service surface built on them.
+@Suite("Enrichment")
 struct EnrichmentServiceTests {
     @Test("Claiming a pending capture starts an attempt")
     func claimStartsAnAttempt() throws {
@@ -12,8 +13,7 @@ struct EnrichmentServiceTests {
             let store = try Store(paths: paths)
             let id = try pendingLink(in: store)
 
-            let claimed = try #require(
-                try EnrichmentService(store: store).claim(id, now: wholeSecond))
+            let claimed = try #require(try store.claimForEnrichment(id: id, now: wholeSecond))
 
             #expect(claimed.enrichmentState == .fetching)
             #expect(claimed.attemptCount == 1)
@@ -29,11 +29,10 @@ struct EnrichmentServiceTests {
     func secondClaimIsANoOp() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let service = EnrichmentService(store: store)
             let id = try pendingLink(in: store)
 
-            #expect(try service.claim(id) != nil)
-            #expect(try service.claim(id) == nil)
+            #expect(try store.claimForEnrichment(id: id) != nil)
+            #expect(try store.claimForEnrichment(id: id) == nil)
         }
     }
 
@@ -45,7 +44,7 @@ struct EnrichmentServiceTests {
                 CaptureRequest(url: "https://example.com/a", fetchBody: false))
 
             let id = try #require(outcome.capture.id)
-            #expect(try EnrichmentService(store: store).claim(id) == nil)
+            #expect(try store.claimForEnrichment(id: id) == nil)
         }
     }
 
@@ -53,12 +52,10 @@ struct EnrichmentServiceTests {
     func unknownCaptureGoesNowhere() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let service = EnrichmentService(store: store)
-            let result = BodyExtractionResult(body: "words", status: .ok, source: .fetch)
 
-            #expect(try service.claim(99) == nil)
+            #expect(try store.claimForEnrichment(id: 99) == nil)
             #expect(throws: EnrichmentError.captureNotFound(99)) {
-                try service.complete(99, with: result)
+                try store.completeEnrichment(id: 99, result: StepResult(), state: .ok)
             }
         }
     }
@@ -67,13 +64,16 @@ struct EnrichmentServiceTests {
     func completeOKWritesBodyAndIndexes() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let service = EnrichmentService(store: store)
             let id = try pendingLink(in: store)
-            try service.claim(id, now: wholeSecond)
+            _ = try store.claimForEnrichment(id: id, now: wholeSecond)
 
-            let result = BodyExtractionResult(
+            let extraction = BodyExtractionResult(
                 body: "An essay about ptarmigans", status: .ok, source: .tab)
-            let completed = try service.complete(id, with: result, now: wholeSecond)
+            let completed = try store.completeEnrichment(
+                id: id,
+                result: StepResult(bodyExtraction: extraction),
+                state: extraction.enrichmentState,
+                now: wholeSecond)
 
             #expect(completed.body == "An essay about ptarmigans")
             #expect(completed.bodyStatus == .ok)
@@ -92,13 +92,15 @@ struct EnrichmentServiceTests {
     func completeThinKeepsTheBody() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let service = EnrichmentService(store: store)
             let id = try pendingLink(in: store)
-            try service.claim(id)
+            _ = try store.claimForEnrichment(id: id)
 
-            let result = BodyExtractionResult(
+            let extraction = BodyExtractionResult(
                 body: "Sign in to continue", status: .thin, source: .fetch)
-            let completed = try service.complete(id, with: result)
+            let completed = try store.completeEnrichment(
+                id: id,
+                result: StepResult(bodyExtraction: extraction),
+                state: extraction.enrichmentState)
 
             #expect(completed.body == "Sign in to continue")
             #expect(completed.bodyStatus == .thin)
@@ -110,17 +112,19 @@ struct EnrichmentServiceTests {
     func completeFailedKeepsTheCapture() throws {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
-            let service = EnrichmentService(store: store)
             let outcome = try CaptureService(store: store).ingest(
                 CaptureRequest(
                     url: "https://example.com/a",
                     text: "A quoted phrase",
                     title: "A title"))
             let id = try #require(outcome.capture.id)
-            try service.claim(id)
+            _ = try store.claimForEnrichment(id: id)
 
-            let result = BodyExtractionResult(body: nil, status: .failed, source: .fetch)
-            let completed = try service.complete(id, with: result)
+            let extraction = BodyExtractionResult(body: nil, status: .failed, source: .fetch)
+            let completed = try store.completeEnrichment(
+                id: id,
+                result: StepResult(bodyExtraction: extraction),
+                state: extraction.enrichmentState)
 
             #expect(completed.body == nil)
             #expect(completed.bodyStatus == .failed)
@@ -137,11 +141,123 @@ struct EnrichmentServiceTests {
         try withTemporaryPaths { paths in
             let store = try Store(paths: paths)
             let id = try pendingLink(in: store)
-            let result = BodyExtractionResult(body: "words", status: .ok, source: .tab)
 
             #expect(throws: EnrichmentError.illegalTransition(from: .pending, to: .ok)) {
-                try EnrichmentService(store: store).complete(id, with: result)
+                try store.completeEnrichment(id: id, result: StepResult(), state: .ok)
             }
+        }
+    }
+
+    @Test("The oldest pending capture is claimed first")
+    func claimNextTakesTheOldestFirst() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let first = try pendingLink(in: store, path: "a")
+            let second = try pendingLink(in: store, path: "b")
+
+            #expect(try store.claimNextForEnrichment()?.id == first)
+            #expect(try store.claimNextForEnrichment()?.id == second)
+            #expect(try store.claimNextForEnrichment() == nil)
+        }
+    }
+
+    @Test("An abandoned claim goes back to the queue and can be claimed again")
+    func reclaimReturnsAnAbandonedClaimToPending() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let id = try pendingLink(in: store)
+            let crashTime = Date(timeIntervalSinceNow: -600)
+            _ = try store.claimForEnrichment(id: id, now: crashTime)
+
+            #expect(try service.reclaimStale() == 1)
+
+            let reclaimed = try #require(
+                try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(reclaimed.enrichmentState == .pending)
+            #expect(reclaimed.attemptCount == 1)
+
+            let claimed = try #require(try store.claimForEnrichment(id: id))
+            #expect(claimed.attemptCount == 2)
+        }
+    }
+
+    @Test("A fresh claim survives an age-filtered reclaim")
+    func freshClaimSurvivesReclaim() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try pendingLink(in: store)
+            _ = try store.claimForEnrichment(id: id)
+
+            #expect(try EnrichmentService(store: store).reclaimStale() == 0)
+            let stored = try #require(try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(stored.enrichmentState == .fetching)
+        }
+    }
+
+    @Test("An ageless reclaim takes everything, for agent startup")
+    func agelessReclaimTakesFreshClaims() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try pendingLink(in: store)
+            _ = try store.claimForEnrichment(id: id)
+
+            #expect(try EnrichmentService(store: store).reclaimStale(olderThan: nil) == 1)
+            let stored = try #require(try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(stored.enrichmentState == .pending)
+        }
+    }
+
+    @Test("Reclaim gives up on a capture once its attempts are spent")
+    func reclaimFailsACaptureAfterMaxAttempts() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let id = try pendingLink(in: store)
+
+            for attempt in 1...EnrichmentService.maxAttempts {
+                let claimed = try #require(
+                    try store.claimForEnrichment(id: id, now: Date(timeIntervalSinceNow: -600)))
+                #expect(claimed.attemptCount == attempt)
+                #expect(try service.reclaimStale() == 1)
+            }
+
+            let stored = try #require(try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(stored.enrichmentState == .failed)
+            #expect(stored.attemptCount == EnrichmentService.maxAttempts)
+        }
+    }
+
+    @Test("Only pending captures count toward queue depth")
+    func pendingCountCountsOnlyPending() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            _ = try pendingLink(in: store, path: "a")
+            let claimed = try pendingLink(in: store, path: "b")
+            _ = try store.claimForEnrichment(id: claimed)
+
+            #expect(try EnrichmentService(store: store).pendingCount() == 1)
+        }
+    }
+
+    @Test("A completion carrying body and OCR results writes both")
+    func completionMergesBodyAndOCR() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try pendingLink(in: store)
+            _ = try store.claimForEnrichment(id: id)
+
+            let merged = StepResult(
+                ocrText: "words in a screenshot",
+                bodyExtraction: BodyExtractionResult(body: "an essay", status: .ok, source: .fetch))
+            let completed = try store.completeEnrichment(
+                id: id, result: merged, state: merged.enrichmentState)
+
+            #expect(completed.ocrText == "words in a screenshot")
+            #expect(completed.body == "an essay")
+            #expect(completed.bodyStatus == .ok)
+            #expect(completed.bodySource == .fetch)
+            #expect(completed.enrichmentState == .ok)
         }
     }
 }
@@ -150,9 +266,9 @@ struct EnrichmentServiceTests {
 /// need a whole second.
 private let wholeSecond = Date(timeIntervalSince1970: 1_700_000_000)
 
-private func pendingLink(in store: Store) throws -> Int64 {
+private func pendingLink(in store: Store, path: String = "a") throws -> Int64 {
     let outcome = try CaptureService(store: store).ingest(
-        CaptureRequest(url: "https://example.com/a"))
+        CaptureRequest(url: "https://example.com/\(path)"))
     return try #require(outcome.capture.id)
 }
 
