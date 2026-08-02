@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # swift-format's default rules drift between toolchain minors, so an
+      # unpinned Xcode lets lint pass locally and fail here.
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
+
+      - name: Report toolchain
+        run: swift --version
+
+      - uses: actions/cache@v6
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Lint
+        run: swift format lint --strict --recursive --parallel Sources Tests Package.swift
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test

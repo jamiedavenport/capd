@@ -1,0 +1,25 @@
+#!/bin/bash
+# Formats staged Swift files. Enable with ./Scripts/bootstrap.sh.
+
+set -eu
+
+to_format=()
+while IFS= read -r -d '' file; do
+    [ -f "$file" ] || continue
+
+    # Formatting a file that also has unstaged changes would sweep those hunks
+    # into the commit via the git add below.
+    if ! git diff --quiet -- "$file"; then
+        echo "pre-commit: skipping $file (has unstaged changes)" >&2
+        continue
+    fi
+
+    to_format+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR -- '*.swift')
+
+[ "${#to_format[@]}" -gt 0 ] || exit 0
+
+# NUL-delimited and quoted throughout: a glob character in a path would otherwise
+# expand and stage files the user never staged.
+swift format --in-place --parallel -- "${to_format[@]}"
+git add -- "${to_format[@]}"

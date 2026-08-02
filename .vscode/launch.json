@@ -1,0 +1,64 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-louis}",
+            "name": "Debug cap",
+            "target": "cap",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug cap"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-louis}",
+            "name": "Release cap",
+            "target": "cap",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release cap"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-louis}",
+            "name": "Debug cap-agent",
+            "target": "cap-agent",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug cap-agent"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-louis}",
+            "name": "Release cap-agent",
+            "target": "cap-agent",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release cap-agent"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-louis}",
+            "name": "Debug CapApp",
+            "target": "CapApp",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug CapApp"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:port-louis}",
+            "name": "Release CapApp",
+            "target": "CapApp",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release CapApp"
+        }
+    ]
+}
