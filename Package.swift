@@ -53,7 +53,11 @@ let package = Package(
         ),
         .testTarget(
             name: "CapAppTests",
-            dependencies: ["CapApp"]
+            dependencies: [
+                "CapApp",
+                "CapKit",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

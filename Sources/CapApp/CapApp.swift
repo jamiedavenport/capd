@@ -18,14 +18,26 @@ extension KeyboardShortcuts.Name {
 /// Accessibility grants.
 @main
 struct CapApp: App {
+    @State private var state = AppState()
+
     var body: some Scene {
-        MenuBarExtra("cap", systemImage: "bookmark") {
+        MenuBarExtra {
             Text("cap \(CapKit.version)")
+            if let failure = state.startupFailure {
+                Text(failure)
+            }
+            if state.failedEnrichmentCount > 0 {
+                Text("Failed enrichments: \(state.failedEnrichmentCount)")
+            }
             Divider()
             Button("Quit cap") {
                 NSApplication.shared.terminate(nil)
             }
             .keyboardShortcut("q")
+        } label: {
+            Image(
+                systemName: state.failedEnrichmentCount > 0 || state.startupFailure != nil
+                    ? "bookmark.slash" : "bookmark")
         }
     }
 }

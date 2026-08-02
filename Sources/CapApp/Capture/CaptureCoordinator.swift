@@ -1,0 +1,115 @@
+import CapKit
+import Foundation
+import os
+
+/// Everything the hotkey capture path reaches into, injectable so the decision logic
+/// tests without AX, Apple Events, or a live pasteboard.
+struct CaptureEnvironment {
+    var isSecureInputActive: @MainActor () -> Bool
+    var frontmostTarget: @MainActor () -> FrontmostTarget?
+    var selectedText: @MainActor (FrontmostTarget) -> String?
+    var browserTab: @MainActor (Browser) -> BrowserTab?
+    var pasteboardFallback: @MainActor () async -> PasteboardFallbackResult
+    var ingest: @MainActor (CaptureRequest) throws -> CaptureOutcome
+    var enrich: @MainActor (Capture) async -> Void
+    var now: () -> Date
+}
+
+/// Runs one capture per hotkey press, in press order.
+///
+/// Presses chain rather than coalesce: five rapid presses are five captures, and the
+/// pasteboard restore of one never interleaves with the snapshot of the next.
+@MainActor
+final class CaptureCoordinator {
+    private let environment: CaptureEnvironment
+    private let present: (HUDContent) -> Void
+    private let logger = Logger(subsystem: CapKit.bundleIdentifier, category: "capture")
+    private var chain: Task<Void, Never>?
+    private var enrichments: [UUID: Task<Void, Never>] = [:]
+
+    init(environment: CaptureEnvironment, present: @escaping (HUDContent) -> Void) {
+        self.environment = environment
+        self.present = present
+    }
+
+    func capture() {
+        chain = Task { [previous = chain] in
+            await previous?.value
+            await self.performCapture()
+        }
+    }
+
+    /// Waits for every queued capture and every enrichment it started.
+    func drain() async {
+        await chain?.value
+        for task in enrichments.values {
+            await task.value
+        }
+    }
+
+    private func performCapture() async {
+        let clock = ContinuousClock()
+        let start = clock.now
+
+        // Checked before the AX read and the synthetic ⌘C, not just inside ingest's
+        // guards: neither may run at all while typing is shielded.
+        guard !environment.isSecureInputActive() else {
+            present(.blocked())
+            return
+        }
+
+        let target = environment.frontmostTarget()
+        let browser = target?.bundleID.flatMap(Browser.init(bundleID:))
+        let tab = browser.flatMap { environment.browserTab($0) }
+        let selection = target.flatMap { environment.selectedText($0) }
+
+        var text = selection
+        var imageData: Data?
+        var fallbackNote: String?
+        if selection == nil {
+            switch await environment.pasteboardFallback() {
+            case .text(let copied):
+                text = copied
+            case .image(let data):
+                imageData = data
+            case .nothing:
+                break
+            case .skipped(let reason):
+                fallbackNote = reason.explanation
+            }
+        }
+
+        let request = CaptureRequest(
+            url: tab?.url,
+            text: text,
+            imageData: imageData,
+            title: tab?.title,
+            sourceAppBundleID: target?.bundleID,
+            capturedAt: environment.now())
+
+        let content: HUDContent
+        var pendingLink: Capture?
+        do {
+            let outcome = try environment.ingest(request)
+            content = .outcome(outcome, fallbackNote: fallbackNote, now: environment.now())
+            let capture = outcome.capture
+            if capture.kind == .link, capture.enrichmentState == .pending {
+                pendingLink = capture
+            }
+        } catch {
+            content = .failure(error, detail: fallbackNote)
+        }
+
+        present(content)
+        let elapsed = clock.now - start
+        logger.info("hotkey to HUD in \(String(describing: elapsed), privacy: .public)")
+
+        if let pendingLink {
+            let id = UUID()
+            enrichments[id] = Task {
+                await self.environment.enrich(pendingLink)
+                self.enrichments[id] = nil
+            }
+        }
+    }
+}
