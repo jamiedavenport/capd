@@ -18,10 +18,10 @@ struct CaptureAccessControlTests {
                 _ = try store.upsertCapture(capture)
                 _ = store.dbPool
                 _ = try store.claimForEnrichment(id: 1)
-                _ = try store.completeEnrichment(id: 1, ocrText: nil, state: .ok)
-                _ = try store.applyExtraction(
-                    id: 1, body: nil, bodyStatus: .failed, bodySource: .fetch,
-                    enrichmentState: .failed, now: Date())
+                _ = try store.claimNextForEnrichment()
+                _ = try store.completeEnrichment(id: 1, result: StepResult(), state: .ok)
+                _ = try store.reclaimStaleEnrichments(before: nil, maxAttempts: 3)
+                _ = try store.pendingEnrichmentCount()
             }
             """)
 
@@ -31,8 +31,10 @@ struct CaptureAccessControlTests {
         #expect(result.diagnostics.contains("upsertCapture"))
         #expect(result.diagnostics.contains("dbPool"))
         #expect(result.diagnostics.contains("claimForEnrichment"))
+        #expect(result.diagnostics.contains("claimNextForEnrichment"))
         #expect(result.diagnostics.contains("completeEnrichment"))
-        #expect(result.diagnostics.contains("applyExtraction"))
+        #expect(result.diagnostics.contains("reclaimStaleEnrichments"))
+        #expect(result.diagnostics.contains("pendingEnrichmentCount"))
         #expect(result.diagnostics.contains("no exact matches in call to initializer"))
     }
 

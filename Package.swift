@@ -34,7 +34,8 @@ let package = Package(
         ),
         .executableTarget(
             name: "CapAgent",
-            dependencies: ["CapKit"]
+            dependencies: ["CapKit"],
+            resources: [.copy("Resources/dev.jxd.cap.agent.plist")]
         ),
         .executableTarget(
             name: "CapApp",
@@ -54,6 +55,14 @@ let package = Package(
         .testTarget(
             name: "CapAppTests",
             dependencies: ["CapApp"]
+        ),
+        .testTarget(
+            name: "CapAgentTests",
+            dependencies: [
+                "CapAgent",
+                "CapKit",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

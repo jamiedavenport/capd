@@ -18,6 +18,10 @@ extension KeyboardShortcuts.Name {
 /// Accessibility grants.
 @main
 struct CapApp: App {
+    init() {
+        AgentBootstrap.installAgent()
+    }
+
     var body: some Scene {
         MenuBarExtra("cap", systemImage: "bookmark") {
             Text("cap \(CapKit.version)")

@@ -144,15 +144,132 @@ struct EnrichmentServiceTests {
             }
         }
     }
+
+    @Test("The oldest pending capture is claimed first")
+    func claimNextTakesTheOldestFirst() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let first = try pendingLink(in: store, path: "a")
+            let second = try pendingLink(in: store, path: "b")
+
+            #expect(try service.claimNext()?.id == first)
+            #expect(try service.claimNext()?.id == second)
+            #expect(try service.claimNext() == nil)
+        }
+    }
+
+    @Test("An abandoned claim goes back to the queue and can be claimed again")
+    func reclaimReturnsAnAbandonedClaimToPending() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let id = try pendingLink(in: store)
+            let crashTime = Date(timeIntervalSinceNow: -600)
+            try service.claim(id, now: crashTime)
+
+            #expect(try service.reclaimStale() == 1)
+
+            let reclaimed = try #require(
+                try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(reclaimed.enrichmentState == .pending)
+            #expect(reclaimed.attemptCount == 1)
+
+            let claimed = try #require(try service.claim(id))
+            #expect(claimed.attemptCount == 2)
+        }
+    }
+
+    @Test("A fresh claim survives an age-filtered reclaim")
+    func freshClaimSurvivesReclaim() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let id = try pendingLink(in: store)
+            try service.claim(id)
+
+            #expect(try service.reclaimStale() == 0)
+            let stored = try #require(try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(stored.enrichmentState == .fetching)
+        }
+    }
+
+    @Test("An ageless reclaim takes everything, for agent startup")
+    func agelessReclaimTakesFreshClaims() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let id = try pendingLink(in: store)
+            try service.claim(id)
+
+            #expect(try service.reclaimStale(olderThan: nil) == 1)
+            let stored = try #require(try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(stored.enrichmentState == .pending)
+        }
+    }
+
+    @Test("Reclaim gives up on a capture once its attempts are spent")
+    func reclaimFailsACaptureAfterMaxAttempts() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            let id = try pendingLink(in: store)
+
+            for attempt in 1...EnrichmentService.maxAttempts {
+                let claimed = try #require(
+                    try service.claim(id, now: Date(timeIntervalSinceNow: -600)))
+                #expect(claimed.attemptCount == attempt)
+                #expect(try service.reclaimStale() == 1)
+            }
+
+            let stored = try #require(try store.reader.read { try Capture.fetchOne($0, key: id) })
+            #expect(stored.enrichmentState == .failed)
+            #expect(stored.attemptCount == EnrichmentService.maxAttempts)
+        }
+    }
+
+    @Test("Only pending captures count toward queue depth")
+    func pendingCountCountsOnlyPending() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let service = EnrichmentService(store: store)
+            _ = try pendingLink(in: store, path: "a")
+            let claimed = try pendingLink(in: store, path: "b")
+            try service.claim(claimed)
+
+            #expect(try service.pendingCount() == 1)
+        }
+    }
+
+    @Test("A completion carrying body and OCR results writes both")
+    func completionMergesBodyAndOCR() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try pendingLink(in: store)
+            try EnrichmentService(store: store).claim(id)
+
+            let merged = StepResult(
+                ocrText: "words in a screenshot",
+                bodyExtraction: BodyExtractionResult(body: "an essay", status: .ok, source: .fetch))
+            let completed = try store.completeEnrichment(
+                id: id, result: merged, state: merged.enrichmentState)
+
+            #expect(completed.ocrText == "words in a screenshot")
+            #expect(completed.body == "an essay")
+            #expect(completed.bodyStatus == .ok)
+            #expect(completed.bodySource == .fetch)
+            #expect(completed.enrichmentState == .ok)
+        }
+    }
 }
 
 /// GRDB stores dates as strings that stop at the millisecond, so round-trip comparisons
 /// need a whole second.
 private let wholeSecond = Date(timeIntervalSince1970: 1_700_000_000)
 
-private func pendingLink(in store: Store) throws -> Int64 {
+private func pendingLink(in store: Store, path: String = "a") throws -> Int64 {
     let outcome = try CaptureService(store: store).ingest(
-        CaptureRequest(url: "https://example.com/a"))
+        CaptureRequest(url: "https://example.com/\(path)"))
     return try #require(outcome.capture.id)
 }
 
