@@ -4,7 +4,17 @@ import Foundation
 public enum CaptureError: Error, Equatable, Sendable {
     case emptyRequest
     case invalidURL(String)
-    case duplicate(existing: Capture)
+    case secureInputActive
+}
+
+extension CaptureError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .emptyRequest: "Nothing to capture."
+        case .invalidURL(let candidate): "Not a capturable link: \(candidate)"
+        case .secureInputActive: "Capture blocked — secure input active."
+        }
+    }
 }
 
 /// A veto on a capture, consulted before the request is read or anything is written.
@@ -22,13 +32,13 @@ public struct CaptureService: Sendable {
         self.guards = guards
     }
 
-    public func ingest(_ request: CaptureRequest) throws -> Capture {
+    public func ingest(_ request: CaptureRequest) throws -> CaptureOutcome {
         for captureGuard in guards {
             try captureGuard.check(request)
         }
 
         let classification = try Self.classify(request)
-        return try store.insertCapture(makeCapture(classification, from: request))
+        return try store.upsertCapture(makeCapture(classification, from: request))
     }
 
     private enum Classification {
@@ -76,7 +86,7 @@ public struct CaptureService: Sendable {
                 // A link captured with no fetch is born terminal, and `ok -> pending` stays a
                 // legal transition so a later refetch can put it back in the queue.
                 enrichmentState: request.fetchBody ? .pending : .ok,
-                contentHash: Self.hexDigest(of: Data(url.absoluteString.utf8)),
+                contentHash: Self.hexDigest(of: Data(URLNormalizer.normalize(url).utf8)),
                 createdAt: request.capturedAt
             )
 

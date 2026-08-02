@@ -17,7 +17,11 @@ struct BodyEnricher {
         else {
             return
         }
-        guard (try? enrichment.claim(id)) != nil else {
+        do {
+            guard try enrichment.claim(id) != nil else {
+                return
+            }
+        } catch {
             return
         }
 
