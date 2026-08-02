@@ -59,6 +59,15 @@ let package = Package(
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
+        .testTarget(
+            name: "CapCLITests",
+            dependencies: [
+                "CapCLI",
+                "CapKit",
+                .product(name: "GRDB", package: "GRDB.swift"),
+            ],
+            resources: [.copy("Fixtures")]
+        ),
     ],
     swiftLanguageModes: [.v6]
 )
