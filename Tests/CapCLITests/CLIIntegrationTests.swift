@@ -265,4 +265,101 @@ struct CLIIntegrationTests {
             #expect(help.stdout.contains("SUBCOMMANDS"))
         }
     }
+
+    @Test("status reports before exiting 4 when no agent is running")
+    func statusWithoutAgent() throws {
+        try withScratchRoot { root in
+            let status = try cap(["status"], root: root)
+            #expect(status.status == 4)
+            #expect(status.stdout.contains("Captures: 0"))
+            #expect(status.stdout.contains("Queue: empty"))
+            #expect(status.stdout.contains("Agent:"))
+            #expect(status.stderr.contains("not running"))
+        }
+    }
+
+    @Test("status --json carries counts, queue depth, and agent state")
+    func statusJSON() throws {
+        try withScratchRoot { root in
+            _ = try cap(["add", "https://example.com/a", "--no-fetch"], root: root)
+            _ = try cap(["add", "https://example.com/b"], root: root)
+
+            let status = try cap(["status", "--json"], root: root)
+            #expect(status.status == 4)
+
+            let report = try jsonObject(status.stdout)
+            let captures = try #require(report["captures"] as? [String: Any])
+            #expect(captures["total"] as? Int == 2)
+            #expect(captures["ok"] as? Int == 1)
+            #expect(captures["pending"] as? Int == 1)
+
+            let queue = try #require(report["queue"] as? [String: Any])
+            #expect(queue["depth"] as? Int == 1)
+            #expect((queue["eta_seconds"] as? Int ?? 0) > 0)
+
+            let agent = try #require(report["agent"] as? [String: Any])
+            #expect(agent["running"] as? Bool == false)
+            #expect((report["database_bytes"] as? Int ?? 0) > 0)
+        }
+    }
+
+    @Test("status exits 0 while a process holds the agent lock")
+    func statusWithAgentLock() throws {
+        try withScratchRoot { root in
+            _ = try cap(["add", "https://example.com/a", "--no-fetch"], root: root)
+
+            let lockPath = StoragePaths(root: root).agentLockURL.path
+            let descriptor = open(lockPath, O_CREAT | O_RDWR, 0o644)
+            #expect(descriptor >= 0)
+            defer { close(descriptor) }
+            #expect(flock(descriptor, LOCK_EX | LOCK_NB) == 0)
+
+            let status = try cap(["status"], root: root)
+            #expect(status.status == 0)
+            #expect(status.stdout.contains("Agent: running"))
+        }
+    }
+
+    @Test("doctor checks the store, rebuilds the index, and sweeps stale orphans")
+    func doctorRepairsStore() throws {
+        try withScratchRoot { root in
+            _ = try cap(["add", "https://example.com/a", "--no-fetch"], root: root)
+
+            let paths = StoragePaths(root: root)
+            let orphan = paths.assetURL(forRelativePath: "bb/orphan.png")
+            try FileManager.default.createDirectory(
+                at: orphan.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data("png".utf8).write(to: orphan)
+            try FileManager.default.setAttributes(
+                [.modificationDate: Date(timeIntervalSinceNow: -86_400)],
+                ofItemAtPath: orphan.path)
+
+            let doctor = try cap(["doctor", "--skip-agent"], root: root)
+            #expect(doctor.status == 0)
+            #expect(doctor.stdout.contains("Database: ok"))
+            #expect(doctor.stdout.contains("Search index: rebuilt (1 capture)"))
+            #expect(doctor.stdout.contains("Assets: removed 1 orphaned file"))
+            #expect(doctor.stdout.contains("Accessibility:"))
+            #expect(!FileManager.default.fileExists(atPath: orphan.path))
+        }
+    }
+
+    @Test("doctor exits 1 when a capture's asset file is gone")
+    func doctorReportsMissingAssets() throws {
+        try withScratchRoot { root in
+            let store = try Store(paths: StoragePaths(root: root))
+            try store.dbPool.write { db in
+                var broken = Capture(
+                    kind: .image,
+                    assetPath: "aa/gone.png",
+                    enrichmentState: .ok,
+                    createdAt: Date())
+                try broken.insert(db)
+            }
+
+            let doctor = try cap(["doctor", "--skip-agent"], root: root)
+            #expect(doctor.status == 1)
+            #expect(doctor.stdout.contains("Assets: missing for capture #1"))
+        }
+    }
 }

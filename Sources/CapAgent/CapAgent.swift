@@ -45,8 +45,7 @@ struct CapAgent {
             let paths = try StoragePaths.live
             let store = try Store(paths: paths)
 
-            let lockURL = paths.root.appendingPathComponent("agent.lock", isDirectory: false)
-            guard AgentLock.acquire(at: lockURL) != nil else {
+            guard AgentLock.acquire(at: paths.agentLockURL) != nil else {
                 logger.notice("another cap-agent holds the lock; exiting")
                 exit(EXIT_SUCCESS)
             }

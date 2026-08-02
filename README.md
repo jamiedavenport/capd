@@ -23,6 +23,8 @@ cap list
 cap rm 12
 cap export --format markdown             # or json, which carries every stored field
 cap refetch                              # requeue failed enrichments; or: cap refetch 12
+cap status                               # queue depth and ETA, store size, agent health
+cap doctor                               # integrity check, index rebuild, orphan sweep, agent repair
 ```
 
 Read commands take `--json` and `--format tsv`. The `--json` field set is a stable
