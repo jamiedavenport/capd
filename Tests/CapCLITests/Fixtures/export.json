@@ -1,0 +1,50 @@
+[
+  {
+    "attempt_count" : 1,
+    "body" : "A deep dive into Swift concurrency, actors, and structured tasks.",
+    "body_source" : "fetch",
+    "body_status" : "ok",
+    "content_hash" : "2f7c9a1d8e5b4c3a",
+    "created_at" : "2026-03-03T00:00:00.500Z",
+    "enrichment_state" : "ok",
+    "host" : "example.com",
+    "id" : 3,
+    "kind" : "link",
+    "last_attempt_at" : "2026-03-03T00:01:00.750Z",
+    "last_seen_at" : "2026-03-03T00:02:00.000Z",
+    "note" : "read before the talk",
+    "seen_count" : 2,
+    "selection" : "actors isolate state",
+    "source_app_bundle_id" : "com.apple.Safari",
+    "title" : "Structured Concurrency Notes",
+    "updated_at" : "2026-03-03T00:01:00.750Z",
+    "url" : "https:\/\/example.com\/reading?id=42"
+  },
+  {
+    "asset_path" : "2026\/03\/kettle.png",
+    "attempt_count" : 0,
+    "body_status" : "none",
+    "created_at" : "2026-03-02T00:00:00.250Z",
+    "enrichment_state" : "ok",
+    "id" : 2,
+    "kind" : "image",
+    "last_seen_at" : "2026-03-02T00:00:00.250Z",
+    "ocr_text" : "error code 418: I'm a teapot",
+    "seen_count" : 1,
+    "source_app_bundle_id" : "com.apple.Safari",
+    "title" : "Kettle screenshot",
+    "updated_at" : "2026-03-02T00:00:00.250Z"
+  },
+  {
+    "attempt_count" : 0,
+    "body_status" : "none",
+    "created_at" : "2026-03-01T00:00:00.125Z",
+    "enrichment_state" : "pending",
+    "id" : 1,
+    "kind" : "text",
+    "last_seen_at" : "2026-03-01T00:00:00.125Z",
+    "seen_count" : 1,
+    "selection" : "remember the milk",
+    "updated_at" : "2026-03-01T00:00:00.125Z"
+  }
+]

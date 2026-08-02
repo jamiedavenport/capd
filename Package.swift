@@ -61,7 +61,8 @@ let package = Package(
                 "CapCLI",
                 "CapKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
-            ]
+            ],
+            resources: [.copy("Fixtures")]
         ),
     ],
     swiftLanguageModes: [.v6]
