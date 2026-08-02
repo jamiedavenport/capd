@@ -1,0 +1,22 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "./Scripts/bootstrap.sh"
+run_mode = "concurrent"
+
+# The toolchain is macOS-only, so none of these work in a Linux cloud workspace.
+[scripts.run.test]
+command = "swift test"
+available_in = ["local"]
+default = true
+icon = "test-tube"
+
+[scripts.run.build]
+command = "swift build --build-tests"
+available_in = ["local"]
+icon = "hammer"
+
+[scripts.run.lint]
+command = "swift format lint --strict --recursive --parallel Sources Tests Package.swift"
+available_in = ["local"]
+icon = "list-checks"

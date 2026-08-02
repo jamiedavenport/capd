@@ -14,13 +14,14 @@ An open-source native macOS capture and bookmarking app.
 Requires macOS 26 and Xcode 26.3.
 
 ```sh
-./Scripts/bootstrap.sh   # once per clone, enables the formatting pre-commit hook
+./Scripts/bootstrap.sh   # once per clone
 swift build
 swift test
 ```
 
-`bootstrap.sh` points `core.hooksPath` at `.githooks`, which formats staged Swift files on
-commit. CI runs `swift format lint --strict` regardless.
+`bootstrap.sh` resolves dependencies and points `core.hooksPath` at `.githooks`, which
+formats staged Swift files on commit. CI runs `swift format lint --strict` regardless.
+Conductor workspaces run it automatically via `.conductor/settings.toml`.
 
 ## License
 
