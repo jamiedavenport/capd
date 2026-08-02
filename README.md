@@ -2,6 +2,19 @@
 
 An open-source native macOS capture and bookmarking app.
 
+## Install
+
+Requires macOS 26 or later.
+
+```sh
+brew install jamiedavenport/tap/cap
+```
+
+The cask installs `cap.app` and symlinks the `cap` CLI from inside the bundle onto
+`PATH`. Alternatively, download the notarized `.dmg` from
+[GitHub releases](https://github.com/jamiedavenport/cap/releases) and drag `cap.app`
+to Applications; the CLI then lives at `/Applications/cap.app/Contents/MacOS/cap`.
+
 ## Layout
 
 - `CapKit` — library holding the data model, store, capture pipeline, and search
