@@ -69,6 +69,14 @@ the app's settings. When a newer release exists, an "Update available" menu item
 
 The page fetch above and this version check are the only network traffic cap produces.
 
+## Sandboxing
+
+cap runs unsandboxed, with the hardened runtime on release builds. Capture reads the
+frontmost browser tab through Accessibility and Apple Events, which the App Sandbox does
+not allow — that also rules out Mac App Store distribution, so the Homebrew tap is the
+channel. With no sandbox separating the processes, the app, the agent, and the CLI open
+the same database in `~/Library/Application Support/cap/` directly.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
