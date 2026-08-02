@@ -1,2 +1,10 @@
 # AI
 .gstack
+
+# Swift
+.build/
+.swiftpm/
+DerivedData/
+
+# macOS
+.DS_Store
