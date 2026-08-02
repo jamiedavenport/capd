@@ -27,19 +27,38 @@ public final class Store: Sendable {
     }
 
     /// The hash check shares the write transaction rather than relying on the unique index,
-    /// because the losing writer needs the row it collided with, not a constraint error.
-    func insertCapture(_ capture: Capture) throws -> Capture {
+    /// so the choice between inserting and merging is atomic across the three processes.
+    func upsertCapture(_ capture: Capture) throws -> CaptureOutcome {
         try dbPool.write { db in
-            if let hash = capture.contentHash {
-                let collision = Capture.filter(Capture.CodingKeys.contentHash == hash)
-                if let existing = try collision.fetchOne(db) {
-                    throw CaptureError.duplicate(existing: existing)
+            if let hash = capture.contentHash,
+                var existing = try Capture.filter(Capture.CodingKeys.contentHash == hash)
+                    .fetchOne(db)
+            {
+                let previousSeenAt = existing.lastSeenAt
+                existing.seenCount += 1
+                existing.lastSeenAt = capture.createdAt
+                existing.updatedAt = capture.createdAt
+                existing.title = existing.title ?? capture.title
+                existing.note = existing.note ?? capture.note
+                existing.selection = existing.selection ?? capture.selection
+
+                // An incoming `.pending` means this request wants enrichment; a broken row is
+                // repaired by re-queueing it, but a healthy one is left alone.
+                if capture.enrichmentState == .pending,
+                    existing.enrichmentState == .failed || existing.enrichmentState == .thin
+                {
+                    existing.enrichmentState = .pending
+                    existing.attemptCount = 0
+                    existing.lastAttemptAt = nil
                 }
+
+                try existing.update(db)
+                return .alreadyCaptured(existing, previousSeenAt: previousSeenAt)
             }
 
             var inserted = capture
             try inserted.insert(db)
-            return inserted
+            return .captured(inserted)
         }
     }
 
