@@ -11,12 +11,7 @@ No account. No subscription. No telemetry. Your library stays on your Mac.
 [Download the latest release](https://github.com/jamiedavenport/capd/releases/latest)
 · [Read the documentation](https://capd.jxd.dev)
 
-<!--
-MEDIA: capture-to-search.gif
-Show a 10–15 second loop: select a useful paragraph in a browser, press ⌃⌥C,
-see the capture HUD, then open search with ⌥⇧Space and find the page using a
-phrase from its body. Keep the pointer still and make every keystroke readable.
--->
+![Capture a page, then find it again with full-text search](./docs/public/capture-to-search.gif)
 
 ## Why Capd?
 
