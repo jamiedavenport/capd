@@ -69,12 +69,7 @@ Use natural keywords or narrow the results with site, tag, and date filters:
 swift concurrency site:swift.org tag:development after:2026-01-01
 ```
 
-<!--
-MEDIA: search-window.png
-Show a populated search window with a short query, recognisable favicons,
-useful result snippets, and several tag filters. Include a result matched from
-page body text so the value goes beyond ordinary URL bookmarking.
--->
+![Search saved content in Capd](./docs/public/search-window.gif)
 
 [Learn how search works](https://capd.jxd.dev/search).
 
