@@ -52,9 +52,9 @@ queued for background extraction.
 The bundled CLI accepts URLs, text, and standard input:
 
 ```sh
-cap add https://example.com/article
-cap add "Remember this" --note "Useful for the project"
-pbpaste | cap add -
+capd add https://example.com/article
+capd add "Remember this" --note "Useful for the project"
+pbpaste | capd add -
 ```
 
 See the [CLI guide](/cli) for bulk capture and scripting options.
@@ -100,4 +100,4 @@ seen count and timestamp instead of creating a duplicate.
 
 The background helper extracts readable page text and runs image OCR. A failed
 page fetch never discards the capture: its URL, title, selection, and note stay
-searchable. Re-capture the page or run `cap refetch` to try again.
+searchable. Re-capture the page or run `capd refetch` to try again.

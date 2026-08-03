@@ -4,81 +4,101 @@
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Debug cap",
-            "target": "cap",
+            "cwd": "${workspaceFolder}",
+            "name": "Debug capd",
+            "target": "capd",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug cap"
+            "preLaunchTask": "swift: Build Debug capd"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Release cap",
-            "target": "cap",
+            "cwd": "${workspaceFolder}",
+            "name": "Release capd",
+            "target": "capd",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release cap"
+            "preLaunchTask": "swift: Build Release capd"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Debug cap-agent",
-            "target": "cap-agent",
+            "cwd": "${workspaceFolder}",
+            "name": "Debug capd-agent",
+            "target": "capd-agent",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug cap-agent"
+            "preLaunchTask": "swift: Build Debug capd-agent"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Release cap-agent",
-            "target": "cap-agent",
+            "cwd": "${workspaceFolder}",
+            "name": "Release capd-agent",
+            "target": "capd-agent",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release cap-agent"
+            "preLaunchTask": "swift: Build Release capd-agent"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Debug CapApp",
-            "target": "CapApp",
+            "cwd": "${workspaceFolder}",
+            "name": "Debug CapdApp",
+            "target": "CapdApp",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug CapApp"
+            "preLaunchTask": "swift: Build Debug CapdApp"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Release CapApp",
-            "target": "CapApp",
+            "cwd": "${workspaceFolder}",
+            "name": "Release CapdApp",
+            "target": "CapdApp",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release CapApp"
+            "preLaunchTask": "swift: Build Release CapdApp"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Debug CapTestHost",
-            "target": "CapTestHost",
+            "cwd": "${workspaceFolder}",
+            "name": "Debug CapdTestHost",
+            "target": "CapdTestHost",
             "configuration": "debug",
-            "preLaunchTask": "swift: Build Debug CapTestHost"
+            "preLaunchTask": "swift: Build Debug CapdTestHost"
         },
         {
             "type": "swift",
             "request": "launch",
             "args": [],
-            "cwd": "${workspaceFolder:cap}",
-            "name": "Release CapTestHost",
-            "target": "CapTestHost",
+            "cwd": "${workspaceFolder}",
+            "name": "Release CapdTestHost",
+            "target": "CapdTestHost",
             "configuration": "release",
-            "preLaunchTask": "swift: Build Release CapTestHost"
+            "preLaunchTask": "swift: Build Release CapdTestHost"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "name": "Debug CapdShareExtension",
+            "target": "CapdShareExtension",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug CapdShareExtension"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "name": "Release CapdShareExtension",
+            "target": "CapdShareExtension",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release CapdShareExtension"
         }
     ]
 }

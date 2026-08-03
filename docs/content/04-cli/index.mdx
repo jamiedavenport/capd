@@ -3,22 +3,22 @@ title: CLI
 description: Capture, search, manage, and export your Capd library from the terminal.
 ---
 
-The bundled `cap` command works with the same local library as the Capd app. It
+The bundled `capd` command works with the same local library as the Capd app. It
 is useful for quick terminal capture, bulk imports, shell scripts, backups, and
 AI-assistant integrations.
 
-Homebrew adds `cap` to your `PATH`. Direct installations keep it at
-`/Applications/cap.app/Contents/MacOS/cap`.
+Homebrew adds `capd` to your `PATH`. Direct installations keep it at
+`/Applications/capd.app/Contents/MacOS/capd`.
 
 ## Capture
 
 ```sh
-cap add https://example.com/article      # save a link and queue its page content
-cap add https://example.com --no-fetch   # save the link without fetching the page
-cap add "Remember this" --note "Why"     # save text with a note
-cap add https://example.com --title "…"  # provide a title
-pbpaste | cap add -                      # capture standard input
-cap add https://example.com --wait       # wait for enrichment to finish
+capd add https://example.com/article      # save a link and queue its page content
+capd add https://example.com --no-fetch   # save the link without fetching the page
+capd add "Remember this" --note "Why"     # save text with a note
+capd add https://example.com --title "…"  # provide a title
+pbpaste | capd add -                      # capture standard input
+capd add https://example.com --wait       # wait for enrichment to finish
 ```
 
 When standard input contains only URLs, each non-empty line becomes a separate
@@ -30,9 +30,9 @@ change it. CLI captures use the same duplicate detection as the app.
 ## Search and list
 
 ```sh
-cap search swift concurrency --site swift.org --since 2026-01-01
-cap search 'error handling until:2026-06-30'
-cap list --limit 20
+capd search swift concurrency --site swift.org --since 2026-01-01
+capd search 'error handling until:2026-06-30'
+capd list --limit 20
 ```
 
 `search` and `list` accept `--limit` and `--format plain|tsv|json`. The
@@ -41,18 +41,18 @@ cap list --limit 20
 ## Manage captures
 
 ```sh
-cap rm 12 14       # delete captures by ID
-cap refetch        # retry all failed or thin page extractions
-cap refetch 12     # retry a specific capture
+capd rm 12 14       # delete captures by ID
+capd refetch        # retry all failed or thin page extractions
+capd refetch 12     # retry a specific capture
 ```
 
-IDs appear in `cap list` and `cap search` output.
+IDs appear in `capd list` and `capd search` output.
 
 ## Export
 
 ```sh
-cap export                    # lossless JSON with every stored field
-cap export --format markdown  # readable links, notes, and selections
+capd export                    # lossless JSON with every stored field
+capd export --format markdown  # readable links, notes, and selections
 ```
 
 The JSON export is the complete portable backup format. Copy the entire
@@ -62,10 +62,10 @@ included as well.
 ## Connect an AI assistant
 
 ```sh
-cap mcp
+capd mcp
 ```
 
-`cap mcp` serves three read-only tools over the Model Context Protocol:
+`capd mcp` serves three read-only tools over the Model Context Protocol:
 
 - `search_captures` uses Capd's full-text search and filters.
 - `get_capture` returns one capture with its extracted page text.
@@ -74,7 +74,7 @@ cap mcp
 Register it with Claude Code:
 
 ```sh
-claude mcp add cap -- cap mcp
+claude mcp add capd -- capd mcp
 ```
 
 Or add it to Claude Desktop's `claude_desktop_config.json`:
@@ -82,7 +82,7 @@ Or add it to Claude Desktop's `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "cap": { "command": "cap", "args": ["mcp"] }
+    "capd": { "command": "capd", "args": ["mcp"] }
   }
 }
 ```
@@ -94,12 +94,12 @@ the results to understand whether that assistant sends them elsewhere.
 ## Check health
 
 ```sh
-cap status   # queue, capture, storage, and background-helper status
-cap doctor   # integrity checks, repairs, and permission status
+capd status   # queue, capture, storage, and background-helper status
+capd doctor   # integrity checks, repairs, and permission status
 ```
 
-`cap doctor` can rebuild the search index, remove orphaned image files, and
-repair the background helper. Use `cap doctor --uninstall-agent` to remove the
+`capd doctor` can rebuild the search index, remove orphaned image files, and
+repair the background helper. Use `capd doctor --uninstall-agent` to remove the
 helper or `--skip-agent` to check only the library.
 
 ## Conventions
@@ -107,6 +107,6 @@ helper or `--skip-agent` to check only the library.
 - Data goes to standard output; diagnostics go to standard error.
 - Exit codes are `0` for success, `1` for no results, `2` for invalid usage,
   `3` when the store is unavailable, and `4` when the helper is not running.
-- `CAP_DIR` overrides the default storage root.
+- `CAPD_DIR` overrides the default storage root.
 - JSON output is stable for scripts. Existing fields are not renamed, retyped,
   or removed, but new fields may be added. Consumers should ignore unknown keys.

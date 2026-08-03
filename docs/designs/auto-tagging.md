@@ -14,12 +14,12 @@ index (weighted like `host`), so tag words match free-text queries too.
 
 The taxonomy is a single row in the `taxonomy` table: the ordered tag list, a
 `version`, a `tagged_since_consolidation` counter, and the `tagging_enabled` flag.
-The flag lives in the database rather than `UserDefaults` because `cap-agent` — a
+The flag lives in the database rather than `UserDefaults` because `capd-agent` — a
 separate binary — has to obey it.
 
 ## Single writer
 
-Tagging does not use the enrichment pipeline's claim protocol. `cap-agent` already
+Tagging does not use the enrichment pipeline's claim protocol. `capd-agent` already
 holds an exclusive flock per store, so it is the only process that assigns tags or
 revises the taxonomy; the app and CLI are pure readers. That makes the
 `tags_version = 0` scan race-free without any claim machinery, and keeps model
@@ -55,8 +55,8 @@ only on mains power.
   most used first, with "all captures" as the stop between the ends. The cycled tag
   is appended to the query as a trailing `tag:` token, so filtering reuses the query
   parser and both search legs; typing clears it.
-- `tag:` is query syntax everywhere search runs, and `cap search --tag` is the flag
+- `tag:` is query syntax everywhere search runs, and `capd search --tag` is the flag
   form. Matching is whole-token: `tag:swift` never matches `swiftui`.
-- Tags flow through `cap export --json` with the rest of the capture fields.
+- Tags flow through `capd export --json` with the rest of the capture fields.
 - The settings toggle writes through to the store and disables itself, with the
   reason, when Apple Intelligence is off or unavailable.

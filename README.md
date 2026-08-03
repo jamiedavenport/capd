@@ -1,4 +1,4 @@
-[![Capd](./banner.png)](https://cap.jxd.dev)
+[![Capd](./banner.png)](https://capd.jxd.dev)
 
 # Save anything. Find it in seconds.
 
@@ -8,8 +8,8 @@ with full-text search.
 
 No account. No subscription. No telemetry. Your library stays on your Mac.
 
-[Download the latest release](https://github.com/jamiedavenport/cap/releases/latest)
-· [Read the documentation](https://cap.jxd.dev)
+[Download the latest release](https://github.com/jamiedavenport/capd/releases/latest)
+· [Read the documentation](https://capd.jxd.dev)
 
 <!--
 MEDIA: capture-to-search.gif
@@ -21,7 +21,7 @@ phrase from its body. Keep the pointer still and make every keystroke readable.
 ## Why Capd?
 
 - **Capture without breaking focus.** Press `⌃⌥C`, drag something to the menu
-  bar or notch, use the macOS share sheet, or run the `cap` CLI.
+  bar or notch, use the macOS share sheet, or run the `capd` CLI.
 - **Search more than bookmarks.** Capd indexes page titles, readable article
   text, selections, notes, and text recognized inside images.
 - **Stay organized automatically.** On-device tagging groups captures into a
@@ -36,20 +36,20 @@ phrase from its body. Keep the pointer still and make every keystroke readable.
 Capd requires **macOS 26 or later** and supports Apple silicon and Intel Macs.
 
 Download the notarized `.dmg` from the
-[latest GitHub release](https://github.com/jamiedavenport/cap/releases/latest),
-open it, and drag `cap.app` to Applications.
+[latest GitHub release](https://github.com/jamiedavenport/capd/releases/latest),
+open it, and drag `capd.app` to Applications.
 
 Or install the app and CLI with Homebrew:
 
 ```sh
-brew install jamiedavenport/tap/cap
+brew install jamiedavenport/tap/capd
 ```
 
 On first launch, Capd guides you through its hotkeys and optional macOS
 permissions. Then press `⌃⌥C` anywhere to make your first capture and
 `⌥⇧Space` to find it.
 
-[See the installation guide](https://cap.jxd.dev/install) for permission,
+[See the installation guide](https://capd.jxd.dev/install) for permission,
 update, and uninstall details.
 
 ## Capture your way
@@ -68,7 +68,7 @@ change to “Drop to capture,” accept each item, and confirm it without openin
 main window.
 -->
 
-[Explore every capture method](https://cap.jxd.dev/capture).
+[Explore every capture method](https://capd.jxd.dev/capture).
 
 ## Recall what matters
 
@@ -86,30 +86,30 @@ useful result snippets, and several tag filters. Include a result matched from
 page body text so the value goes beyond ordinary URL bookmarking.
 -->
 
-[Learn how search works](https://cap.jxd.dev/search).
+[Learn how search works](https://capd.jxd.dev/search).
 
 ## Built for the keyboard—and automation
 
-The bundled `cap` command captures, searches, manages, and exports the same
+The bundled `capd` command captures, searches, manages, and exports the same
 local library:
 
 ```sh
-cap add https://example.com/article
-cap search "reading list" --site example.com
-cap export --format markdown
-cap mcp
+capd add https://example.com/article
+capd search "reading list" --site example.com
+capd export --format markdown
+capd mcp
 ```
 
-`cap mcp` exposes read-only search tools to compatible AI assistants. The CLI
+`capd mcp` exposes read-only search tools to compatible AI assistants. The CLI
 also provides stable JSON output for scripts.
 
-[See the CLI reference](https://cap.jxd.dev/cli).
+[See the CLI reference](https://capd.jxd.dev/cli).
 
 ## Private by design
 
 Capd has no account, cloud service, analytics, or telemetry. Page fetching,
 favicon requests, update checks, OCR, and automatic tagging are documented in
-the [privacy guide](https://cap.jxd.dev/privacy), including which network
+the [privacy guide](https://capd.jxd.dev/privacy), including which network
 features can be disabled.
 
 Capd is open source under the [MIT License](LICENSE).

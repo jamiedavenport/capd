@@ -16,7 +16,7 @@ continue to work.
 
 macOS can revoke Accessibility when an app's code signature changes. Open
 System Settings → Privacy & Security → Accessibility, remove the existing Capd
-entry, and add the app again. `cap doctor` reports the current permission state.
+entry, and add the app again. `capd doctor` reports the current permission state.
 
 ### Why does macOS ask about Safari, Chrome, and Arc separately?
 
@@ -42,7 +42,7 @@ login. Very short responses are marked thin rather than treated as full
 articles. The URL, title, selection, and note remain searchable.
 
 Capturing a page from Safari, Chrome, or Arc can preserve content already
-rendered in your signed-in browser. You can also retry with `cap refetch`.
+rendered in your signed-in browser. You can also retry with `capd refetch`.
 
 ### Can I capture a screenshot region?
 
@@ -60,8 +60,8 @@ matching.
 
 ### Where is my library, and how do I back it up?
 
-The default location is `~/Library/Application Support/cap/`. Copy the complete
-folder for a full backup, including captured images. `cap export` creates a
+The default location is `~/Library/Application Support/capd/`. Copy the complete
+folder for a full backup, including captured images. `capd export` creates a
 lossless JSON data export; image files remain in the `assets/` folder.
 
 ### Can I import bookmarks?
@@ -70,7 +70,7 @@ There is no provider-specific importer. A plain list of URLs can be captured in
 bulk:
 
 ```sh
-cat urls.txt | cap add -
+cat urls.txt | capd add -
 ```
 
 Each URL becomes its own deduplicated, searchable capture.
@@ -81,15 +81,15 @@ No. Capd is intentionally local to one Mac and does not operate a sync service.
 
 ## Background helper
 
-### What is `cap-agent` in my login items?
+### What is `capd-agent` in my login items?
 
 It is Capd's enrichment helper. It extracts readable page content and runs OCR
 even when the menu-bar app is closed. It idles when no captures are waiting.
 
 ### Captures are stuck in pending
 
-Run `cap status` to check the queue and helper state. If the helper is missing or
-stopped, `cap doctor` attempts to repair it. Processing is intentionally less
+Run `capd status` to check the queue and helper state. If the helper is missing or
+stopped, `capd doctor` attempts to repair it. Processing is intentionally less
 concurrent on battery power, so a large queue can take longer away from a
 charger.
 
@@ -98,7 +98,7 @@ charger.
 ### Is there a configuration file?
 
 No. Hotkeys, page fetching, update checks, and automatic tagging are controlled
-in Settings. `CAP_DIR` is the only environment variable and changes the storage
+in Settings. `CAPD_DIR` is the only environment variable and changes the storage
 root.
 
 ### Why isn't Capd in the Mac App Store?

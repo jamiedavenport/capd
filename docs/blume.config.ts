@@ -9,10 +9,10 @@ export default defineConfig({
   },
   github: {
     owner: "jamiedavenport",
-    repo: "cap",
+    repo: "capd",
     dir: "docs",
   },
   deployment: {
-    site: "https://cap.jxd.dev",
+    site: "https://capd.jxd.dev",
   },
 });

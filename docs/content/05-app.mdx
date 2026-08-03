@@ -32,21 +32,21 @@ so users can see the app has a deliberately small configuration surface.
 - **Auto-tag captures on device** disables automatic topic tagging. Capd
   explains when Apple Intelligence is unavailable.
 
-There is no configuration file. `CAP_DIR` is the only environment variable; it
+There is no configuration file. `CAPD_DIR` is the only environment variable; it
 changes the shared storage root for the app, helper, and CLI.
 
 ## Where your data lives
 
-The default storage root is `~/Library/Application Support/cap/`.
+The default storage root is `~/Library/Application Support/capd/`.
 
 | Path | Contents |
 |---|---|
-| `cap.sqlite` | Captures, notes, tags, metadata, and the full-text index |
+| `capd.sqlite` | Captures, notes, tags, metadata, and the full-text index |
 | `assets/` | Captured images, stored by content hash |
 | `favicons/` | Cached website icons and short-lived missing-icon records |
 | `agent.lock` | The background helper's live-process lock |
 
-Copying the complete folder creates a full backup. `cap export` creates a
+Copying the complete folder creates a full backup. `capd export` creates a
 portable data export, but captured image files remain in `assets/`.
 
 ## Permissions
@@ -65,15 +65,15 @@ correct System Settings pane.
 
 ## Diagnostics
 
-`cap status` reports the enrichment queue, capture counts, database size, and
-background-helper state. `cap doctor` checks database integrity, rebuilds the
+`capd status` reports the enrichment queue, capture counts, database size, and
+background-helper state. `capd doctor` checks database integrity, rebuilds the
 search index, removes orphaned image files, repairs the helper, and reports
 Accessibility status.
 
 For a live log stream:
 
 ```sh
-log stream --predicate 'subsystem == "dev.jxd.cap"'
+log stream --predicate 'subsystem == "dev.jxd.capd"'
 ```
 
 Log categories include `capture`, `pipeline`, `store`, and `agent`.

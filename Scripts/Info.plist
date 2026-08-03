@@ -5,34 +5,34 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>cap</string>
+	<string>Capd</string>
 	<key>CFBundleExecutable</key>
-	<string>CapApp</string>
+	<string>CapdApp</string>
 	<key>CFBundleIconFile</key>
-	<string>cap</string>
+	<string>capd</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.jxd.cap</string>
+	<string>dev.jxd.capd</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>cap</string>
+	<string>Capd</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>CAP_VERSION</string>
+	<string>CAPD_VERSION</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>dev.jxd.cap</string>
+			<string>dev.jxd.capd</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>cap</string>
+				<string>capd</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>CAP_VERSION</string>
+	<string>CAPD_VERSION</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
@@ -40,7 +40,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>cap asks your browser for the current tab's URL, title, and page content when you capture it.</string>
+	<string>Capd asks your browser for the current tab's URL, title, and page content when you capture it.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

@@ -12,8 +12,8 @@ documentation updates are welcome.
 ## Set up the project
 
 ```sh
-git clone https://github.com/jamiedavenport/cap.git
-cd cap
+git clone https://github.com/jamiedavenport/capd.git
+cd capd
 ./Scripts/bootstrap.sh
 swift build
 swift test --parallel
@@ -25,13 +25,13 @@ formatting checks.
 
 ## Project layout
 
-- `CapKit` contains the data model, store, capture pipeline, and search.
-- `CapCLI` builds the `cap` command-line tool.
-- `CapAgent` builds the background enrichment worker.
-- `CapApp` builds the menu-bar app.
-- `CapAppUI` contains shared app views and presentation models.
-- `CapShareExtension` builds the macOS share-sheet extension.
-- `CapHandoff` handles messages between the extension and app.
+- `CapdKit` contains the data model, store, capture pipeline, and search.
+- `CapdCLI` builds the `capd` command-line tool.
+- `CapdAgent` builds the background enrichment worker.
+- `CapdApp` builds the menu-bar app.
+- `CapdAppUI` contains shared app views and presentation models.
+- `CapdShareExtension` builds the macOS share-sheet extension.
+- `CapdHandoff` handles messages between the extension and app.
 
 ## Before opening a pull request
 
@@ -47,7 +47,7 @@ Use a [Conventional Commit](https://www.conventionalcommits.org/) message for
 each commit. Keep changes focused and include tests for behavior changes.
 
 The CLI's JSON fields and exit-code behavior are stable interfaces. Update the
-golden tests in `Tests/CapCLITests` whenever an intentional CLI contract change
+golden tests in `Tests/CapdCLITests` whenever an intentional CLI contract change
 is required.
 
 ## Documentation
@@ -67,7 +67,7 @@ paths, bundles, and background services.
 
 ## Build the app locally
 
-`Scripts/package-app.sh` produces a complete `cap.app` and `.dmg` with an ad-hoc
+`Scripts/package-app.sh` produces a complete `capd.app` and `.dmg` with an ad-hoc
 signature:
 
 ```sh
@@ -78,7 +78,7 @@ Set `CODESIGN_IDENTITY` when a real signing identity is required.
 
 ## Release process
 
-Pushing a `v*` tag matching `CapKit.version` starts the release workflow. It:
+Pushing a `v*` tag matching `CapdKit.version` starts the release workflow. It:
 
 1. Builds a universal `arm64` and `x86_64` app.
 2. Bundles the app, CLI, agent, and share extension.

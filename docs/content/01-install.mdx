@@ -9,21 +9,33 @@ download works on Apple silicon and Intel Macs.
 ## Direct download
 
 1. Download the notarized `.dmg` from the
-   [latest GitHub release](https://github.com/jamiedavenport/cap/releases/latest).
-2. Open the disk image and drag `cap.app` to Applications.
+   [latest GitHub release](https://github.com/jamiedavenport/capd/releases/latest).
+2. Open the disk image and drag `capd.app` to Applications.
 3. Launch Capd from Applications.
 
-The bundled CLI is available at `/Applications/cap.app/Contents/MacOS/cap`.
+The bundled CLI is available at `/Applications/capd.app/Contents/MacOS/capd`.
 Add that path to your shell configuration if you want to use it directly.
 
 ## Homebrew
 
 ```sh
-brew install jamiedavenport/tap/cap
+brew install jamiedavenport/tap/capd
 ```
 
-Homebrew installs `cap.app` into `/Applications` and makes the bundled `cap`
+Homebrew installs `capd.app` into `/Applications` and makes the bundled `capd`
 CLI available on your `PATH`.
+
+## Moving from Cap
+
+Capd starts with a new, empty library at
+`~/Library/Application Support/capd/`. It does not import the former Cap
+library automatically. Your existing data remains untouched at
+`~/Library/Application Support/cap/`; keep that folder until you are sure you
+no longer need it.
+
+The renamed Homebrew cask migrates from `jamiedavenport/tap/cap` to
+`jamiedavenport/tap/capd` during an update. The unqualified `cap` cask is then
+available for the separate Cap screen recorder.
 
 ## First run
 
@@ -56,7 +68,7 @@ disable this in Settings. When an update is available, the menu-bar app offers
 to copy this command:
 
 ```sh
-brew upgrade jamiedavenport/tap/cap
+brew upgrade jamiedavenport/tap/capd
 ```
 
 For a direct installation, download the newest `.dmg` and replace the existing
@@ -67,18 +79,18 @@ app in Applications.
 With Homebrew:
 
 ```sh
-brew uninstall cap
+brew uninstall capd
 ```
 
 To remove the app and its stored captures:
 
 ```sh
-brew uninstall --zap cap
+brew uninstall --zap capd
 ```
 
-For a direct installation, run `cap doctor --uninstall-agent`, quit the app,
-and delete `/Applications/cap.app`. Your library remains in
-`~/Library/Application Support/cap/` until you remove that folder.
+For a direct installation, run `capd doctor --uninstall-agent`, quit the app,
+and delete `/Applications/capd.app`. Your library remains in
+`~/Library/Application Support/capd/` until you remove that folder.
 
 Want to build from source? See the repository's
-[contributor guide](https://github.com/jamiedavenport/cap/blob/main/CONTRIBUTING.md).
+[contributor guide](https://github.com/jamiedavenport/capd/blob/main/CONTRIBUTING.md).
