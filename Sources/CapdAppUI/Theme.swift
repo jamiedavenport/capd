@@ -16,6 +16,8 @@ enum Theme {
     static let textSecondary = Color.white.opacity(0.56)
     static let textTertiary = Color.white.opacity(0.34)
     static let selection = Color.white.opacity(0.08)
+    static let accent = Color(red: 0.38, green: 0.55, blue: 1.0)
+    static let accentSecondary = Color(red: 0.66, green: 0.42, blue: 0.92)
     static let success = Color(red: 0.35, green: 0.84, blue: 0.5)
     static let warning = Color(red: 1.0, green: 0.62, blue: 0.26)
 

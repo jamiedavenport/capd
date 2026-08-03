@@ -9,10 +9,10 @@ import Testing
 @MainActor
 @Suite("Onboarding")
 struct OnboardingModelTests {
-    @Test("Opening the flow installs the agent and starts on the hotkey step")
-    func startsOnHotkeysAndInstallsAgent() {
+    @Test("Opening the flow installs the agent and starts on the overview")
+    func startsOnOverviewAndInstallsAgent() {
         let harness = Harness()
-        #expect(harness.model.step == .hotkeys)
+        #expect(harness.model.step == .overview)
         #expect(harness.installCalls == 1)
     }
 
@@ -22,16 +22,12 @@ struct OnboardingModelTests {
         let model = harness.model
 
         model.back()
-        #expect(model.step == .hotkeys)
+        #expect(model.step == .overview)
 
         model.advance()
-        #expect(model.step == .accessibility)
+        #expect(model.step == .hotkeys)
         model.advance()
-        #expect(model.step == .browsers)
-        model.advance()
-        #expect(model.step == .shareSheet)
-        model.advance()
-        #expect(model.step == .intelligence)
+        #expect(model.step == .permissions)
         model.advance()
         #expect(model.step == .firstCapture)
         #expect(model.isLastStep)
@@ -39,7 +35,7 @@ struct OnboardingModelTests {
         #expect(model.step == .firstCapture)
 
         model.back()
-        #expect(model.step == .intelligence)
+        #expect(model.step == .permissions)
     }
 
     @Test("A hotkey taken by a macOS system shortcut is flagged")
@@ -185,6 +181,14 @@ struct OnboardingModelTests {
         harness.model.finish()
         #expect(harness.finished == 1)
     }
+
+    @Test("Deferring closes the flow without reporting completion")
+    func deferReportsSeparately() {
+        let harness = Harness()
+        harness.model.deferSetup()
+        #expect(harness.deferred == 1)
+        #expect(harness.finished == 0)
+    }
 }
 
 /// A model wired to stub permissions, consent, and store state.
@@ -210,6 +214,7 @@ private final class Harness {
     var installCalls = 0
     var agentLoaded = false
     var finished = 0
+    var deferred = 0
 
     private(set) lazy var model: OnboardingModel = {
         let model = OnboardingModel(
@@ -243,6 +248,7 @@ private final class Harness {
                 installAgent: { [unowned self] in installCalls += 1 },
                 isAgentLoaded: { [unowned self] in agentLoaded }))
         model.onFinished = { [unowned self] in finished += 1 }
+        model.onDeferred = { [unowned self] in deferred += 1 }
         return model
     }()
 }

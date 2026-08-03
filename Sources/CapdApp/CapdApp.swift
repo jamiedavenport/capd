@@ -67,6 +67,13 @@ struct CapdApp: App {
             Button("Search Captures…") {
                 state.showSearch()
             }
+            Button(
+                state.settings.hasCompletedOnboarding
+                    ? "Replay Introduction…"
+                    : "Continue Setup…"
+            ) {
+                state.showOnboarding()
+            }
             Divider()
             SettingsLink()
                 .keyboardShortcut(",")

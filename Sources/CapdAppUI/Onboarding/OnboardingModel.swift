@@ -4,11 +4,9 @@ import KeyboardShortcuts
 import Observation
 
 enum OnboardingStep: Int, CaseIterable {
+    case overview
     case hotkeys
-    case accessibility
-    case browsers
-    case shareSheet
-    case intelligence
+    case permissions
     case firstCapture
 }
 
@@ -76,8 +74,9 @@ package struct OnboardingEnvironment {
 final class OnboardingModel {
     private let environment: OnboardingEnvironment
     var onFinished: (() -> Void)?
+    var onDeferred: (() -> Void)?
 
-    private(set) var step: OnboardingStep = .hotkeys
+    private(set) var step: OnboardingStep = .overview
     private(set) var captureShortcut: String?
     private(set) var searchShortcut: String?
     private(set) var conflicted: Set<KeyboardShortcuts.Name> = []
@@ -151,6 +150,10 @@ final class OnboardingModel {
 
     func finish() {
         onFinished?()
+    }
+
+    func deferSetup() {
+        onDeferred?()
     }
 
     /// Re-reads every externally owned fact; the window polls this while visible so
