@@ -34,7 +34,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.hasShadow = true
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.animationBehavior = .utilityWindow
+        panel.animationBehavior = .none
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.panel = panel
 
@@ -57,12 +58,27 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         }
     }
 
+    /// Summons with a short fade-and-settle; dismissal is instant, like Spotlight.
     func show() {
         model.activate()
         position()
+        let final = panel.frame
+        let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panel.alphaValue = 0
+        if !reduceMotion {
+            panel.setFrameOrigin(NSPoint(x: final.minX, y: final.minY + 8))
+        }
         panel.makeKeyAndOrderFront(nil)
         if let contentView = panel.contentView {
             panel.makeFirstResponder(contentView)
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.16
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+            if !reduceMotion {
+                panel.animator().setFrame(final, display: true)
+            }
         }
     }
 

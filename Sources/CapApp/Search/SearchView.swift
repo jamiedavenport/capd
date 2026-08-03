@@ -10,33 +10,46 @@ struct SearchView: View {
     @Bindable var model: SearchModel
 
     @FocusState private var searchFieldFocused: Bool
+    @Namespace private var selectionNamespace
 
     var body: some View {
         VStack(spacing: 0) {
             searchBar
-            Divider()
+            hairline
             results
-            Divider()
+            hairline
             statusBar
         }
         .frame(width: 640, height: 470)
-        .background(.regularMaterial, in: PanelStyle.shape)
+        .background(Theme.background, in: PanelStyle.shape)
+        .overlay(PanelStyle.shape.strokeBorder(Theme.border, lineWidth: 1))
         .contentShape(PanelStyle.shape)
     }
 
+    private var hairline: some View {
+        Rectangle()
+            .fill(Theme.border)
+            .frame(height: 1)
+    }
+
     private var searchBar: some View {
-        TextField("Search captures…", text: $model.queryText)
-            .textFieldStyle(.plain)
-            .font(.system(size: 20))
-            .focused($searchFieldFocused)
-            .onSubmit { model.openSelected() }
-            .onKeyPress(action: handleKey)
-            .onExitCommand { model.dismiss() }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .onChange(of: model.focusToken, initial: true) {
-                searchFieldFocused = true
-            }
+        TextField(
+            "Search", text: $model.queryText,
+            prompt: Text("Search captures…").foregroundStyle(Theme.textTertiary)
+        )
+        .textFieldStyle(.plain)
+        .font(.system(size: 15))
+        .foregroundStyle(Theme.text)
+        .tint(Theme.text)
+        .focused($searchFieldFocused)
+        .onSubmit { model.openSelected() }
+        .onKeyPress(action: handleKey)
+        .onExitCommand { model.dismiss() }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .onChange(of: model.focusToken, initial: true) {
+            searchFieldFocused = true
+        }
     }
 
     /// Arrows and the command chords are steered here while the field keeps focus, so
@@ -74,7 +87,8 @@ struct SearchView: View {
                         ForEach(model.hits.indices, id: \.self) { index in
                             SearchResultRow(
                                 content: SearchRowContent(model.hits[index], now: now),
-                                isSelected: index == model.selectedIndex
+                                isSelected: index == model.selectedIndex,
+                                namespace: selectionNamespace
                             )
                             .id(index)
                             .onTapGesture(count: 2) {
@@ -86,6 +100,7 @@ struct SearchView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
+                    .animation(Theme.quickSpring, value: model.selectedIndex)
                 }
                 .onChange(of: model.selectedIndex) {
                     proxy.scrollTo(model.selectedIndex)
@@ -95,21 +110,29 @@ struct SearchView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
+            Image(systemName: model.totalCount == 0 ? "bookmark" : "magnifyingglass")
+                .font(.system(size: 22, weight: .light))
+                .foregroundStyle(Theme.textTertiary)
             if model.totalCount == 0 {
                 Text("Nothing yet")
-                    .font(.headline)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.text)
                 Text("Press \(captureShortcut) anywhere to capture what you're looking at.")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.textSecondary)
             } else {
                 Text("No matches")
-                    .font(.headline)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.text)
                 Text("Try fewer words, or drop a site: or after: filter.")
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.textSecondary)
             }
         }
         .multilineTextAlignment(.center)
         .padding(24)
+        .transition(.opacity)
     }
 
     private var captureShortcut: String {
@@ -119,7 +142,10 @@ struct SearchView: View {
     private var statusBar: some View {
         HStack(spacing: 12) {
             Text("\(model.hits.count.formatted()) of \(model.totalCount.formatted()) captures")
-                .foregroundStyle(.secondary)
+                .font(Theme.mono(10, weight: .regular))
+                .foregroundStyle(Theme.textSecondary)
+                .contentTransition(.numericText())
+                .animation(.easeOut(duration: 0.2), value: model.hits.count)
             Spacer()
             ShortcutHint(label: "Open", keys: ["↩"])
             statusDivider
@@ -127,14 +153,14 @@ struct SearchView: View {
             statusDivider
             ShortcutHint(label: "Delete", keys: ["⌘", "⌫"])
         }
-        .font(.system(size: 12))
+        .font(.system(size: 11))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }
 
     private var statusDivider: some View {
         Rectangle()
-            .fill(.quaternary)
+            .fill(Theme.border)
             .frame(width: 1, height: 12)
     }
 }
@@ -142,41 +168,56 @@ struct SearchView: View {
 private struct SearchResultRow: View {
     let content: SearchRowContent
     let isSelected: Bool
+    let namespace: Namespace.ID
+
+    @State private var isHovered = false
+
+    private var rowShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
-            IconTile(symbol: symbol, tint: tint)
+            IconTile(symbol: symbol, tint: tint, size: 22)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(content.title)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.text)
                         .lineLimit(1)
                         .layoutPriority(1)
                     if let subtitle = content.subtitle {
                         Text(subtitle)
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .font(Theme.mono(10, weight: .regular))
+                            .foregroundStyle(Theme.textSecondary)
                             .lineLimit(1)
                     }
                 }
                 if let snippet = content.snippet {
                     Text(snippet)
                         .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.textTertiary)
                         .lineLimit(1)
                 }
             }
             Spacer(minLength: 12)
             Text(content.age)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+                .font(Theme.mono(10, weight: .regular))
+                .foregroundStyle(Theme.textTertiary)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .background(
-            isSelected ? AnyShapeStyle(.quaternary) : AnyShapeStyle(.clear),
-            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .contentShape(rowShape)
+        .background {
+            if isSelected {
+                rowShape
+                    .fill(Theme.selection)
+                    .matchedGeometryEffect(id: "selection", in: namespace)
+            } else if isHovered {
+                rowShape.fill(Theme.raised)
+            }
+        }
+        .onHover { isHovered = $0 }
     }
 
     private var symbol: String {

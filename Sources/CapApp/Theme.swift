@@ -1,5 +1,29 @@
 import SwiftUI
 
+/// cap's fixed design language: near-black surfaces, light small type, mono for
+/// machine-ish text (domains, ages, counts, keycaps). Surfaces read these tokens
+/// instead of system materials so the app looks the same in light and dark mode.
+enum Theme {
+    static let background = Color(red: 0.075, green: 0.075, blue: 0.086)
+    static let raised = Color.white.opacity(0.05)
+    /// Pure black so the capture bar merges with the physical notch.
+    static let bar = Color.black
+    static let border = Color.white.opacity(0.09)
+    static let text = Color.white.opacity(0.93)
+    static let textSecondary = Color.white.opacity(0.56)
+    static let textTertiary = Color.white.opacity(0.34)
+    static let selection = Color.white.opacity(0.08)
+    static let success = Color(red: 0.35, green: 0.84, blue: 0.5)
+    static let warning = Color(red: 1.0, green: 0.62, blue: 0.26)
+
+    static func mono(_ size: CGFloat, weight: Font.Weight = .medium) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
+
+    static let spring = Animation.spring(response: 0.32, dampingFraction: 0.78)
+    static let quickSpring = Animation.spring(response: 0.2, dampingFraction: 0.85)
+}
+
 /// Shared visual language for cap's floating panels — the search bar and capture HUD.
 enum PanelStyle {
     static let cornerRadius: CGFloat = 12
@@ -28,6 +52,23 @@ struct IconTile: View {
     }
 }
 
+/// A single keyboard-key chip, e.g. `⌘` or `↩`.
+struct Keycap: View {
+    var label: String
+
+    var body: some View {
+        Text(label)
+            .font(Theme.mono(10))
+            .foregroundStyle(Theme.textSecondary)
+            .frame(minWidth: 16, minHeight: 16)
+            .padding(.horizontal, 2)
+            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .strokeBorder(Theme.border, lineWidth: 1))
+    }
+}
+
 /// Footer action hint: a label followed by keycap chips, e.g. "Open ↩".
 struct ShortcutHint: View {
     var label: String
@@ -36,17 +77,10 @@ struct ShortcutHint: View {
     var body: some View {
         HStack(spacing: 5) {
             Text(label)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textSecondary)
             HStack(spacing: 2) {
                 ForEach(keys, id: \.self) { key in
-                    Text(key)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 16, minHeight: 16)
-                        .padding(.horizontal, 1)
-                        .background(
-                            .quaternary,
-                            in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    Keycap(label: key)
                 }
             }
         }
