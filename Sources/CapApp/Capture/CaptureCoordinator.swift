@@ -40,6 +40,14 @@ final class CaptureCoordinator {
         }
     }
 
+    /// Queues one capture per dropped item behind any captures already in flight.
+    func capture(dropped items: [DroppedItem]) {
+        chain = Task { [previous = chain] in
+            await previous?.value
+            self.performDropCapture(items)
+        }
+    }
+
     /// Waits for every queued capture and every enrichment it started.
     func drain() async {
         await chain?.value
@@ -100,6 +108,28 @@ final class CaptureCoordinator {
             fetchBody: environment.fetchBody(),
             capturedAt: environment.now())
 
+        ingestAndPresent(request, fallbackNote: fallbackNote)
+        let elapsed = clock.now - start
+        logger.info("hotkey to HUD in \(String(describing: elapsed), privacy: .public)")
+    }
+
+    private func performDropCapture(_ items: [DroppedItem]) {
+        let requests = DropClassifier.requests(
+            from: items,
+            fetchBody: environment.fetchBody(),
+            // During a drop the frontmost app is almost always the drag's source.
+            sourceAppBundleID: environment.frontmostTarget()?.bundleID,
+            now: environment.now())
+        guard !requests.isEmpty else {
+            present(.failure(CaptureError.emptyRequest, detail: nil))
+            return
+        }
+        for request in requests {
+            ingestAndPresent(request, fallbackNote: nil)
+        }
+    }
+
+    private func ingestAndPresent(_ request: CaptureRequest, fallbackNote: String?) {
         let content: HUDContent
         var pendingLink: Capture?
         do {
@@ -114,8 +144,6 @@ final class CaptureCoordinator {
         }
 
         present(content)
-        let elapsed = clock.now - start
-        logger.info("hotkey to HUD in \(String(describing: elapsed), privacy: .public)")
 
         if let pendingLink {
             let id = UUID()

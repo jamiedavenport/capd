@@ -15,15 +15,28 @@ final class AppState {
 
     private(set) var failedEnrichmentCount = 0
     private(set) var startupFailure: String?
+    private(set) var isDropTargeted = false
 
     @ObservationIgnored private var coordinator: CaptureCoordinator?
     @ObservationIgnored private var hud: HUDPanelController?
     @ObservationIgnored private var search: SearchWindowController?
     @ObservationIgnored private var onboarding: OnboardingWindowController?
+    @ObservationIgnored private var statusItemDrop: StatusItemDropTarget?
+    @ObservationIgnored private let dragMonitor = DragMonitor()
     @ObservationIgnored private var totalCaptures: (() -> Int)?
     @ObservationIgnored private var badgeTask: Task<Void, Never>?
     @ObservationIgnored private var updateTask: Task<Void, Never>?
     @ObservationIgnored private var permissionTask: Task<Void, Never>?
+
+    var menuBarSymbol: String {
+        if isDropTargeted {
+            return "plus.circle.fill"
+        }
+        if failedEnrichmentCount > 0 || startupFailure != nil || permissions.axLost {
+            return "bookmark.slash"
+        }
+        return "bookmark"
+    }
 
     init() {
         let settings = AppSettings()
@@ -89,6 +102,18 @@ final class AppState {
                     _ = try? await enrichment.process(captureID: id)
                 }),
             present: { hud.show($0) })
+
+        hud.performDrop = { [weak self] items in
+            self?.coordinator?.capture(dropped: items)
+        }
+        statusItemDrop = StatusItemDropTarget(
+            onTargeted: { [weak self] targeted in self?.isDropTargeted = targeted },
+            onDrop: { [weak self] items in self?.coordinator?.capture(dropped: items) })
+        statusItemDrop?.install()
+
+        dragMonitor.onDragMoved = { [weak hud] mouse in hud?.dragMoved(to: mouse) }
+        dragMonitor.onDragEnded = { [weak hud] in hud?.dragEnded() }
+        dragMonitor.start()
 
         let searchService = SearchService(store: store)
         search = SearchWindowController(

@@ -21,6 +21,8 @@ final class HUDModel {
     var isHovering = false
     var revealed = false
     var note = ""
+    var isDropTarget = false
+    var isDropHovered = false
 }
 
 struct CaptureHUDView: View {
@@ -72,11 +74,25 @@ struct CaptureHUDView: View {
         case .notch(let gap, let height):
             HStack(spacing: 0) {
                 flank(.leading) {
-                    source.offset(x: model.revealed ? 0 : 56)
+                    Group {
+                        if model.isDropTarget {
+                            dropInvite
+                        } else {
+                            source
+                        }
+                    }
+                    .offset(x: model.revealed ? 0 : 56)
                 }
                 Color.clear.frame(width: gap + 12)
                 flank(.trailing) {
-                    outcome.offset(x: model.revealed ? 0 : -56)
+                    Group {
+                        if model.isDropTarget {
+                            dropKinds
+                        } else {
+                            outcome
+                        }
+                    }
+                    .offset(x: model.revealed ? 0 : -56)
                 }
             }
             .frame(height: height + 6)
@@ -97,11 +113,41 @@ struct CaptureHUDView: View {
         -> some View
     {
         ZStack(alignment: alignment) {
-            source.hidden()
-            outcome.hidden()
+            if model.isDropTarget {
+                dropInvite.hidden()
+                dropKinds.hidden()
+            } else {
+                source.hidden()
+                outcome.hidden()
+            }
             content()
         }
         .padding(.horizontal, 14)
+    }
+
+    /// The bar's face while a drag is overhead: an invitation on one flank, the
+    /// accepted kinds on the other.
+    private var dropInvite: some View {
+        HStack(spacing: 7) {
+            IconTile(
+                symbol: "arrow.down",
+                tint: model.isDropHovered ? Theme.success : .blue,
+                size: 17)
+            Text("Drop to capture")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+        }
+    }
+
+    private var dropKinds: some View {
+        HStack(spacing: 9) {
+            ForEach(["link", "text.alignleft", "photo"], id: \.self) { symbol in
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(model.isDropHovered ? Theme.text : Theme.textTertiary)
+            }
+        }
     }
 
     private var source: some View {
@@ -274,6 +320,14 @@ final class HUDPanelController {
     private var hideTask: Task<Void, Never>?
     private var anchorScreen: NSScreen?
 
+    /// Where dropped items go; set once the capture path exists.
+    var performDrop: (([DroppedItem]) -> Void)?
+    private let dropView = DropTargetView()
+    private var dropGeometry: NotchGeometry?
+    /// A drop landed and its outcome toast hasn't arrived yet; the bar keeps its
+    /// drop face so the handoff doesn't flash an empty bar.
+    private var dropPending = false
+
     init(saveNote: @escaping (Int64, String) -> Void) {
         self.saveNote = saveNote
 
@@ -301,13 +355,33 @@ final class HUDPanelController {
                 saveNote: { [weak self] in self?.saveNoteAndDismiss() },
                 dismiss: { [weak self] in self?.requestDismiss() },
                 hoverChanged: { [weak self] in self?.hoverChanged($0) }))
-        panel.contentView = hosting
+        // A plain container rather than the hosting view itself, so the drop overlay
+        // never has to live inside NSHostingView's managed hierarchy.
+        let container = NSView()
+        hosting.autoresizingMask = [.width, .height]
+        container.addSubview(hosting)
+        panel.contentView = container
         panel.onCancel = { [weak self] in self?.requestDismiss() }
         panel.onResignKey = { [weak self] in self?.annotationLostKey() }
+
+        dropView.onTargeted = { [weak self] in self?.dropHoverChanged($0) }
+        dropView.onDrop = { [weak self] in self?.completeDrop($0) }
     }
 
     func show(_ content: HUDContent) {
         apply(presentation.show(content))
+        if dropGeometry != nil {
+            // The bar is busy being a drop target; the toast takes over on withdrawal.
+            dismissTask?.cancel()
+            return
+        }
+        if dropPending || model.isDropTarget {
+            dropPending = false
+            withAnimation(reduceMotion ? nil : Theme.spring) {
+                model.isDropTarget = false
+                model.isDropHovered = false
+            }
+        }
         guard presentation.display?.content == content else { return }
         if !panel.isVisible {
             configureVariant()
@@ -317,18 +391,84 @@ final class HUDPanelController {
         AccessibilityNotification.Announcement(content.headline).post()
     }
 
+    /// Tracks a system-wide drag; the bar offers itself when the drag nears a notch
+    /// and withdraws when it wanders off.
+    func dragMoved(to mouse: NSPoint) {
+        if let notch = dropGeometry {
+            if DropZonePolicy.withdraws(mouse: mouse, notch: notch, barFrame: panel.frame) {
+                withdrawDropTarget()
+            }
+            return
+        }
+        guard !presentation.isAnnotating,
+            let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }),
+            let notch = NotchGeometry(screen: screen),
+            DropZonePolicy.offers(mouse: mouse, notch: notch)
+        else { return }
+        offerDropTarget(on: screen, notch: notch)
+    }
+
+    func dragEnded() {
+        guard dropGeometry != nil else { return }
+        withdrawDropTarget()
+    }
+
+    private func offerDropTarget(on screen: NSScreen, notch: NotchGeometry) {
+        dropGeometry = notch
+        dropPending = false
+        dismissTask?.cancel()
+        anchorScreen = screen
+        model.variant = .notch(gap: notch.notchWidth, height: notch.notchHeight)
+        if let container = panel.contentView, dropView.superview == nil {
+            dropView.frame = container.bounds
+            dropView.autoresizingMask = [.width, .height]
+            container.addSubview(dropView)
+        }
+        withAnimation(reduceMotion ? nil : Theme.spring) {
+            model.isDropTarget = true
+        }
+        presentWindow()
+        AccessibilityNotification.Announcement("Drop to capture").post()
+    }
+
+    private func withdrawDropTarget() {
+        dropGeometry = nil
+        dropView.removeFromSuperview()
+        if presentation.display != nil {
+            withAnimation(reduceMotion ? nil : Theme.spring) {
+                model.isDropTarget = false
+                model.isDropHovered = false
+            }
+            syncModel()
+            layout(animated: true)
+            apply(presentation.hoverChanged(false))
+        } else {
+            // The drop face rides the exit animation; `hideWindow` resets it.
+            hideWindow()
+        }
+    }
+
+    private func completeDrop(_ items: [DroppedItem]) {
+        guard dropGeometry != nil else { return }
+        dropGeometry = nil
+        dropView.removeFromSuperview()
+        dropPending = true
+        performDrop?(items)
+    }
+
+    private func dropHoverChanged(_ hovered: Bool) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.12)) {
+            model.isDropHovered = hovered
+        }
+    }
+
     /// Picked once per appearance so the bar doesn't jump forms mid-display: the
     /// notch wrap on a notched screen, the menu-bar pill everywhere else.
     private func configureVariant() {
         let screen = screenUnderMouse()
         anchorScreen = screen
-        if let screen,
-            screen.safeAreaInsets.top > 0,
-            let left = screen.auxiliaryTopLeftArea,
-            let right = screen.auxiliaryTopRightArea
-        {
-            let gap = screen.frame.width - left.width - right.width
-            model.variant = .notch(gap: gap, height: screen.safeAreaInsets.top)
+        if let screen, let notch = NotchGeometry(screen: screen) {
+            model.variant = .notch(gap: notch.notchWidth, height: notch.notchHeight)
         } else {
             model.variant = .pill
         }
@@ -355,6 +495,7 @@ final class HUDPanelController {
     }
 
     private func requestDismiss() {
+        guard dropGeometry == nil else { return }
         apply(presentation.dismiss())
         if presentation.display == nil {
             hideWindow()
@@ -482,6 +623,9 @@ final class HUDPanelController {
             model.isHovering = false
             model.revealed = false
             model.note = ""
+            model.isDropTarget = false
+            model.isDropHovered = false
+            dropPending = false
         }
     }
 
