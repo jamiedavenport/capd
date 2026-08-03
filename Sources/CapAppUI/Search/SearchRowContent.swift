@@ -3,12 +3,17 @@ import Foundation
 
 /// One result row, flattened out of a hit so the view has nothing left to compute.
 struct SearchRowContent: Equatable {
+    /// Chips shown per row; a capture carries at most three tags, but two keeps the
+    /// trailing edge calm next to the age.
+    static let displayedTags = 2
+
     var kind: CaptureKind
     var title: String
     var subtitle: String?
     var snippet: AttributedString?
     var age: String
     var host: String?
+    var tags: [String]
 }
 
 extension SearchRowContent {
@@ -20,6 +25,7 @@ extension SearchRowContent {
         snippet = hit.snippet.map(Self.attributed) ?? Self.preview(of: capture)
         age = Self.compactAge(from: capture.createdAt, to: now)
         host = Self.host(for: capture)
+        tags = Array(capture.tagList.prefix(Self.displayedTags))
     }
 
     static func host(for capture: Capture) -> String? {

@@ -251,6 +251,7 @@ extension SearchEnvironment {
         SearchEnvironment(
             search: { try searchService.search($0) },
             totalCount: { try searchService.totalCaptureCount() },
+            tags: { try store.tagUsage().map(\.tag) },
             delete: { _ = try store.deleteCaptures(ids: [$0]) },
             openURL: { NSWorkspace.shared.open($0) },
             copyText: { text in

@@ -62,7 +62,8 @@ struct SearchView: View {
     }
 
     /// Arrows and the command chords are steered here while the field keeps focus, so
-    /// navigating never means leaving the keyboard or the query.
+    /// navigating never means leaving the keyboard or the query. Tab is claimed before
+    /// AppKit spends it on focus traversal — the field is the only focusable thing here.
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
         switch press.key {
         case .upArrow:
@@ -70,6 +71,9 @@ struct SearchView: View {
             return .handled
         case .downArrow:
             model.moveSelection(by: 1)
+            return .handled
+        case .tab:
+            model.cycleTag(forward: !press.modifiers.contains(.shift))
             return .handled
         case .return where press.modifiers.contains(.command):
             model.copySelected()
@@ -94,6 +98,7 @@ struct SearchView: View {
                             SearchResultRow(
                                 content: SearchRowContent(model.hits[index], now: now),
                                 isSelected: index == model.selectedIndex,
+                                activeTag: model.activeTag,
                                 namespace: selectionNamespace
                             )
                             .id(index)
@@ -130,7 +135,7 @@ struct SearchView: View {
                 Text("No matches")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Theme.text)
-                Text("Try fewer words, or drop a site: or after: filter.")
+                Text("Try fewer words, or drop a site:, tag:, or after: filter.")
                     .font(.system(size: 12))
                     .foregroundStyle(Theme.textSecondary)
             }
@@ -151,7 +156,15 @@ struct SearchView: View {
                 .foregroundStyle(Theme.textSecondary)
                 .contentTransition(.numericText())
                 .animation(.easeOut(duration: 0.2), value: model.hits.count)
+            if let tag = model.activeTag {
+                TagChip(tag: tag, isActive: true)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+            }
             Spacer()
+            if !model.availableTags.isEmpty {
+                ShortcutHint(label: "Tags", keys: ["⇥"])
+                statusDivider
+            }
             ShortcutHint(label: "Open", keys: ["↩"])
             statusDivider
             ShortcutHint(label: "Copy URL", keys: ["⌘", "↩"])
@@ -161,6 +174,11 @@ struct SearchView: View {
         .font(.system(size: 11))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .animation(reduceMotion ? nil : Theme.quickSpring, value: model.activeTag)
+    }
+
+    private var reduceMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
     private var statusDivider: some View {
@@ -173,6 +191,7 @@ struct SearchView: View {
 private struct SearchResultRow: View {
     let content: SearchRowContent
     let isSelected: Bool
+    let activeTag: String?
     let namespace: Namespace.ID
 
     @State private var isHovered = false
@@ -206,6 +225,9 @@ private struct SearchResultRow: View {
                 }
             }
             Spacer(minLength: 12)
+            ForEach(content.tags, id: \.self) { tag in
+                TagChip(tag: tag, isActive: tag == activeTag)
+            }
             Text(content.age)
                 .font(Theme.mono(10, weight: .regular))
                 .foregroundStyle(Theme.textTertiary)

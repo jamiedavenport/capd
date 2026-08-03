@@ -80,6 +80,23 @@ struct FaviconTile: View {
     }
 }
 
+/// A tag chip: `Keycap`'s materials in a capsule, so tags read as data rather than keys.
+struct TagChip: View {
+    var tag: String
+    var isActive = false
+
+    var body: some View {
+        Text(tag)
+            .font(Theme.mono(9.5))
+            .foregroundStyle(isActive ? Theme.text : Theme.textSecondary)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1.5)
+            .background(isActive ? Theme.selection : Theme.raised, in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.border, lineWidth: 1))
+    }
+}
+
 /// A single keyboard-key chip, e.g. `⌘` or `↩`.
 struct Keycap: View {
     var label: String
