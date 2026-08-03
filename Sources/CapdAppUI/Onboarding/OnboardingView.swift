@@ -1,3 +1,4 @@
+import CapKit
 import KeyboardShortcuts
 import SwiftUI
 
@@ -21,6 +22,7 @@ extension OnboardingStep {
         case .hotkeys: "Three hotkeys"
         case .accessibility: "Accessibility access"
         case .browsers: "Browser access"
+        case .intelligence: "On-device tagging"
         case .firstCapture: "Try it"
         }
     }
@@ -35,6 +37,9 @@ extension OnboardingStep {
         case .browsers:
             "Capd asks the frontmost browser for its current tab. macOS shows one consent "
                 + "dialog per browser — approving now keeps your first capture uninterrupted."
+        case .intelligence:
+            "Apple's on-device model tags every capture in the background, so nothing "
+                + "you save leaves this Mac. Tags become one-key filters in search."
         case .firstCapture:
             "That's the whole loop: capture anything, find it again in seconds."
         }
@@ -118,6 +123,8 @@ struct OnboardingView: View {
             accessibility
         case .browsers:
             browsers
+        case .intelligence:
+            intelligence
         case .firstCapture:
             firstCapture
         }
@@ -238,6 +245,53 @@ struct OnboardingView: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var intelligence: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            switch model.taggerAvailability {
+            case .available:
+                Label("Apple Intelligence is ready", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.success)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+            case .unavailable(.appleIntelligenceOff):
+                Button("Open System Settings") {
+                    model.openIntelligenceSettings()
+                }
+                intelligenceNote(
+                    "Turn on Apple Intelligence to get tagging — the model downloads once, "
+                        + "then runs entirely on this Mac. Until then captures simply wait, "
+                        + "and are tagged as soon as it's ready.")
+            case .unavailable(.modelDownloading):
+                Label(
+                    "The Apple Intelligence model is still downloading.",
+                    systemImage: "arrow.down.circle"
+                )
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.text)
+                intelligenceNote(
+                    "Nothing to do here — captures wait, and tagging starts on its own "
+                        + "when the download finishes.")
+            case .unavailable(.deviceNotEligible):
+                intelligenceNote(
+                    "This Mac can't run Apple Intelligence, so captures won't tag "
+                        + "themselves. Everything else works as usual, including tags "
+                        + "you add by hand.")
+            case .unavailable(.unknown):
+                intelligenceNote(
+                    "Apple Intelligence isn't available right now. Captures wait, and "
+                        + "tagging starts on its own once it is.")
+            }
+        }
+        .animation(Theme.spring, value: model.taggerAvailability)
+    }
+
+    private func intelligenceNote(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var firstCapture: some View {

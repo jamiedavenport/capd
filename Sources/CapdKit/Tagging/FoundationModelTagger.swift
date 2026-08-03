@@ -10,13 +10,13 @@ public struct FoundationModelTagger: Tagger {
         case .available:
             .available
         case .unavailable(.deviceNotEligible):
-            .unavailable(reason: "This Mac cannot run Apple Intelligence.")
+            .unavailable(.deviceNotEligible)
         case .unavailable(.appleIntelligenceNotEnabled):
-            .unavailable(reason: "Apple Intelligence is turned off in System Settings.")
+            .unavailable(.appleIntelligenceOff)
         case .unavailable(.modelNotReady):
-            .unavailable(reason: "The Apple Intelligence model is still downloading.")
+            .unavailable(.modelDownloading)
         case .unavailable:
-            .unavailable(reason: "Apple Intelligence is unavailable.")
+            .unavailable(.unknown)
         }
     }
 
