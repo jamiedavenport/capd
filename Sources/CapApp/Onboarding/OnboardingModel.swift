@@ -104,7 +104,7 @@ final class OnboardingModel {
         captureShortcut = environment.shortcut(.capture)?.description
         searchShortcut = environment.shortcut(.search)?.description
         conflicted = Set(
-            [KeyboardShortcuts.Name.capture, .search].filter { name in
+            [KeyboardShortcuts.Name.capture, .annotate, .search].filter { name in
                 guard let shortcut = environment.shortcut(name) else { return false }
                 return environment.isShortcutTakenBySystem(shortcut)
             })

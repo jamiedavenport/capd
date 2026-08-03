@@ -18,7 +18,7 @@ extension Browser {
 extension OnboardingStep {
     fileprivate var title: String {
         switch self {
-        case .hotkeys: "Two hotkeys"
+        case .hotkeys: "Three hotkeys"
         case .accessibility: "Accessibility access"
         case .browsers: "Browser access"
         case .firstCapture: "Try it"
@@ -28,7 +28,7 @@ extension OnboardingStep {
     fileprivate var subtitle: String {
         switch self {
         case .hotkeys:
-            "cap lives behind two global hotkeys. Change either one here if it clashes "
+            "cap lives behind three global hotkeys. Change any one here if it clashes "
                 + "with something you already use."
         case .accessibility:
             "Reading the text you've selected needs macOS Accessibility access."
@@ -129,6 +129,10 @@ struct OnboardingView: View {
                 name: .capture,
                 label: "Capture:",
                 hint: "Saves the page, selection, or image in front of you.")
+            hotkeyRow(
+                name: .annotate,
+                label: "Note:",
+                hint: "Adds a note to the capture you just made, while its toast is up.")
             hotkeyRow(
                 name: .search,
                 label: "Search:",

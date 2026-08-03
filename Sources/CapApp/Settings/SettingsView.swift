@@ -11,6 +11,10 @@ struct SettingsView: View {
                     KeyboardShortcuts.Recorder("", name: .capture)
                 }
                 hairline
+                row("Note last capture") {
+                    KeyboardShortcuts.Recorder("", name: .annotate)
+                }
+                hairline
                 row("Search") {
                     KeyboardShortcuts.Recorder("", name: .search)
                 }

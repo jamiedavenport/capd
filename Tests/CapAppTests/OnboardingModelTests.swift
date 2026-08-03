@@ -136,6 +136,7 @@ struct OnboardingModelTests {
 @MainActor
 private final class Harness {
     var captureShortcut: KeyboardShortcuts.Shortcut? = .init(.c, modifiers: [.control, .option])
+    var annotateShortcut: KeyboardShortcuts.Shortcut? = .init(.n, modifiers: [.control, .option])
     var searchShortcut: KeyboardShortcuts.Shortcut? = .init(.space, modifiers: [.option, .shift])
     var taken: [KeyboardShortcuts.Shortcut] = []
     var trusted = false
@@ -155,7 +156,11 @@ private final class Harness {
         let model = OnboardingModel(
             environment: OnboardingEnvironment(
                 shortcut: { [unowned self] name in
-                    name == .capture ? captureShortcut : searchShortcut
+                    switch name {
+                    case .capture: captureShortcut
+                    case .annotate: annotateShortcut
+                    default: searchShortcut
+                    }
                 },
                 isShortcutTakenBySystem: { [unowned self] in taken.contains($0) },
                 isAXTrusted: { [unowned self] in trusted },

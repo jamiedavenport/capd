@@ -8,6 +8,8 @@ extension KeyboardShortcuts.Name {
     static let search = Self("search", initial: .init(.space, modifiers: [.option, .shift]))
 
     static let capture = Self("capture", initial: .init(.c, modifiers: [.control, .option]))
+
+    static let annotate = Self("annotate", initial: .init(.n, modifiers: [.control, .option]))
 }
 
 /// The cap menu-bar app.
