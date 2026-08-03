@@ -25,8 +25,8 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: .build
-          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-release-${{ runner.os }}-
+          key: spm-release-${{ github.event.repository.name }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-release-${{ github.event.repository.name }}-${{ runner.os }}-
 
       - name: Check tag matches source version
         run: |

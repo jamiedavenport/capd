@@ -44,10 +44,10 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: .build
-          key: spm-debug-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: spm-debug-${{ github.event.repository.name }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
-            spm-debug-${{ runner.os }}-
-            spm-${{ runner.os }}-
+            spm-debug-${{ github.event.repository.name }}-${{ runner.os }}-
+            spm-${{ github.event.repository.name }}-${{ runner.os }}-
 
       - name: Test
         run: swift test --parallel
@@ -65,10 +65,10 @@ jobs:
       - uses: actions/cache@v6
         with:
           path: .build
-          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          key: spm-release-${{ github.event.repository.name }}-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
           restore-keys: |
-            spm-release-${{ runner.os }}-
-            spm-${{ runner.os }}-
+            spm-release-${{ github.event.repository.name }}-${{ runner.os }}-
+            spm-${{ github.event.repository.name }}-${{ runner.os }}-
 
       # The perf gate only means something against optimized code, and its timing
       # assertions need the box to itself, so it runs serial in its own job.
