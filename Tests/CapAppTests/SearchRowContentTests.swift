@@ -98,6 +98,22 @@ struct SearchRowContentTests {
 
         #expect(SearchRowContent.preview(of: makeCapture(kind: .image)) == nil)
     }
+
+    @Test("Rows surface the capture's tags, capped for the trailing edge")
+    func tagsSurfaced() {
+        let tagged = makeCapture(
+            kind: .link, url: "https://example.com/a", tags: "swift databases reading")
+        let content = SearchRowContent(
+            SearchHit(capture: tagged, snippet: nil, score: nil),
+            now: Date(timeIntervalSince1970: 1_000_000))
+        #expect(content.tags == ["swift", "databases"])
+
+        let untagged = makeCapture(kind: .link, url: "https://example.com/a")
+        let bare = SearchRowContent(
+            SearchHit(capture: untagged, snippet: nil, score: nil),
+            now: Date(timeIntervalSince1970: 1_000_000))
+        #expect(bare.tags.isEmpty)
+    }
 }
 
 private func makeCapture(
@@ -107,7 +123,8 @@ private func makeCapture(
     title: String? = nil,
     selection: String? = nil,
     body: String? = nil,
-    ocrText: String? = nil
+    ocrText: String? = nil,
+    tags: String? = nil
 ) -> Capture {
     Capture(
         kind: kind,
@@ -117,5 +134,6 @@ private func makeCapture(
         selection: selection,
         body: body,
         ocrText: ocrText,
+        tags: tags,
         createdAt: Date(timeIntervalSince1970: 1_000_000))
 }

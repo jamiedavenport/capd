@@ -32,6 +32,19 @@ package struct SettingsView: View {
                     toggle($settings.checksForUpdates)
                 }
             }
+            section("Intelligence") {
+                row("Auto-tag captures on device") {
+                    toggle($settings.autoTagsCaptures)
+                        .disabled(settings.autoTagsUnavailableReason != nil)
+                }
+                if let reason = settings.autoTagsUnavailableReason {
+                    Text(reason)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(Theme.textTertiary)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                }
+            }
         }
         .padding(20)
         .frame(width: 420)

@@ -71,6 +71,8 @@ struct CLIGoldenTests {
             ocrText: "error code 418: I'm a teapot",
             assetPath: "2026/03/kettle.png",
             sourceAppBundleID: "com.apple.Safari",
+            tags: "kitchen hardware",
+            tagsVersion: 1,
             enrichmentState: .ok,
             createdAt: Date(timeIntervalSince1970: 1_772_409_600.250)),
         Capture(

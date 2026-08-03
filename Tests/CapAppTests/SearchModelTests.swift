@@ -212,6 +212,96 @@ struct SearchModelTests {
         #expect(model.totalCount == 2)
     }
 
+    @Test("Tab cycles every tag with all-captures as the stop between the ends")
+    func tabCycle() async {
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [] },
+                tags: { ["swift", "databases"] }))
+        model.activate()
+        await model.settle()
+        #expect(model.availableTags == ["swift", "databases"])
+
+        model.cycleTag(forward: true)
+        #expect(model.activeTag == "swift")
+        model.cycleTag(forward: true)
+        #expect(model.activeTag == "databases")
+        model.cycleTag(forward: true)
+        #expect(model.activeTag == nil)
+
+        model.cycleTag(forward: false)
+        #expect(model.activeTag == "databases")
+        model.cycleTag(forward: false)
+        #expect(model.activeTag == "swift")
+        model.cycleTag(forward: false)
+        #expect(model.activeTag == nil)
+    }
+
+    @Test("A cycled tag rides the query as a trailing tag: token")
+    func cycledTagFilters() async {
+        let seen = Mutex<[String]>([])
+        let model = SearchModel(
+            environment: .stub(
+                search: { text in
+                    seen.withLock { $0.append(text) }
+                    return []
+                },
+                tags: { ["swift"] }))
+        model.activate()
+        await model.settle()
+
+        model.queryText = "notes"
+        await model.settle()
+        model.cycleTag(forward: true)
+        await model.settle()
+
+        #expect(seen.withLock { $0.last } == "notes tag:swift")
+    }
+
+    @Test("Typing hands the filter back to the query text")
+    func typingResetsCycledTag() async {
+        let model = SearchModel(
+            environment: .stub(search: { _ in [] }, tags: { ["swift"] }))
+        model.activate()
+        await model.settle()
+
+        model.cycleTag(forward: true)
+        #expect(model.activeTag == "swift")
+
+        model.queryText = "n"
+        #expect(model.activeTag == nil)
+    }
+
+    @Test("Summoning the window clears the cycled tag and reloads the cycle")
+    func activateResetsCycle() async {
+        let available = Mutex(["old"])
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [] },
+                tags: { available.withLock { $0 } }))
+        model.activate()
+        await model.settle()
+        model.cycleTag(forward: true)
+        #expect(model.activeTag == "old")
+
+        available.withLock { $0 = ["fresh"] }
+        model.activate()
+        await model.settle()
+
+        #expect(model.activeTag == nil)
+        #expect(model.availableTags == ["fresh"])
+    }
+
+    @Test("Cycling with no tags is inert")
+    func cycleWithoutTags() async {
+        let model = SearchModel(environment: .stub(search: { _ in [] }))
+        model.activate()
+        await model.settle()
+
+        model.cycleTag(forward: true)
+        #expect(model.activeTag == nil)
+    }
+
     @Test("Actions with no results do nothing")
     func actionsWithoutResults() async {
         let log = ActionLog()
@@ -306,6 +396,7 @@ extension SearchEnvironment {
     fileprivate static func stub(
         search: @escaping @Sendable (String) async throws -> [SearchHit],
         totalCount: @escaping @Sendable () async throws -> Int = { 0 },
+        tags: @escaping @Sendable () async throws -> [String] = { [] },
         delete: @escaping @MainActor (Int64) throws -> Void = { _ in },
         openURL: @escaping @MainActor (URL) -> Void = { _ in },
         copyText: @escaping @MainActor (String) -> Void = { _ in },
@@ -315,6 +406,7 @@ extension SearchEnvironment {
         SearchEnvironment(
             search: search,
             totalCount: totalCount,
+            tags: tags,
             delete: delete,
             openURL: openURL,
             copyText: copyText,

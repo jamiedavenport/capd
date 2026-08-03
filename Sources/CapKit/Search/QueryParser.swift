@@ -9,6 +9,8 @@ public struct SearchQuery: Equatable, Sendable {
     public var text: String
     /// A lowercased host. Matches the host itself and any subdomain of it.
     public var site: String?
+    /// A lowercased tag, matched as a whole token of the capture's tag list.
+    public var tag: String?
     /// Inclusive lower bound on `created_at`.
     public var createdAfter: Date?
     /// Exclusive upper bound on `created_at`.
@@ -18,12 +20,14 @@ public struct SearchQuery: Equatable, Sendable {
     public init(
         text: String = "",
         site: String? = nil,
+        tag: String? = nil,
         createdAfter: Date? = nil,
         createdBefore: Date? = nil,
         limit: Int = QueryParser.defaultLimit
     ) {
         self.text = text
         self.site = site
+        self.tag = tag
         self.createdAfter = createdAfter
         self.createdBefore = createdBefore
         self.limit = limit
@@ -86,6 +90,11 @@ public struct QueryParser: Sendable {
         switch token[..<colon].lowercased() {
         case "site":
             query.site = value.lowercased()
+        case "tag":
+            // A leading `#` is accepted because that's how people write tags elsewhere.
+            let tag = value.drop(while: { $0 == "#" }).lowercased()
+            guard !tag.isEmpty else { return false }
+            query.tag = tag
         case "after", "since":
             guard let date = inclusiveDayStart(String(value)) else { return false }
             query.createdAfter = date

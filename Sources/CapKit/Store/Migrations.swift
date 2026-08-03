@@ -5,10 +5,11 @@ enum Migrations {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("001", migrate: createCaptures)
+        migrator.registerMigration("002", migrate: addTagging)
         return migrator
     }
 
-    private static func createCaptures(_ db: Database) throws {
+    static func createCaptures(_ db: Database) throws {
         try db.create(table: Schema.captures) { t in
             t.autoIncrementedPrimaryKey(Capture.CodingKeys.id.rawValue)
 
@@ -53,8 +54,11 @@ enum Migrations {
             // accents across part of the Latin range. The mode is compiled into the table,
             // so getting it wrong costs a full re-index of every capture.
             t.tokenizer = .porter(wrapping: .unicode61(diacritics: .remove))
-            for entry in Schema.ranking {
-                t.column(entry.column)
+            // Frozen rather than derived from `Schema.ranking`: this migration must keep
+            // producing the schema it shipped with, and the live list has since grown
+            // columns that do not exist at this point in the migration sequence.
+            for column in ["title", "host", "note", "selection", "body", "ocr_text"] {
+                t.column(column)
             }
         }
 
@@ -102,5 +106,47 @@ enum Migrations {
             on: Schema.captures,
             columns: [Capture.CodingKeys.title.rawValue]
         )
+    }
+
+    private static func addTagging(_ db: Database) throws {
+        try db.alter(table: Schema.captures) { t in
+            t.add(column: Capture.CodingKeys.tags.rawValue, .text)
+            t.add(column: Capture.CodingKeys.tagsVersion.rawValue, .integer)
+                .notNull().defaults(to: 0)
+        }
+
+        try db.create(
+            index: "captures_on_tags_version",
+            on: Schema.captures,
+            columns: [Capture.CodingKeys.tagsVersion.rawValue]
+        )
+
+        try db.create(table: Schema.taxonomy) { t in
+            t.primaryKey("id", .integer).check { $0 == 1 }
+            t.column("version", .integer).notNull()
+            t.column("tags", .text).notNull()
+            t.column("tagged_since_consolidation", .integer).notNull().defaults(to: 0)
+            t.column("tagging_enabled", .boolean).notNull().defaults(to: true)
+            t.column("updated_at", .datetime).notNull()
+        }
+        try db.execute(
+            sql: """
+                INSERT INTO \(Schema.taxonomy)
+                    (id, version, tags, tagged_since_consolidation, tagging_enabled, updated_at)
+                VALUES (1, 1, '', 0, 1, ?)
+                """,
+            arguments: [Date()])
+
+        // The FTS column list is compiled into the table, so indexing `tags` means
+        // recreating it; `synchronize` repopulates the new table from `captures`.
+        try db.drop(table: Schema.capturesFTS)
+        try db.dropFTS5SynchronizationTriggers(forTable: Schema.capturesFTS)
+        try db.create(virtualTable: Schema.capturesFTS, using: FTS5()) { t in
+            t.synchronize(withTable: Schema.captures)
+            t.tokenizer = .porter(wrapping: .unicode61(diacritics: .remove))
+            for entry in Schema.ranking {
+                t.column(entry.column)
+            }
+        }
     }
 }

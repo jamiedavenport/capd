@@ -125,6 +125,14 @@ final class AppState {
         dragMonitor.onDragEnded = { [weak hud] in hud?.dragEnded() }
         dragMonitor.start()
 
+        // Seeded before the write-through closure is wired, so reflecting the stored
+        // flag cannot immediately write it back.
+        settings.autoTagsCaptures = (try? store.taxonomy().taggingEnabled) ?? true
+        settings.saveAutoTags = { try? store.setTaggingEnabled($0) }
+        if case .unavailable(let reason) = FoundationModelTagger().availability() {
+            settings.autoTagsUnavailableReason = reason
+        }
+
         let searchService = SearchService(store: store)
         search = SearchWindowController(
             environment: .live(
@@ -250,6 +258,7 @@ extension SearchEnvironment {
         SearchEnvironment(
             search: { try searchService.search($0) },
             totalCount: { try searchService.totalCaptureCount() },
+            tags: { try store.tagUsage().map(\.tag) },
             delete: { _ = try store.deleteCaptures(ids: [$0]) },
             openURL: { NSWorkspace.shared.open($0) },
             copyText: { text in

@@ -175,6 +175,13 @@ public struct SearchService: Sendable {
             conditions.arguments.append(site)
             conditions.arguments.append("%.\(Self.escapingWildcards(site))")
         }
+        if let tag = query.tag {
+            // Padded on both sides so the LIKE can only match a whole token: `tag:swift`
+            // must not find `swiftui`. A NULL tags column concatenates to NULL, which the
+            // LIKE rejects, so untagged rows drop out without their own clause.
+            conditions.clauses.append("(' ' || \(Self.column(.tags)) || ' ') LIKE ? ESCAPE '\\'")
+            conditions.arguments.append("% \(Self.escapingWildcards(tag)) %")
+        }
         // Dates bind as Date: GRDB writes them in a fixed-width UTC format, so SQLite's
         // lexicographic string comparison is a chronological one too.
         if let after = query.createdAfter {

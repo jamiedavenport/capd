@@ -23,6 +23,21 @@ struct QueryParserTests {
     }
 
     @Test(
+        "tag: tokens leave the search text",
+        arguments: [
+            ("tag:swift", "", "swift"),
+            ("TAG:Swift notes", "notes", "swift"),
+            ("tag:#swift", "", "swift"),
+            ("tag:a tag:b", "", "b"),
+        ])
+    func tagExtraction(input: String, text: String, tag: String) {
+        let query = parser.parse(input)
+
+        #expect(query.text == text)
+        #expect(query.tag == tag)
+    }
+
+    @Test(
         "Anything that is not a filter stays in the text",
         arguments: [
             "plain words",
@@ -35,6 +50,8 @@ struct QueryParserTests {
             "since:2026-1-1",
             "until:yesterday",
             "before:",
+            "tag:",
+            "tag:##",
             ":leading",
         ])
     func nonFiltersStayInText(input: String) {
@@ -42,6 +59,7 @@ struct QueryParserTests {
 
         #expect(query.text == input.trimmingCharacters(in: .whitespaces))
         #expect(query.site == nil)
+        #expect(query.tag == nil)
         #expect(query.createdAfter == nil)
         #expect(query.createdBefore == nil)
     }

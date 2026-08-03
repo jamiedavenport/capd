@@ -8,6 +8,7 @@ import Observation
 package struct SearchEnvironment {
     var search: @Sendable (String) async throws -> [SearchHit]
     var totalCount: @Sendable () async throws -> Int
+    var tags: @Sendable () async throws -> [String]
     var delete: @MainActor (Int64) throws -> Void
     var openURL: @MainActor (URL) -> Void
     var copyText: @MainActor (String) -> Void
@@ -17,6 +18,7 @@ package struct SearchEnvironment {
     package init(
         search: @escaping @Sendable (String) async throws -> [SearchHit],
         totalCount: @escaping @Sendable () async throws -> Int,
+        tags: @escaping @Sendable () async throws -> [String] = { [] },
         delete: @escaping @MainActor (Int64) throws -> Void,
         openURL: @escaping @MainActor (URL) -> Void,
         copyText: @escaping @MainActor (String) -> Void,
@@ -25,6 +27,7 @@ package struct SearchEnvironment {
     ) {
         self.search = search
         self.totalCount = totalCount
+        self.tags = tags
         self.delete = delete
         self.openURL = openURL
         self.copyText = copyText
@@ -42,9 +45,17 @@ final class SearchModel {
     var queryText = "" {
         didSet {
             guard queryText != oldValue else { return }
+            // Typing takes over from the cycled filter: two competing tag filters would
+            // be impossible to reason about from the search field.
+            activeTag = nil
             refresh()
         }
     }
+
+    /// Every tag in use, most used first — the ⇥ cycle order.
+    private(set) var availableTags: [String] = []
+    /// The tag the ⇥ cycle is filtering by; nil is the "all captures" stop.
+    private(set) var activeTag: String?
 
     private(set) var hits: [SearchHit] = []
     private(set) var totalCount = 0
@@ -60,6 +71,7 @@ final class SearchModel {
     @ObservationIgnored private let environment: SearchEnvironment
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var inflight: [Int: Task<Void, Never>] = [:]
+    @ObservationIgnored private var tagLoad: Task<Void, Never>?
 
     init(environment: SearchEnvironment) {
         self.environment = environment
@@ -69,12 +81,36 @@ final class SearchModel {
         hits.indices.contains(selectedIndex) ? hits[selectedIndex] : nil
     }
 
-    /// Called each time the window is summoned: fresh query, fresh recents, focused field.
+    /// Called each time the window is summoned: fresh query, fresh recents, fresh tag
+    /// cycle, focused field.
     func activate() {
         focusToken &+= 1
-        let alreadyEmpty = queryText.isEmpty
+        let alreadyClear = queryText.isEmpty && activeTag == nil
+        activeTag = nil
         queryText = ""
-        if alreadyEmpty { refresh() }
+        if alreadyClear { refresh() }
+
+        let fetch = environment.tags
+        tagLoad = Task { [weak self] in
+            let tags = (try? await fetch()) ?? []
+            self?.availableTags = tags
+        }
+    }
+
+    /// ⇥ and ⇧⇥ walk the tag filters with "all captures" as the stop between the ends.
+    func cycleTag(forward: Bool) {
+        guard !availableTags.isEmpty else { return }
+        if let current = activeTag, let index = availableTags.firstIndex(of: current) {
+            if forward {
+                let next = index + 1
+                activeTag = next < availableTags.count ? availableTags[next] : nil
+            } else {
+                activeTag = index > 0 ? availableTags[index - 1] : nil
+            }
+        } else {
+            activeTag = forward ? availableTags.first : availableTags.last
+        }
+        refresh()
     }
 
     func moveSelection(by delta: Int) {
@@ -126,6 +162,10 @@ final class SearchModel {
 
     /// Waits for every issued query, including ones that lost the generation race. Test hook.
     func settle() async {
+        if let task = tagLoad {
+            await task.value
+            tagLoad = nil
+        }
         while let (key, task) = inflight.first {
             await task.value
             inflight[key] = nil
@@ -135,7 +175,9 @@ final class SearchModel {
     private func refresh(preservingSelection: Bool = false) {
         generation &+= 1
         let expected = generation
-        let text = queryText
+        // Appended after the typed text so a cycled tag always wins: the parser keeps
+        // the last tag: token it sees.
+        let text = activeTag.map { "\(queryText) tag:\($0)" } ?? queryText
         let search = environment.search
         let count = environment.totalCount
         inflight[expected] = Task { [weak self] in

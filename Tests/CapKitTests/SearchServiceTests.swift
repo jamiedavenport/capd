@@ -229,6 +229,44 @@ struct SearchServiceTests {
         }
     }
 
+    @Test("tag: matches whole tags only, and untagged rows drop out")
+    func tagFilter() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(title: "Tagged", tags: "swift databases"),
+                    makeCapture(title: "Near miss", tags: "swiftui"),
+                    makeCapture(title: "Untagged"),
+                ])
+            let service = SearchService(store: store)
+
+            #expect(try service.search("tag:swift").map(\.capture.id) == [ids[0]])
+            #expect(try service.search("tag:swiftui").map(\.capture.id) == [ids[1]])
+            #expect(try service.search("tag:databases").map(\.capture.id) == [ids[0]])
+            #expect(try service.search("tag:absent").isEmpty)
+        }
+    }
+
+    @Test("The tag filter also constrains the full-text leg, and tags are indexed text")
+    func tagFilterConstrainsBothLegs() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(title: "Sqlite internals", tags: "databases"),
+                    makeCapture(title: "Sqlite internals", tags: "reading"),
+                ])
+            let service = SearchService(store: store)
+
+            #expect(try service.search("sqlite tag:databases").map(\.capture.id) == [ids[0]])
+            // A tag is also plain searchable text, through the full-text index.
+            #expect(try service.search("databases").map(\.capture.id) == [ids[0]])
+        }
+    }
+
     @Test("Date filters bound the day inclusively at the start and per keyword at the end")
     func dateFilters() throws {
         try withTemporaryPaths { paths in
@@ -502,6 +540,7 @@ private func makeCapture(
     host: String? = "example.com",
     title: String? = nil,
     body: String? = nil,
+    tags: String? = nil,
     createdAt: Date = Date()
 ) -> Capture {
     Capture(
@@ -510,6 +549,8 @@ private func makeCapture(
         host: host,
         title: title,
         body: body,
+        tags: tags,
+        tagsVersion: tags == nil ? 0 : 1,
         createdAt: createdAt
     )
 }
