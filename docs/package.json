@@ -3,10 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "sync": "node scripts/sync-cli-contract.mjs",
-    "predev": "npm run sync",
     "dev": "blume dev",
-    "prebuild": "npm run sync",
     "build": "blume build",
     "doctor": "blume doctor"
   },

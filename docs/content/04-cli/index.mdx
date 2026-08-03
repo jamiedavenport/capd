@@ -5,8 +5,7 @@ description: Capture, search, and export from the terminal with the cap CLI.
 
 The `cap` binary is a first-class way to use cap — everything the hotkey saves can
 also be captured, searched, and exported from a script. Read commands take `--json`,
-whose field set is a stable interface; the exact contract lives in the
-[CLI reference](/cli/reference).
+whose field set is a stable interface.
 
 ## Capturing
 
@@ -72,6 +71,6 @@ agent; `--skip-agent` checks only the store.
 - Exit codes: 0 success, 1 no results, 2 bad usage, 3 store unavailable, 4 agent not
   running.
 - `CAP_DIR` overrides the storage root for the CLI, app, and agent alike.
-- `--json` output is stable; plain output is for people and may change.
-
-See the [CLI reference](/cli/reference) for the precise guarantees.
+- `--json` output is stable; plain output is for people and may change. Stable
+  fields are never renamed, retyped, or removed; new fields may be added, so
+  consumers must ignore keys they do not recognize.
