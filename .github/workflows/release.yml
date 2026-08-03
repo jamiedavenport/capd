@@ -108,11 +108,9 @@ jobs:
             "$RUNNER_TEMP/tap"
           mkdir -p "$RUNNER_TEMP/tap/Casks"
           Scripts/make-cask.sh "$VERSION" "$SHA256" > "$RUNNER_TEMP/tap/Casks/capd.rb"
-          printf '{\n  "cap": "capd"\n}\n' > "$RUNNER_TEMP/tap/cask_renames.json"
           cd "$RUNNER_TEMP/tap"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f --ignore-unmatch Casks/cap.rb
-          git add Casks/capd.rb cask_renames.json
+          git add Casks/capd.rb
           git commit -m "capd $VERSION"
           git push
