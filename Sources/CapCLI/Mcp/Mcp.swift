@@ -3,6 +3,7 @@ import CapKit
 import Dispatch
 import Foundation
 import MCP
+import Synchronization
 
 struct Mcp: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -21,19 +22,19 @@ struct Mcp: ParsableCommand {
     func run() throws {
         let service = SearchService(store: try openStore())
 
-        nonisolated(unsafe) var failure: (any Error)?
+        let failure = Mutex<(any Error)?>(nil)
         let finished = DispatchSemaphore(value: 0)
         Task.detached {
             do {
                 try await Self.serve(service)
             } catch {
-                failure = error
+                failure.withLock { $0 = error }
             }
             finished.signal()
         }
         finished.wait()
-        if let failure {
-            throw failure
+        if let error = failure.withLock({ $0 }) {
+            throw error
         }
     }
 
