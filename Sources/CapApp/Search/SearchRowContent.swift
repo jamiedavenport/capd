@@ -8,6 +8,7 @@ struct SearchRowContent: Equatable {
     var subtitle: String?
     var snippet: AttributedString?
     var age: String
+    var host: String?
 }
 
 extension SearchRowContent {
@@ -18,6 +19,12 @@ extension SearchRowContent {
         subtitle = Self.subtitle(for: capture)
         snippet = hit.snippet.map(Self.attributed) ?? Self.preview(of: capture)
         age = Self.compactAge(from: capture.createdAt, to: now)
+        host = Self.host(for: capture)
+    }
+
+    static func host(for capture: Capture) -> String? {
+        guard capture.kind == .link else { return nil }
+        return capture.host ?? capture.url.flatMap { URLComponents(string: $0)?.host }
     }
 
     static func title(for capture: Capture) -> String {

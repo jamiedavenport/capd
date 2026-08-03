@@ -59,6 +59,18 @@ struct SearchRowContentTests {
         #expect(SearchRowContent.subtitle(for: ocrImage) == "image · OCR indexed")
     }
 
+    @Test("Only link rows carry a favicon host, parsed from the URL when unset")
+    func hostFlattening() {
+        let stored = makeCapture(kind: .link, url: "https://www.example.com/a", host: "example.com")
+        #expect(SearchRowContent.host(for: stored) == "example.com")
+
+        let parsed = makeCapture(kind: .link, url: "https://docs.example.com/a")
+        #expect(SearchRowContent.host(for: parsed) == "docs.example.com")
+
+        #expect(SearchRowContent.host(for: makeCapture(kind: .text, selection: "x")) == nil)
+        #expect(SearchRowContent.host(for: makeCapture(kind: .image)) == nil)
+    }
+
     @Test("Snippet highlights become emphasized runs")
     func snippetEmphasis() {
         let text = "the fts5 module provides fts search"
@@ -90,6 +102,7 @@ struct SearchRowContentTests {
 private func makeCapture(
     kind: CaptureKind,
     url: String? = nil,
+    host: String? = nil,
     title: String? = nil,
     selection: String? = nil,
     body: String? = nil,
@@ -98,6 +111,7 @@ private func makeCapture(
     Capture(
         kind: kind,
         url: url,
+        host: host,
         title: title,
         selection: selection,
         body: body,

@@ -40,6 +40,24 @@ public struct StoragePaths: Sendable, Equatable {
         root.appendingPathComponent("agent.lock", isDirectory: false)
     }
 
+    /// Per-site favicons, keyed by host rather than capture: shared across captures and
+    /// never deleted with one.
+    public var faviconsDirectory: URL {
+        root.appendingPathComponent("favicons", isDirectory: true)
+    }
+
+    public func faviconURL(forHost host: String) -> URL {
+        faviconsDirectory.appendingPathComponent(
+            "\(FaviconPolicy.cacheKey(forHost: host)).png", isDirectory: false)
+    }
+
+    /// A sentinel whose modification date records when the site was confirmed to have
+    /// no usable favicon, so misses aren't refetched every launch.
+    public func faviconMissURL(forHost host: String) -> URL {
+        faviconsDirectory.appendingPathComponent(
+            "\(FaviconPolicy.cacheKey(forHost: host)).missing", isDirectory: false)
+    }
+
     public func assetURL(forRelativePath path: String) -> URL {
         assetsDirectory.appendingPathComponent(path, isDirectory: false)
     }
@@ -48,5 +66,7 @@ public struct StoragePaths: Sendable, Equatable {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(
             at: assetsDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: faviconsDirectory, withIntermediateDirectories: true)
     }
 }

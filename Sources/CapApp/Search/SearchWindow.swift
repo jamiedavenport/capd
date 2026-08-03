@@ -20,7 +20,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     private let model: SearchModel
     private let panel: SearchPanel
 
-    init(environment: SearchEnvironment) {
+    init(environment: SearchEnvironment, favicons: FaviconStore?) {
         model = SearchModel(environment: environment)
 
         let panel = SearchPanel(
@@ -41,7 +41,8 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
 
         super.init()
 
-        let hosting = NSHostingView(rootView: SearchView(model: model))
+        let hosting = NSHostingView(
+            rootView: SearchView(model: model).environment(\.faviconStore, favicons))
         panel.contentView = hosting
         hosting.layoutSubtreeIfNeeded()
         panel.setContentSize(hosting.fittingSize)
