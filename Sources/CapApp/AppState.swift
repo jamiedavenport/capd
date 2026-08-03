@@ -247,6 +247,8 @@ extension OnboardingEnvironment {
                 NSWorkspace.shared.open(url)
             },
             taggerAvailability: { FoundationModelTagger().availability() },
+            shareExtensionStatus: { ShareExtensionElection.status() },
+            enableShareExtension: { ShareExtensionElection.enable() },
             runningBrowsers: {
                 Browser.allCases.filter { browser in
                     !NSRunningApplication

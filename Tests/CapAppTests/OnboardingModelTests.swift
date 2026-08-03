@@ -29,6 +29,8 @@ struct OnboardingModelTests {
         model.advance()
         #expect(model.step == .browsers)
         model.advance()
+        #expect(model.step == .shareSheet)
+        model.advance()
         #expect(model.step == .intelligence)
         model.advance()
         #expect(model.step == .firstCapture)
@@ -121,6 +123,40 @@ struct OnboardingModelTests {
         #expect(harness.model.taggerAvailability == .available)
     }
 
+    @Test("A never-touched share extension is enabled unprompted, exactly once")
+    func sharePriming() {
+        let harness = Harness()
+        harness.shareStatus = .defaulted
+        harness.model.refresh()
+        #expect(harness.shareEnables == 1)
+        #expect(harness.model.shareStatus == .enabled)
+
+        harness.shareStatus = .defaulted
+        harness.model.refresh()
+        #expect(harness.shareEnables == 1)
+    }
+
+    @Test("An explicitly disabled share extension waits for the button")
+    func shareRespectsDisabled() {
+        let harness = Harness()
+        harness.shareStatus = .disabled
+        harness.model.refresh()
+        #expect(harness.shareEnables == 0)
+        #expect(harness.model.shareStatus == .disabled)
+
+        harness.model.enableShareExtension()
+        #expect(harness.shareEnables == 1)
+        #expect(harness.model.shareStatus == .enabled)
+    }
+
+    @Test("An unregistered share extension is reported, not elected")
+    func shareUnregistered() {
+        let harness = Harness()
+        harness.model.refresh()
+        #expect(harness.model.shareStatus == .unregistered)
+        #expect(harness.shareEnables == 0)
+    }
+
     @Test("The guided first capture latches once a capture exists")
     func captureLatch() {
         let harness = Harness()
@@ -164,6 +200,8 @@ private final class Harness {
     var automationSettingsOpens = 0
     var intelligenceSettingsOpens = 0
     var availability: TaggerAvailability = .available
+    var shareStatus: ShareExtensionStatus = .unregistered
+    var shareEnables = 0
     var running: [Browser] = []
     var statuses: [Browser: AutomationConsentStatus] = [:]
     var prompted: [Browser] = []
@@ -190,6 +228,11 @@ private final class Harness {
                 openAutomationSettings: { [unowned self] in automationSettingsOpens += 1 },
                 openIntelligenceSettings: { [unowned self] in intelligenceSettingsOpens += 1 },
                 taggerAvailability: { [unowned self] in availability },
+                shareExtensionStatus: { [unowned self] in shareStatus },
+                enableShareExtension: { [unowned self] in
+                    shareEnables += 1
+                    shareStatus = .enabled
+                },
                 runningBrowsers: { [unowned self] in running },
                 automationStatus: { [unowned self] in statuses[$0] ?? .undetermined },
                 requestAutomationConsent: { [unowned self] browser in
