@@ -709,3 +709,24 @@ package final class HUDPanelController {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 }
+
+@MainActor
+private func previewModel(variant: HUDModel.Variant) -> HUDModel {
+    let model = HUDModel()
+    model.variant = variant
+    model.content = HUDContent(
+        style: .captured, captureID: 1, headline: "Captured", detail: "example.com", kind: .link)
+    return model
+}
+
+#Preview("Pill") {
+    CaptureHUDView(
+        model: previewModel(variant: .pill),
+        beginAnnotation: {}, saveNote: {}, dismiss: {}, hoverChanged: { _ in })
+}
+
+#Preview("Notch") {
+    CaptureHUDView(
+        model: previewModel(variant: .notch(gap: 180, height: 38)),
+        beginAnnotation: {}, saveNote: {}, dismiss: {}, hoverChanged: { _ in })
+}

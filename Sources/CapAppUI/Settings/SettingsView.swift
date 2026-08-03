@@ -83,3 +83,8 @@ package struct SettingsView: View {
             .padding(.leading, 12)
     }
 }
+
+#Preview {
+    let defaults = UserDefaults(suiteName: "dev.jxd.cap.preview")!
+    SettingsView(settings: AppSettings(defaults: defaults))
+}
