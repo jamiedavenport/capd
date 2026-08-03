@@ -1,4 +1,5 @@
 import AppKit
+import CapAppUI
 
 /// Registers the menu-bar item as a drop surface.
 ///

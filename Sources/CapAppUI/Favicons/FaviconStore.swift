@@ -8,7 +8,7 @@ import SwiftUI
 /// completing mutates observed state, which repaints whichever rows asked.
 @MainActor
 @Observable
-final class FaviconStore {
+package final class FaviconStore {
     private let paths: StoragePaths
     private let fetcher: FaviconFetcher
     private let now: () -> Date
@@ -18,7 +18,7 @@ final class FaviconStore {
     @ObservationIgnored private var resolved: Set<String> = []
     @ObservationIgnored private var tasks: [String: Task<Void, Never>] = [:]
 
-    init(
+    package init(
         paths: StoragePaths,
         fetcher: FaviconFetcher = .live,
         now: @escaping () -> Date = Date.init

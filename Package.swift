@@ -37,10 +37,18 @@ let package = Package(
             dependencies: ["CapKit"],
             resources: [.copy("Resources/dev.jxd.cap.agent.plist")]
         ),
+        .target(
+            name: "CapAppUI",
+            dependencies: [
+                "CapKit",
+                "KeyboardShortcuts",
+            ]
+        ),
         .executableTarget(
             name: "CapApp",
             dependencies: [
                 "CapKit",
+                "CapAppUI",
                 "KeyboardShortcuts",
             ]
         ),
@@ -63,6 +71,7 @@ let package = Package(
             name: "CapAppTests",
             dependencies: [
                 "CapApp",
+                "CapAppUI",
                 "CapKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]

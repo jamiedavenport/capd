@@ -1,3 +1,4 @@
+import CapAppUI
 import Foundation
 
 enum TabExtractionError: Error, Equatable {

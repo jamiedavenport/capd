@@ -5,13 +5,29 @@ import Observation
 /// Everything the search window does to the rest of the system, injectable so tests can
 /// drive queries and observe actions without a store, a pasteboard, or a browser.
 @MainActor
-struct SearchEnvironment {
+package struct SearchEnvironment {
     var search: @Sendable (String) async throws -> [SearchHit]
     var totalCount: @Sendable () async throws -> Int
     var delete: @MainActor (Int64) throws -> Void
     var openURL: @MainActor (URL) -> Void
     var copyText: @MainActor (String) -> Void
     var assetFileURL: @MainActor (String) -> URL?
+
+    package init(
+        search: @escaping @Sendable (String) async throws -> [SearchHit],
+        totalCount: @escaping @Sendable () async throws -> Int,
+        delete: @escaping @MainActor (Int64) throws -> Void,
+        openURL: @escaping @MainActor (URL) -> Void,
+        copyText: @escaping @MainActor (String) -> Void,
+        assetFileURL: @escaping @MainActor (String) -> URL?
+    ) {
+        self.search = search
+        self.totalCount = totalCount
+        self.delete = delete
+        self.openURL = openURL
+        self.copyText = copyText
+        self.assetFileURL = assetFileURL
+    }
 }
 
 /// Drives the search window: a query per keystroke, off the main thread, and only the

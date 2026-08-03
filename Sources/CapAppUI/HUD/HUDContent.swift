@@ -2,7 +2,7 @@ import CapKit
 import Foundation
 
 /// What the toast says about one capture attempt.
-struct HUDContent: Equatable {
+package struct HUDContent: Equatable {
     enum Style: Equatable {
         case captured
         case duplicate
@@ -29,7 +29,9 @@ struct HUDContent: Equatable {
         return trimmed.isEmpty && note == nil ? nil : trimmed
     }
 
-    static func outcome(_ outcome: CaptureOutcome, fallbackNote: String?, now: Date) -> HUDContent {
+    package static func outcome(_ outcome: CaptureOutcome, fallbackNote: String?, now: Date)
+        -> HUDContent
+    {
         let capture = outcome.capture
         let subject = subject(of: capture)
         switch outcome {
@@ -54,11 +56,11 @@ struct HUDContent: Equatable {
         }
     }
 
-    static func blocked() -> HUDContent {
+    package static func blocked() -> HUDContent {
         HUDContent(style: .blocked, headline: "Capture blocked", detail: "Secure input is active.")
     }
 
-    static func failure(_ error: any Error, detail: String?) -> HUDContent {
+    package static func failure(_ error: any Error, detail: String?) -> HUDContent {
         HUDContent(
             style: .failed,
             headline: (error as? any LocalizedError)?.errorDescription ?? "Capture failed",

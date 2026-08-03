@@ -11,7 +11,7 @@ enum OnboardingStep: Int, CaseIterable {
 
 /// Everything the first-run flow reads or pokes, injectable so the flow tests without
 /// TCC dialogs, Apple Events, launchd, or a live store.
-struct OnboardingEnvironment {
+package struct OnboardingEnvironment {
     var shortcut: @MainActor (KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut?
     var isShortcutTakenBySystem: @MainActor (KeyboardShortcuts.Shortcut) -> Bool
     var isAXTrusted: @MainActor () -> Bool
@@ -24,6 +24,34 @@ struct OnboardingEnvironment {
     var captureCount: @MainActor () -> Int
     var installAgent: @MainActor () -> Void
     var isAgentLoaded: @MainActor () -> Bool
+
+    package init(
+        shortcut: @escaping @MainActor (KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut?,
+        isShortcutTakenBySystem: @escaping @MainActor (KeyboardShortcuts.Shortcut) -> Bool,
+        isAXTrusted: @escaping @MainActor () -> Bool,
+        requestAXTrust: @escaping @MainActor () -> Void,
+        openAXSettings: @escaping @MainActor () -> Void,
+        openAutomationSettings: @escaping @MainActor () -> Void,
+        runningBrowsers: @escaping @MainActor () -> [Browser],
+        automationStatus: @escaping @MainActor (Browser) -> AutomationConsentStatus,
+        requestAutomationConsent: @escaping @MainActor (Browser) async -> AutomationConsentStatus,
+        captureCount: @escaping @MainActor () -> Int,
+        installAgent: @escaping @MainActor () -> Void,
+        isAgentLoaded: @escaping @MainActor () -> Bool
+    ) {
+        self.shortcut = shortcut
+        self.isShortcutTakenBySystem = isShortcutTakenBySystem
+        self.isAXTrusted = isAXTrusted
+        self.requestAXTrust = requestAXTrust
+        self.openAXSettings = openAXSettings
+        self.openAutomationSettings = openAutomationSettings
+        self.runningBrowsers = runningBrowsers
+        self.automationStatus = automationStatus
+        self.requestAutomationConsent = requestAutomationConsent
+        self.captureCount = captureCount
+        self.installAgent = installAgent
+        self.isAgentLoaded = isAgentLoaded
+    }
 }
 
 /// Drives the first-run window: walks the steps, mirrors permission state, and latches

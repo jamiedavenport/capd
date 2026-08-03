@@ -1,4 +1,5 @@
 import AppKit
+import CapAppUI
 import CoreServices
 
 /// Queries and pre-warms the per-app Apple Events consent, so the first real capture

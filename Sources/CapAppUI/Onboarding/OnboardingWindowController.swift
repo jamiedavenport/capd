@@ -3,15 +3,15 @@ import SwiftUI
 
 /// Owns the first-run window and keeps its permission state fresh while it's on screen.
 @MainActor
-final class OnboardingWindowController: NSObject, NSWindowDelegate {
+package final class OnboardingWindowController: NSObject, NSWindowDelegate {
     let model: OnboardingModel
-    var onFinished: (() -> Void)?
-    var onClosed: (() -> Void)?
+    package var onFinished: (() -> Void)?
+    package var onClosed: (() -> Void)?
 
     private let window: NSWindow
     private var refreshTask: Task<Void, Never>?
 
-    init(environment: OnboardingEnvironment) {
+    package init(environment: OnboardingEnvironment) {
         model = OnboardingModel(environment: environment)
 
         let window = NSWindow(
@@ -37,7 +37,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    func show() {
+    package func show() {
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
@@ -49,11 +49,11 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         }
     }
 
-    func noteSearchOpened() {
+    package func noteSearchOpened() {
         model.noteSearchOpened()
     }
 
-    func windowWillClose(_ notification: Notification) {
+    package func windowWillClose(_ notification: Notification) {
         refreshTask?.cancel()
         onClosed?()
     }

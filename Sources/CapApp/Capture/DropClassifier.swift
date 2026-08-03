@@ -1,4 +1,5 @@
 import AppKit
+import CapAppUI
 import CapKit
 import Foundation
 

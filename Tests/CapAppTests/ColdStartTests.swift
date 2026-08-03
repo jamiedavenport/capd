@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @testable import CapApp
+@testable import CapAppUI
 
 /// The onboarding flow's guided loop, end to end on a fresh install: the first hotkey
 /// capture must be findable by the first search, through the app's real write and read

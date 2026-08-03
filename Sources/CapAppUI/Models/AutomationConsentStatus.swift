@@ -1,5 +1,5 @@
 /// Where a browser stands on cap reading its front tab over Apple Events.
-enum AutomationConsentStatus: Equatable {
+package enum AutomationConsentStatus: Equatable {
     case granted
     case denied
     case undetermined
