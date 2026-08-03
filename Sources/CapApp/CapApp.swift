@@ -14,6 +14,16 @@ extension NSImage {
     }
 }
 
+/// Receives `cap://` opens; SwiftUI's `onOpenURL` needs a window, and a menu-bar
+/// app has none to give it.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    var openURLs: (([URL]) -> Void)?
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        openURLs?(urls)
+    }
+}
+
 /// The cap menu-bar app.
 ///
 /// Building this target produces a bare executable, which is enough to compile and
@@ -22,10 +32,13 @@ extension NSImage {
 /// Accessibility grants.
 @main
 struct CapApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var state = AppState()
 
     init() {
         AgentBootstrap.installAgent()
+        let state = self.state
+        delegate.openURLs = { state.capture(handoffs: $0) }
     }
 
     var body: some Scene {

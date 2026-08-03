@@ -28,8 +28,8 @@ request.
 
 **Firefox** doesn't support the Apple Events interface cap uses, so the hotkey can't
 see the tab's URL — it captures your selected text only. To capture a Firefox link,
-copy the URL and press the hotkey, or use `cap add <url>`. Bodies for those captures
-come from cap's own hardened fetch instead of the tab.
+share the page to cap, copy the URL and press the hotkey, or use `cap add <url>`.
+Bodies for those captures come from cap's own hardened fetch instead of the tab.
 
 **Everything else** — editors, terminals, chat apps, PDF viewers — captures the
 selected text, remembering which app it came from.
@@ -80,6 +80,14 @@ article text, and indexed for search.
   times; after that the capture is marked **failed** and the menu-bar icon shows a
   badge. `cap refetch` requeues failures, as does simply re-capturing the page.
 - On battery the agent enriches one capture at a time; on mains power, three.
+
+## From the share sheet
+
+cap sits in the macOS share sheet for web pages. Share from Safari, Chrome, Firefox,
+or any app offering a link and pick **cap** — the page goes through the same pipeline
+as the hotkey: deduplicated, confirmed with the toast, body fetch queued. A share
+hands over only the URL and title, so the body comes from cap's hardened fetch, like
+a CLI capture.
 
 ## From the terminal
 

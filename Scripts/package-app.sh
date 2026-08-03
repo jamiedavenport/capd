@@ -34,6 +34,12 @@ cp Assets/cap.icns "$APP/Contents/Resources/"
 # `cap doctor` both resolve them relative to their own binary, and the
 # Homebrew cask symlinks the CLI from here into PATH.
 cp "$BIN/CapApp" "$BIN/cap" "$BIN/cap-agent" "$APP/Contents/MacOS/"
+
+APPEX="$APP/Contents/PlugIns/CapShareExtension.appex"
+mkdir -p "$APPEX/Contents/MacOS" "$APPEX/Contents/Resources"
+sed "s/CAP_VERSION/$VERSION/g" Scripts/ShareExtension-Info.plist > "$APPEX/Contents/Info.plist"
+cp Assets/cap.icns "$APPEX/Contents/Resources/"
+cp "$BIN/CapShareExtension" "$APPEX/Contents/MacOS/"
 # Dependency resource bundles (GRDB, KeyboardShortcuts) ship too, but a stale
 # build dir can also hold test-target bundles, which must not.
 for bundle in "$BIN"/*.bundle; do
@@ -41,16 +47,20 @@ for bundle in "$BIN"/*.bundle; do
     cp -R "$bundle" "$APP/Contents/Resources/"
 done
 
-for binary in CapApp cap cap-agent; do
-    lipo "$APP/Contents/MacOS/$binary" -verify_arch arm64 x86_64 || {
-        echo "error: $binary is not a universal binary" >&2
+for binary in "$APP/Contents/MacOS/CapApp" "$APP/Contents/MacOS/cap" \
+    "$APP/Contents/MacOS/cap-agent" "$APPEX/Contents/MacOS/CapShareExtension"; do
+    lipo "$binary" -verify_arch arm64 x86_64 || {
+        echo "error: $(basename "$binary") is not a universal binary" >&2
         exit 1
     }
-    lipo -info "$APP/Contents/MacOS/$binary"
+    lipo -info "$binary"
 done
 
 codesign --force --options runtime "$TIMESTAMP" --sign "$IDENTITY" \
     "$APP/Contents/MacOS/cap" "$APP/Contents/MacOS/cap-agent"
+# Nested code signs inside-out: the appex's seal is part of the app's.
+codesign --force --options runtime "$TIMESTAMP" \
+    --entitlements Scripts/cap-share.entitlements --sign "$IDENTITY" "$APPEX"
 codesign --force --options runtime "$TIMESTAMP" \
     --entitlements Scripts/cap.entitlements --sign "$IDENTITY" "$APP"
 

@@ -21,6 +21,7 @@ to Applications; the CLI then lives at `/Applications/cap.app/Contents/MacOS/cap
 - `CapCLI` — the `cap` binary
 - `CapAgent` — the `cap-agent` background enrichment worker
 - `CapApp` — the menu-bar app
+- `CapShareExtension` — the share-sheet extension, bundled as an `.appex` inside the app
 
 ## CLI
 
@@ -46,6 +47,15 @@ results, 2 bad usage, 3 store unavailable, 4 agent not running. `CAP_DIR` overri
 the storage root (default `~/Library/Application Support/cap/`). The full field set,
 formats, and exit-code semantics are pinned byte-for-byte by the golden tests in
 `Tests/CapCLITests`.
+
+## Share sheet and URL scheme
+
+cap appears in the macOS share sheet for web pages — Safari, Chrome, and any app
+sharing a link. The bundled extension relays the page to the app as a
+`cap://capture?url=…&title=…&source=…` URL, which lands in the same pipeline as the
+hotkey: deduplicated, shown in the HUD, page fetch queued. The scheme accepts
+`http`/`https` links only and is open to any caller, so bookmarklets and other tools
+can capture with `open "cap://capture?url=https%3A%2F%2Fexample.com"`.
 
 ## Development
 
@@ -113,7 +123,9 @@ cap runs unsandboxed, with the hardened runtime on release builds. Capture reads
 frontmost browser tab through Accessibility and Apple Events, which the App Sandbox does
 not allow — that also rules out Mac App Store distribution, so the Homebrew tap is the
 channel. With no sandbox separating the processes, the app, the agent, and the CLI open
-the same database in `~/Library/Application Support/cap/` directly.
+the same database in `~/Library/Application Support/cap/` directly. The share extension
+is the one sandboxed piece: it touches nothing but the shared link, which it relays to
+the app.
 
 ## License
 
