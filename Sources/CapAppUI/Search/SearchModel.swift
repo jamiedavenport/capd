@@ -113,6 +113,12 @@ final class SearchModel {
         refresh()
     }
 
+    /// A click on a tag chip jumps straight to that filter; clicking the active one clears it.
+    func toggleTag(_ tag: String) {
+        activeTag = activeTag == tag ? nil : tag
+        refresh()
+    }
+
     func moveSelection(by delta: Int) {
         guard !hits.isEmpty else { return }
         selectedIndex = min(max(selectedIndex + delta, 0), hits.count - 1)

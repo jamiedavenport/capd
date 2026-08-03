@@ -237,6 +237,33 @@ struct SearchModelTests {
         #expect(model.activeTag == nil)
     }
 
+    @Test("Clicking a tag filters by it; clicking it again clears the filter")
+    func toggleTag() async {
+        let seen = Mutex<[String]>([])
+        let model = SearchModel(
+            environment: .stub(
+                search: { text in
+                    seen.withLock { $0.append(text) }
+                    return []
+                },
+                tags: { ["swift", "databases"] }))
+        model.activate()
+        await model.settle()
+
+        model.toggleTag("databases")
+        await model.settle()
+        #expect(model.activeTag == "databases")
+        #expect(seen.withLock { $0.last } == " tag:databases")
+
+        model.toggleTag("swift")
+        #expect(model.activeTag == "swift")
+
+        model.toggleTag("swift")
+        await model.settle()
+        #expect(model.activeTag == nil)
+        #expect(seen.withLock { $0.last } == "")
+    }
+
     @Test("A cycled tag rides the query as a trailing tag: token")
     func cycledTagFilters() async {
         let seen = Mutex<[String]>([])
