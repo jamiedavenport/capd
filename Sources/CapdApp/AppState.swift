@@ -147,7 +147,7 @@ final class AppState {
         settings.autoTagsCaptures = (try? store.taxonomy().taggingEnabled) ?? true
         settings.saveAutoTags = { try? store.setTaggingEnabled($0) }
         if case .unavailable(let reason) = FoundationModelTagger().availability() {
-            settings.autoTagsUnavailableReason = reason
+            settings.autoTagsUnavailableReason = reason.explanation
         }
 
         let searchService = SearchService(store: store)
@@ -239,6 +239,16 @@ extension OnboardingEnvironment {
             openAutomationSettings: {
                 openSystemSettings(pane: "Privacy_Automation")
             },
+            openIntelligenceSettings: {
+                guard
+                    let url = URL(
+                        string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")
+                else { return }
+                NSWorkspace.shared.open(url)
+            },
+            taggerAvailability: { FoundationModelTagger().availability() },
+            shareExtensionStatus: { ShareExtensionElection.status() },
+            enableShareExtension: { ShareExtensionElection.enable() },
             runningBrowsers: {
                 Browser.allCases.filter { browser in
                     !NSRunningApplication

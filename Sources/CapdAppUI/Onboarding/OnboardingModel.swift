@@ -1,4 +1,5 @@
 import AppKit
+import CapdKit
 import KeyboardShortcuts
 import Observation
 
@@ -6,6 +7,8 @@ enum OnboardingStep: Int, CaseIterable {
     case hotkeys
     case accessibility
     case browsers
+    case shareSheet
+    case intelligence
     case firstCapture
 }
 
@@ -18,6 +21,10 @@ package struct OnboardingEnvironment {
     var requestAXTrust: @MainActor () -> Void
     var openAXSettings: @MainActor () -> Void
     var openAutomationSettings: @MainActor () -> Void
+    var openIntelligenceSettings: @MainActor () -> Void
+    var taggerAvailability: @MainActor () -> TaggerAvailability
+    var shareExtensionStatus: @MainActor () -> ShareExtensionStatus
+    var enableShareExtension: @MainActor () -> Void
     var runningBrowsers: @MainActor () -> [Browser]
     var automationStatus: @MainActor (Browser) -> AutomationConsentStatus
     var requestAutomationConsent: @MainActor (Browser) async -> AutomationConsentStatus
@@ -32,6 +39,10 @@ package struct OnboardingEnvironment {
         requestAXTrust: @escaping @MainActor () -> Void,
         openAXSettings: @escaping @MainActor () -> Void,
         openAutomationSettings: @escaping @MainActor () -> Void,
+        openIntelligenceSettings: @escaping @MainActor () -> Void,
+        taggerAvailability: @escaping @MainActor () -> TaggerAvailability,
+        shareExtensionStatus: @escaping @MainActor () -> ShareExtensionStatus,
+        enableShareExtension: @escaping @MainActor () -> Void,
         runningBrowsers: @escaping @MainActor () -> [Browser],
         automationStatus: @escaping @MainActor (Browser) -> AutomationConsentStatus,
         requestAutomationConsent: @escaping @MainActor (Browser) async -> AutomationConsentStatus,
@@ -45,6 +56,10 @@ package struct OnboardingEnvironment {
         self.requestAXTrust = requestAXTrust
         self.openAXSettings = openAXSettings
         self.openAutomationSettings = openAutomationSettings
+        self.openIntelligenceSettings = openIntelligenceSettings
+        self.taggerAvailability = taggerAvailability
+        self.shareExtensionStatus = shareExtensionStatus
+        self.enableShareExtension = enableShareExtension
         self.runningBrowsers = runningBrowsers
         self.automationStatus = automationStatus
         self.requestAutomationConsent = requestAutomationConsent
@@ -67,7 +82,10 @@ final class OnboardingModel {
     private(set) var searchShortcut: String?
     private(set) var conflicted: Set<KeyboardShortcuts.Name> = []
     private(set) var axTrusted = false
+    private(set) var taggerAvailability: TaggerAvailability = .available
+    private(set) var shareStatus: ShareExtensionStatus = .unregistered
     private(set) var runningBrowsers: [Browser] = []
+    private var primedShareExtension = false
     private(set) var consents: [Browser: AutomationConsentStatus] = [:]
     private(set) var pendingConsents: [Browser: Task<Void, Never>] = [:]
     private(set) var hasCaptured = false
@@ -108,6 +126,15 @@ final class OnboardingModel {
         environment.openAutomationSettings()
     }
 
+    func openIntelligenceSettings() {
+        environment.openIntelligenceSettings()
+    }
+
+    func enableShareExtension() {
+        environment.enableShareExtension()
+        shareStatus = environment.shareExtensionStatus()
+    }
+
     @discardableResult
     func requestConsent(for browser: Browser) -> Task<Void, Never> {
         let task = Task {
@@ -137,6 +164,14 @@ final class OnboardingModel {
                 return environment.isShortcutTakenBySystem(shortcut)
             })
         axTrusted = environment.isAXTrusted()
+        taggerAvailability = environment.taggerAvailability()
+        shareStatus = environment.shareExtensionStatus()
+        // A never-touched election flips to enabled unprompted, like the agent
+        // install; an explicit off in System Settings stays the user's call.
+        if shareStatus == .defaulted, !primedShareExtension {
+            primedShareExtension = true
+            enableShareExtension()
+        }
         agentLoaded = environment.isAgentLoaded()
         if !hasCaptured, environment.captureCount() > 0 {
             hasCaptured = true

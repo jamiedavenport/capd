@@ -1,3 +1,4 @@
+import CapdKit
 import Foundation
 import KeyboardShortcuts
 import Testing
@@ -28,13 +29,17 @@ struct OnboardingModelTests {
         model.advance()
         #expect(model.step == .browsers)
         model.advance()
+        #expect(model.step == .shareSheet)
+        model.advance()
+        #expect(model.step == .intelligence)
+        model.advance()
         #expect(model.step == .firstCapture)
         #expect(model.isLastStep)
         model.advance()
         #expect(model.step == .firstCapture)
 
         model.back()
-        #expect(model.step == .browsers)
+        #expect(model.step == .intelligence)
     }
 
     @Test("A hotkey taken by a macOS system shortcut is flagged")
@@ -103,6 +108,55 @@ struct OnboardingModelTests {
         #expect(harness.model.pendingConsents.isEmpty)
     }
 
+    @Test("Apple Intelligence state mirrors on refresh, and the deep link opens")
+    func intelligenceState() {
+        let harness = Harness()
+        harness.availability = .unavailable(.appleIntelligenceOff)
+        harness.model.refresh()
+        #expect(harness.model.taggerAvailability == .unavailable(.appleIntelligenceOff))
+
+        harness.model.openIntelligenceSettings()
+        #expect(harness.intelligenceSettingsOpens == 1)
+
+        harness.availability = .available
+        harness.model.refresh()
+        #expect(harness.model.taggerAvailability == .available)
+    }
+
+    @Test("A never-touched share extension is enabled unprompted, exactly once")
+    func sharePriming() {
+        let harness = Harness()
+        harness.shareStatus = .defaulted
+        harness.model.refresh()
+        #expect(harness.shareEnables == 1)
+        #expect(harness.model.shareStatus == .enabled)
+
+        harness.shareStatus = .defaulted
+        harness.model.refresh()
+        #expect(harness.shareEnables == 1)
+    }
+
+    @Test("An explicitly disabled share extension waits for the button")
+    func shareRespectsDisabled() {
+        let harness = Harness()
+        harness.shareStatus = .disabled
+        harness.model.refresh()
+        #expect(harness.shareEnables == 0)
+        #expect(harness.model.shareStatus == .disabled)
+
+        harness.model.enableShareExtension()
+        #expect(harness.shareEnables == 1)
+        #expect(harness.model.shareStatus == .enabled)
+    }
+
+    @Test("An unregistered share extension is reported, not elected")
+    func shareUnregistered() {
+        let harness = Harness()
+        harness.model.refresh()
+        #expect(harness.model.shareStatus == .unregistered)
+        #expect(harness.shareEnables == 0)
+    }
+
     @Test("The guided first capture latches once a capture exists")
     func captureLatch() {
         let harness = Harness()
@@ -144,6 +198,10 @@ private final class Harness {
     var axPrompts = 0
     var axSettingsOpens = 0
     var automationSettingsOpens = 0
+    var intelligenceSettingsOpens = 0
+    var availability: TaggerAvailability = .available
+    var shareStatus: ShareExtensionStatus = .unregistered
+    var shareEnables = 0
     var running: [Browser] = []
     var statuses: [Browser: AutomationConsentStatus] = [:]
     var prompted: [Browser] = []
@@ -168,6 +226,13 @@ private final class Harness {
                 requestAXTrust: { [unowned self] in axPrompts += 1 },
                 openAXSettings: { [unowned self] in axSettingsOpens += 1 },
                 openAutomationSettings: { [unowned self] in automationSettingsOpens += 1 },
+                openIntelligenceSettings: { [unowned self] in intelligenceSettingsOpens += 1 },
+                taggerAvailability: { [unowned self] in availability },
+                shareExtensionStatus: { [unowned self] in shareStatus },
+                enableShareExtension: { [unowned self] in
+                    shareEnables += 1
+                    shareStatus = .enabled
+                },
                 runningBrowsers: { [unowned self] in running },
                 automationStatus: { [unowned self] in statuses[$0] ?? .undetermined },
                 requestAutomationConsent: { [unowned self] browser in
