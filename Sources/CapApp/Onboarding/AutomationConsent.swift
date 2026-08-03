@@ -1,14 +1,6 @@
 import AppKit
 import CoreServices
 
-/// Where a browser stands on cap reading its front tab over Apple Events.
-enum AutomationConsentStatus: Equatable {
-    case granted
-    case denied
-    case undetermined
-    case notRunning
-}
-
 /// Queries and pre-warms the per-app Apple Events consent, so the first real capture
 /// isn't interrupted by a TCC dialog.
 enum AutomationConsent {
