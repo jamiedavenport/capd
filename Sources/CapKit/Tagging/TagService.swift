@@ -8,6 +8,9 @@ import Foundation
 public struct TagService: Sendable {
     public static let defaultBatch = 3
     public static let maxTagsPerCapture = 3
+    /// Taggings between consolidation sweeps: frequent enough that the taxonomy tracks
+    /// what is actually being saved, rare enough that a sweep stays an exception.
+    public static let consolidationInterval = 25
 
     private let store: Store
     private let tagger: any Tagger
@@ -51,6 +54,60 @@ public struct TagService: Sendable {
             processed += 1
         }
         return processed
+    }
+
+    /// Revises the taxonomy once enough captures have been tagged since the last sweep,
+    /// or when more distinct tags are in use than the cap allows. One model call proposes
+    /// the revision; applying it is a mechanical rename over the rows, so the sweep's
+    /// cost does not scale with the library in model time.
+    @discardableResult
+    public func consolidateIfNeeded(now: Date = Date()) async throws -> Bool {
+        guard tagger.availability() == .available else { return false }
+        let taxonomy = try store.taxonomy()
+        guard taxonomy.taggingEnabled else { return false }
+
+        let usage = try store.tagUsage()
+        let due =
+            taxonomy.taggedSinceConsolidation >= Self.consolidationInterval
+            || usage.count > Taxonomy.maxTags
+        guard due, usage.count >= 2 else { return false }
+
+        let revision = try await tagger.reviseTaxonomy(usage)
+        let (keep, mapping) = Self.sanitize(revision)
+        guard !keep.isEmpty else { return false }
+
+        var revised = taxonomy
+        revised.version += 1
+        revised.tags = keep
+        revised.taggedSinceConsolidation = 0
+        revised.updatedAt = now
+        try store.applyTaxonomyRevision(mapping: mapping, taxonomy: revised, now: now)
+        return true
+    }
+
+    /// The model's revision, held to the rules it was asked to follow: a normalized keep
+    /// list within the cap, and merges that only point at kept tags. Kept tags map to
+    /// themselves so one dictionary answers every rename.
+    static func sanitize(_ revision: TaxonomyRevision) -> (
+        keep: [String], mapping: [String: String]
+    ) {
+        var keep: [String] = []
+        for candidate in revision.keep {
+            guard keep.count < Taxonomy.maxTags else { break }
+            guard let tag = normalize(candidate), !keep.contains(tag) else { continue }
+            keep.append(tag)
+        }
+
+        var mapping: [String: String] = [:]
+        for tag in keep {
+            mapping[tag] = tag
+        }
+        for (from, to) in revision.merges {
+            guard let source = normalize(from), let target = normalize(to) else { continue }
+            guard mapping[source] == nil, keep.contains(target) else { continue }
+            mapping[source] = target
+        }
+        return (keep, mapping)
     }
 
     /// Filters the model's candidates down to trustworthy tags: normalized, deduplicated,

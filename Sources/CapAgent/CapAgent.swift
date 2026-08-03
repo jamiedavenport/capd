@@ -89,10 +89,15 @@ struct CapAgent {
 
     private static func tag(with tagging: TagService) async {
         do {
-            let batch = DrainPolicy.width(onMainsPower: PowerStatus.isOnMainsPower())
+            let onMains = PowerStatus.isOnMainsPower()
+            let batch = DrainPolicy.width(onMainsPower: onMains)
             let processed = try await tagging.tagNext(batch: batch)
             if processed > 0 {
                 logger.info("tagged \(processed) capture(s)")
+            }
+            // The sweep rewrites rows in bulk, so it waits for mains power.
+            if onMains, try await tagging.consolidateIfNeeded() {
+                logger.notice("consolidated the tag taxonomy")
             }
         } catch {
             // Transient model failures wait for the next tick; the rows stay queued.

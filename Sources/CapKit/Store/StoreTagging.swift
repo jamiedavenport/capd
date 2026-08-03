@@ -120,6 +120,62 @@ extension Store {
             .sorted { ($0.count, $1.tag) > ($1.count, $0.tag) }
     }
 
+    /// Rewrites every tagged capture under a revised taxonomy, in batches so no single
+    /// write transaction blocks the other processes for long.
+    ///
+    /// `mapping` sends each old tag to its surviving name; unmapped tags are dropped. A
+    /// capture left with no tags — including one that had none applicable under the old
+    /// taxonomy — resets to `tags_version = 0`, so the incremental pass re-tags it
+    /// against the new vocabulary.
+    func applyTaxonomyRevision(
+        mapping: [String: String],
+        taxonomy: Taxonomy,
+        batchSize: Int = 200,
+        now: Date = Date()
+    ) throws {
+        var lastID: Int64 = 0
+        while true {
+            let rows = try reader.read { db in
+                try Row.fetchAll(
+                    db,
+                    sql: """
+                        SELECT id, tags FROM \(Schema.captures)
+                        WHERE id > :last AND (tags IS NOT NULL OR tags_version > 0)
+                        ORDER BY id
+                        LIMIT :limit
+                        """,
+                    arguments: ["last": lastID, "limit": batchSize])
+            }
+            guard !rows.isEmpty else { break }
+
+            try dbPool.write { db in
+                for row in rows {
+                    let id: Int64 = row["id"]
+                    let joined: String? = row["tags"]
+                    var mapped: [String] = []
+                    for tag in (joined ?? "").split(separator: " ") {
+                        guard let survivor = mapping[String(tag)] else { continue }
+                        if !mapped.contains(survivor) { mapped.append(survivor) }
+                    }
+                    try db.execute(
+                        sql: """
+                            UPDATE \(Schema.captures)
+                            SET tags = :tags, tags_version = :version, updated_at = :now
+                            WHERE id = :id
+                            """,
+                        arguments: [
+                            "tags": mapped.isEmpty ? nil : mapped.joined(separator: " "),
+                            "version": mapped.isEmpty ? 0 : taxonomy.version,
+                            "now": now,
+                            "id": id,
+                        ])
+                }
+            }
+            lastID = rows.last!["id"]
+        }
+        try saveTaxonomy(taxonomy)
+    }
+
     static func fetchTaxonomy(_ db: Database) throws -> Taxonomy {
         guard
             let row = try Row.fetchOne(
