@@ -8,6 +8,8 @@
 	<string>cap</string>
 	<key>CFBundleExecutable</key>
 	<string>CapApp</string>
+	<key>CFBundleIconFile</key>
+	<string>cap</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.jxd.cap</string>
 	<key>CFBundleInfoDictionaryVersion</key>

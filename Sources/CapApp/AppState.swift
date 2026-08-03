@@ -28,14 +28,20 @@ final class AppState {
     @ObservationIgnored private var updateTask: Task<Void, Never>?
     @ObservationIgnored private var permissionTask: Task<Void, Never>?
 
-    var menuBarSymbol: String {
+    enum MenuBarGlyph {
+        case dropTarget
+        case degraded
+        case normal
+    }
+
+    var menuBarGlyph: MenuBarGlyph {
         if isDropTargeted {
-            return "plus.circle.fill"
+            return .dropTarget
         }
         if failedEnrichmentCount > 0 || startupFailure != nil || permissions.axLost {
-            return "bookmark.slash"
+            return .degraded
         }
-        return "bookmark"
+        return .normal
     }
 
     init() {

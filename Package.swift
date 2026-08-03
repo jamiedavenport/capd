@@ -42,7 +42,8 @@ let package = Package(
             dependencies: [
                 "CapKit",
                 "KeyboardShortcuts",
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "CapTestHost",
