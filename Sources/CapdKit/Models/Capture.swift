@@ -73,8 +73,13 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
     public var tags: String?
     /// The taxonomy version the tags were assigned under; 0 marks a capture that still
     /// needs tagging, which is what lets nil tags mean "nothing applied" rather than
-    /// "not yet processed".
+    /// "not yet processed". ``pinnedTagsVersion`` marks tags supplied by the capturer.
     public var tagsVersion: Int
+
+    /// The `tagsVersion` of tags supplied with the capture itself — an import keeping the
+    /// user's own tags — rather than assigned by the agent. Pinned tags sit outside the
+    /// taxonomy: the tagging pass skips these rows and consolidation never rewrites them.
+    public static let pinnedTagsVersion = -1
 
     public var enrichmentState: EnrichmentState
     public var bodyStatus: BodyStatus

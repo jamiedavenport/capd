@@ -10,8 +10,8 @@ struct Capd: ParsableCommand {
         abstract: "Capture and recall anything you have seen.",
         version: CapdKit.version,
         subcommands: [
-            Add.self, Search.self, List.self, Rm.self, Export.self, Refetch.self,
-            Status.self, Doctor.self, Mcp.self,
+            Add.self, Search.self, List.self, Rm.self, Import.self, Export.self,
+            Refetch.self, Status.self, Doctor.self, Mcp.self,
         ]
     )
 

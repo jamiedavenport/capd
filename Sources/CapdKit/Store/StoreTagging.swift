@@ -88,13 +88,17 @@ extension Store {
 
     /// Per-tag capture counts, most used first, each with a few recent titles for the
     /// consolidation prompt.
-    public func tagUsage(sampleLimit: Int = 5) throws -> [TagUsage] {
+    ///
+    /// Consolidation passes `includePinned: false`: pinned tags are outside the taxonomy,
+    /// and counting them would trip the over-cap trigger on every pass after a large import.
+    public func tagUsage(sampleLimit: Int = 5, includePinned: Bool = true) throws -> [TagUsage] {
         let rows = try reader.read { db in
             try Row.fetchAll(
                 db,
                 sql: """
                     SELECT tags, title FROM \(Schema.captures)
                     WHERE tags IS NOT NULL AND tags != ''
+                    \(includePinned ? "" : "AND tags_version != \(Capture.pinnedTagsVersion)")
                     ORDER BY created_at DESC
                     """)
         }
@@ -126,7 +130,8 @@ extension Store {
     /// `mapping` sends each old tag to its surviving name; unmapped tags are dropped. A
     /// capture left with no tags — including one that had none applicable under the old
     /// taxonomy — resets to `tags_version = 0`, so the incremental pass re-tags it
-    /// against the new vocabulary.
+    /// against the new vocabulary. Rows with pinned tags are not the taxonomy's to
+    /// rewrite and are skipped.
     func applyTaxonomyRevision(
         mapping: [String: String],
         taxonomy: Taxonomy,
@@ -140,7 +145,9 @@ extension Store {
                     db,
                     sql: """
                         SELECT id, tags FROM \(Schema.captures)
-                        WHERE id > :last AND (tags IS NOT NULL OR tags_version > 0)
+                        WHERE id > :last
+                            AND tags_version != \(Capture.pinnedTagsVersion)
+                            AND (tags IS NOT NULL OR tags_version > 0)
                         ORDER BY id
                         LIMIT :limit
                         """,

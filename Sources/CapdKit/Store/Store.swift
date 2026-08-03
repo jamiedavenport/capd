@@ -55,6 +55,10 @@ public final class Store: Sendable {
                 existing.title = existing.title ?? capture.title
                 existing.note = existing.note ?? capture.note
                 existing.selection = existing.selection ?? capture.selection
+                if existing.tags == nil, let tags = capture.tags {
+                    existing.tags = tags
+                    existing.tagsVersion = capture.tagsVersion
+                }
 
                 // An incoming `.pending` means this request wants enrichment; a broken row is
                 // repaired by re-queueing it, but a healthy one is left alone.

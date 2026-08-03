@@ -48,6 +48,22 @@ capd refetch 12     # retry a specific capture
 
 IDs appear in `capd list` and `capd search` output.
 
+## Import
+
+```sh
+capd import pinboard pinboard_export.json   # the JSON backup from pinboard.in
+```
+
+Download the export from pinboard.in under Settings → Backup → JSON. Bookmarks
+keep their titles, notes, tags, and original timestamps; unread bookmarks gain
+a `toread` tag. Links already in the library merge instead of duplicating, so
+re-running an import is safe.
+
+Imported tags are stored as-is and are never rewritten by automatic tagging.
+Imported links skip page fetching;
+run `capd refetch <id>` to fetch a page for search later. The same import is
+available in the app from the menu bar icon.
+
 ## Export
 
 ```sh

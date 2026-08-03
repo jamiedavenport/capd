@@ -6,6 +6,7 @@ import CapdKit
 import KeyboardShortcuts
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Owns every live object behind the menu bar: the store, the capture path, and the HUD.
 @MainActor
@@ -26,6 +27,8 @@ final class AppState {
     @ObservationIgnored private var statusItemDrop: StatusItemDropTarget?
     @ObservationIgnored private let dragMonitor = DragMonitor()
     @ObservationIgnored private var totalCaptures: (() -> Int)?
+    @ObservationIgnored private var pinboardImporter: PinboardImporter?
+    @ObservationIgnored private var importTask: Task<Void, Never>?
     @ObservationIgnored private var badgeTask: Task<Void, Never>?
     @ObservationIgnored private var updateTask: Task<Void, Never>?
     @ObservationIgnored private var permissionTask: Task<Void, Never>?
@@ -96,6 +99,27 @@ final class AppState {
         }
     }
 
+    /// Asks for a Pinboard JSON export and replays it through the capture path off the
+    /// main actor, so a multi-thousand-bookmark file never freezes the menu bar.
+    func importFromPinboard() {
+        guard let importer = pinboardImporter, importTask == nil else { return }
+
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.message = "Choose the JSON backup from pinboard.in (Settings → Backup)"
+        panel.prompt = "Import"
+        NSApp.activate()
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        importTask = Task { [weak self] in
+            let result = await Task.detached {
+                Result { try importer.run(data: try Data(contentsOf: url)) }
+            }.value
+            self?.importTask = nil
+            self?.presentImportResult(result)
+        }
+    }
+
     /// Captures pages handed over as `capd://capture` URLs, e.g. by the share extension.
     func capture(handoffs urls: [URL]) {
         for url in urls {
@@ -119,6 +143,9 @@ final class AppState {
             guards: [SecureInputGuard(probes: [SystemSecureInputProbe(), AXReader()])])
         let enrichment = EnrichmentService(store: store, steps: [TabFirstBodyStep()])
         let favicons = FaviconStore(paths: store.paths)
+        // Ungated: the secure-input guard protects reading the screen, and an import
+        // reads a file the user just picked.
+        pinboardImporter = PinboardImporter(captures: CaptureService(store: store))
 
         let hud = HUDPanelController(
             favicons: favicons,
@@ -188,6 +215,28 @@ final class AppState {
                 }
             } catch {}
         }
+    }
+
+    private func presentImportResult(_ result: Result<PinboardImportSummary, any Error>) {
+        let alert = NSAlert()
+        switch result {
+        case .success(let summary):
+            alert.messageText = "Pinboard import complete"
+            var lines = [
+                "Imported \(summary.imported) new bookmarks and merged "
+                    + "\(summary.merged) already in your library."
+            ]
+            if !summary.failures.isEmpty {
+                lines.append("\(summary.failures.count) could not be imported.")
+            }
+            alert.informativeText = lines.joined(separator: " ")
+        case .failure(let error):
+            alert.alertStyle = .warning
+            alert.messageText = "Pinboard import failed"
+            alert.informativeText = error.localizedDescription
+        }
+        NSApp.activate()
+        alert.runModal()
     }
 
     private func presentAXLossPrompt() {

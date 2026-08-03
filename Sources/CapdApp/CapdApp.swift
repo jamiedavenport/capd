@@ -81,6 +81,9 @@ struct CapdApp: App {
                 Button("Search Captures…", systemImage: "magnifyingglass") {
                     state.showSearch()
                 }
+                Button("Import from Pinboard…", systemImage: "tray.and.arrow.down") {
+                    state.importFromPinboard()
+                }
                 Button(
                     state.settings.hasCompletedOnboarding
                         ? "Replay Introduction…"
