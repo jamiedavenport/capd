@@ -209,6 +209,67 @@ struct CaptureCoordinatorTests {
         #expect(harness.enriched.first?.url == "https://example.com/a")
     }
 
+    @Test("A dropped link captures like a hotkey press and queues enrichment")
+    func droppedLinkCaptures() async throws {
+        let harness = try Harness()
+
+        harness.coordinator.capture(dropped: [
+            DroppedItem(urlString: "https://example.com/a", urlTitle: "An example page")
+        ])
+        await harness.coordinator.drain()
+
+        let request = try #require(harness.requests.first)
+        #expect(request.url == "https://example.com/a")
+        #expect(request.title == "An example page")
+        #expect(request.sourceAppBundleID == "com.apple.Safari")
+        #expect(harness.presented.first?.style == .captured)
+        #expect(harness.enriched.count == 1)
+    }
+
+    @Test("Every dropped item becomes its own capture, in order")
+    func multiItemDropCapturesEach() async throws {
+        let harness = try Harness()
+
+        harness.coordinator.capture(dropped: [
+            DroppedItem(string: "first note"),
+            DroppedItem(string: "second note"),
+        ])
+        await harness.coordinator.drain()
+
+        #expect(harness.requests.map(\.text) == ["first note", "second note"])
+        #expect(harness.presented.count == 2)
+        #expect(harness.presented.allSatisfy { $0.style == .captured })
+    }
+
+    @Test("A drop with nothing capturable says so")
+    func emptyDropFails() async throws {
+        let harness = try Harness()
+
+        harness.coordinator.capture(dropped: [DroppedItem(string: "   ")])
+        await harness.coordinator.drain()
+
+        #expect(harness.requests.isEmpty)
+        #expect(harness.presented.first?.style == .failed)
+        #expect(harness.presented.first?.headline == "Nothing to capture.")
+    }
+
+    @Test("A drop queues behind a hotkey press already in flight")
+    func dropQueuesBehindHotkey() async throws {
+        let harness = try Harness()
+        harness.tab = BrowserTab(url: "https://example.com/tab", title: nil)
+
+        harness.coordinator.capture()
+        harness.coordinator.capture(dropped: [
+            DroppedItem(urlString: "https://example.com/dropped")
+        ])
+        await harness.coordinator.drain()
+
+        #expect(
+            harness.requests.map(\.url) == [
+                "https://example.com/tab", "https://example.com/dropped",
+            ])
+    }
+
     @Test("The fetch opt-out stores the link without queuing enrichment")
     func fetchOptOutSkipsEnrichment() async throws {
         let harness = try Harness()

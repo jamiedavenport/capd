@@ -58,10 +58,7 @@ struct CapApp: App {
             }
             .keyboardShortcut("q")
         } label: {
-            Image(
-                systemName: state.failedEnrichmentCount > 0 || state.startupFailure != nil
-                    || state.permissions.axLost
-                    ? "bookmark.slash" : "bookmark")
+            Image(systemName: state.menuBarSymbol)
         }
 
         Settings {
