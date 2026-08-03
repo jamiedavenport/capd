@@ -28,6 +28,7 @@ rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 sed "s/CAP_VERSION/$VERSION/g" Scripts/Info.plist > "$APP/Contents/Info.plist"
+cp Assets/cap.icns "$APP/Contents/Resources/"
 
 # cap and cap-agent ship next to the app executable: AgentBootstrap and
 # `cap doctor` both resolve them relative to their own binary, and the
@@ -58,6 +59,10 @@ codesign --verify --strict --deep "$APP"
 STAGING=$(mktemp -d)
 cp -R "$APP" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
+# SetFile ships with the full Xcode CLT; the volume icon is cosmetic, so its
+# absence must not fail packaging.
+cp Assets/cap.icns "$STAGING/.VolumeIcon.icns"
+SetFile -a C "$STAGING" 2>/dev/null || true
 # hdiutil intermittently fails with "Resource busy" on CI runners.
 for attempt in 1 2 3; do
     if hdiutil create -volname cap -srcfolder "$STAGING" -ov -format UDZO \

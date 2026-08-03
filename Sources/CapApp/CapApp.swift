@@ -3,6 +3,17 @@ import CapKit
 import KeyboardShortcuts
 import SwiftUI
 
+extension NSImage {
+    static let menuBarLogo = template("MenuBarIcon")
+    static let menuBarLogoSlash = template("MenuBarIconSlash")
+
+    private static func template(_ name: String) -> NSImage {
+        let image = Bundle.module.image(forResource: name) ?? NSImage()
+        image.isTemplate = true
+        return image
+    }
+}
+
 extension KeyboardShortcuts.Name {
     // ⌃⌥Space is reserved by macOS for input-source switching.
     static let search = Self("search", initial: .init(.space, modifiers: [.option, .shift]))
@@ -60,7 +71,14 @@ struct CapApp: App {
             }
             .keyboardShortcut("q")
         } label: {
-            Image(systemName: state.menuBarSymbol)
+            switch state.menuBarGlyph {
+            case .dropTarget:
+                Image(systemName: "plus.circle.fill")
+            case .degraded:
+                Image(nsImage: .menuBarLogoSlash)
+            case .normal:
+                Image(nsImage: .menuBarLogo)
+            }
         }
 
         Settings {
