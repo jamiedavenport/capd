@@ -25,10 +25,10 @@ struct SearchView: View {
         .overlay(PanelStyle.shape.strokeBorder(Theme.border, lineWidth: 1))
         .contentShape(PanelStyle.shape)
         .background {
-            // ⌘⌫ must be a key equivalent: the field editor consumes it as
-            // deleteToBeginningOfLine: during keyDown, before onKeyPress sees it.
+            // A key equivalent, so the chord never reaches the field editor during
+            // keyDown; plain ⌘⌫ is left to it as delete-to-start-of-line.
             Button(action: model.deleteSelected) { EmptyView() }
-                .keyboardShortcut(.delete, modifiers: .command)
+                .keyboardShortcut(.delete, modifiers: [.command, .shift])
                 .buttonStyle(.plain)
                 .opacity(0)
                 .accessibilityHidden(true)
@@ -97,11 +97,10 @@ struct SearchView: View {
                                 namespace: selectionNamespace
                             )
                             .id(index)
-                            .onTapGesture(count: 2) {
+                            .onTapGesture {
                                 model.select(index)
                                 model.openSelected()
                             }
-                            .onTapGesture { model.select(index) }
                         }
                     }
                     .padding(.horizontal, 8)
@@ -157,7 +156,7 @@ struct SearchView: View {
             statusDivider
             ShortcutHint(label: "Copy URL", keys: ["⌘", "↩"])
             statusDivider
-            ShortcutHint(label: "Delete", keys: ["⌘", "⌫"])
+            ShortcutHint(label: "Delete", keys: ["⌘", "⇧", "⌫"])
         }
         .font(.system(size: 11))
         .padding(.horizontal, 12)
