@@ -15,6 +15,9 @@ struct SearchView: View {
     var body: some View {
         VStack(spacing: 0) {
             searchBar
+            if !model.availableTags.isEmpty {
+                tagBar
+            }
             hairline
             results
             hairline
@@ -58,6 +61,33 @@ struct SearchView: View {
         .padding(.vertical, 13)
         .onChange(of: model.focusToken, initial: true) {
             searchFieldFocused = true
+        }
+    }
+
+    private var tagBar: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(model.availableTags, id: \.self) { tag in
+                        Button {
+                            model.toggleTag(tag)
+                        } label: {
+                            TagChip(tag: tag, isActive: tag == model.activeTag)
+                        }
+                        .buttonStyle(.plain)
+                        .id(tag)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 10)
+                .animation(reduceMotion ? nil : Theme.quickSpring, value: model.activeTag)
+            }
+            .onChange(of: model.activeTag) {
+                guard let tag = model.activeTag else { return }
+                withAnimation(reduceMotion ? nil : Theme.quickSpring) {
+                    proxy.scrollTo(tag)
+                }
+            }
         }
     }
 
@@ -156,10 +186,6 @@ struct SearchView: View {
                 .foregroundStyle(Theme.textSecondary)
                 .contentTransition(.numericText())
                 .animation(.easeOut(duration: 0.2), value: model.hits.count)
-            if let tag = model.activeTag {
-                TagChip(tag: tag, isActive: true)
-                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
-            }
             Spacer()
             if !model.availableTags.isEmpty {
                 ShortcutHint(label: "Tags", keys: ["⇥"])
@@ -174,7 +200,6 @@ struct SearchView: View {
         .font(.system(size: 11))
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .animation(reduceMotion ? nil : Theme.quickSpring, value: model.activeTag)
     }
 
     private var reduceMotion: Bool {
