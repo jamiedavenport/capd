@@ -327,6 +327,7 @@ final class HUDPanelController {
     /// A drop landed and its outcome toast hasn't arrived yet; the bar keeps its
     /// drop face so the handoff doesn't flash an empty bar.
     private var dropPending = false
+    private var dropWithdrawTask: Task<Void, Never>?
 
     init(saveNote: @escaping (Int64, String) -> Void) {
         self.saveNote = saveNote
@@ -397,6 +398,8 @@ final class HUDPanelController {
         if let notch = dropGeometry {
             if DropZonePolicy.withdraws(mouse: mouse, notch: notch, barFrame: panel.frame) {
                 withdrawDropTarget()
+            } else {
+                dropWithdrawTask?.cancel()
             }
             return
         }
@@ -408,9 +411,22 @@ final class HUDPanelController {
         offerDropTarget(on: screen, notch: notch)
     }
 
+    /// The monitor's mouse-up arrives before AppKit delivers the drop to `dropView`,
+    /// so a release over the bar must not tear the target down — `completeDrop` is
+    /// still coming. The timer only reaps a release that produced no drop.
     func dragEnded() {
-        guard dropGeometry != nil else { return }
-        withdrawDropTarget()
+        guard let notch = dropGeometry else { return }
+        let mouse = NSEvent.mouseLocation
+        if DropZonePolicy.withdraws(mouse: mouse, notch: notch, barFrame: panel.frame) {
+            withdrawDropTarget()
+            return
+        }
+        dropWithdrawTask?.cancel()
+        dropWithdrawTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.withdrawDropTarget()
+        }
     }
 
     private func offerDropTarget(on screen: NSScreen, notch: NotchGeometry) {
@@ -432,6 +448,8 @@ final class HUDPanelController {
     }
 
     private func withdrawDropTarget() {
+        guard dropGeometry != nil else { return }
+        dropWithdrawTask?.cancel()
         dropGeometry = nil
         dropView.removeFromSuperview()
         if presentation.display != nil {
@@ -450,6 +468,7 @@ final class HUDPanelController {
 
     private func completeDrop(_ items: [DroppedItem]) {
         guard dropGeometry != nil else { return }
+        dropWithdrawTask?.cancel()
         dropGeometry = nil
         dropView.removeFromSuperview()
         dropPending = true
