@@ -39,7 +39,12 @@ manual, via Homebrew.
 ## On-device processing
 
 Text recognition in captured images runs entirely on-device using Apple's Vision
-framework. Nothing you capture is sent anywhere for processing.
+framework. Automatic tagging runs the same way, on Apple's on-device Foundation
+Models (the Apple Intelligence model that ships with macOS) — when Apple
+Intelligence is off or unavailable, captures simply stay untagged. Nothing you
+capture is sent anywhere for processing.
+
+**Opting out:** the *Auto-tag captures on device* toggle in Settings.
 
 ## Sandboxing
 

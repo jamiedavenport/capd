@@ -1,6 +1,6 @@
 ---
 title: Search
-description: The search window, keyboard shortcuts, and the site/date filter syntax.
+description: The search window, keyboard shortcuts, tags, and the filter syntax.
 ---
 
 Press **⌥⇧Space** to open the search window — a Spotlight-style panel that searches
@@ -18,10 +18,20 @@ URL works.
 | Key | Action |
 |---|---|
 | ↑ / ↓ | Move the selection |
+| ⇥ / ⇧⇥ | Cycle through tag filters, ending back at all captures |
 | ↩ | Open — links in the browser, images in the viewer; text is copied |
 | ⌘↩ | Copy the URL (or the text) |
 | ⌘⌫ | Delete the capture |
 | Esc | Dismiss |
+
+## Tags
+
+cap tags every capture automatically — one to three broad topic tags drawn from a
+shared vocabulary of at most ten, assigned on-device a few seconds after each save
+and reshaped in the background as your library grows. Rows show their tags as chips,
+**⇥** and **⇧⇥** walk through them as filters (most used first), and typing hands
+the filter back to the query. Tagging can be turned off in Settings; see
+[Privacy](/privacy) for how it runs without anything leaving your Mac.
 
 ## Filter syntax
 
@@ -34,6 +44,7 @@ swift concurrency site:swift.org after:2026-01-01
 | Filter | Meaning |
 |---|---|
 | `site:swift.org` | Only captures from that host, subdomains included |
+| `tag:swift` | Only captures carrying that tag, matched whole — never `swiftui` |
 | `since:2026-01-01` / `after:2026-01-01` | Captured on or after that day |
 | `until:2026-06-30` | Captured up to and including that day |
 | `before:2026-06-30` | Captured before that day |
@@ -49,6 +60,7 @@ tokens:
 
 ```sh
 cap search swift concurrency --site swift.org --since 2026-01-01 --until 2026-06-30
+cap search --tag databases
 cap search rust --limit 10 --json
 ```
 

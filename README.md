@@ -88,6 +88,16 @@ Article extraction uses Mozilla's [Readability.js](https://github.com/mozilla/re
 with [SwiftSoup](https://github.com/scinfu/SwiftSoup) as the fallback — see
 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
 
+## Auto tagging
+
+Every capture is tagged automatically: one to three broad topic tags from a shared
+vocabulary capped at ten. `cap-agent` assigns them a few seconds after enrichment using
+Apple's on-device Foundation Models, and periodically consolidates the vocabulary —
+merging synonyms and folding rare tags into broader ones — as the library grows. It all
+runs on-device; when Apple Intelligence is off or unavailable, captures stay untagged.
+In the search window, Tab and Shift-Tab cycle through tags as filters, and `tag:` works
+as query syntax everywhere search does. The toggle lives in the app's settings.
+
 ## Updates
 
 The menu-bar app asks the GitHub Releases API for the latest version at most once a week. The
