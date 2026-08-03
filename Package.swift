@@ -51,7 +51,8 @@ let package = Package(
                 "CapKit",
                 "CapAppUI",
                 "KeyboardShortcuts",
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
         .executableTarget(
             name: "CapTestHost",
