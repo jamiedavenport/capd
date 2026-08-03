@@ -64,6 +64,37 @@ struct FaviconHTMLTests {
         #expect(FaviconHTML.best(found)?.url?.path() == "/icon.png")
     }
 
+    @Test("A dark-scheme icon outranks same-size neutral; light-scheme ranks below")
+    func colorSchemeRanking() {
+        let html = """
+            <link rel="icon" href="/light.png" sizes="64x64" media="(prefers-color-scheme: light)">
+            <link rel="icon" href="/neutral.png" sizes="64x64">
+            <link rel="icon" href="/dark.png" sizes="64x64" media="(prefers-color-scheme:dark)">
+            """
+        let found = FaviconHTML.candidates(in: html, pageURL: pageURL)
+        #expect(FaviconHTML.best(found)?.url?.path() == "/dark.png")
+
+        let noDark = found.filter { $0.url?.path() != "/dark.png" }
+        #expect(FaviconHTML.best(noDark)?.url?.path() == "/neutral.png")
+    }
+
+    @Test("A known-tiny dark-scheme icon never beats a crisp neutral one")
+    func darkSchemeDoesNotTrumpSize() {
+        let html = """
+            <link rel="icon" href="/dark-tiny.png" sizes="16x16" media="(prefers-color-scheme: dark)">
+            <link rel="icon" href="/neutral.png" sizes="64x64">
+            """
+        let found = FaviconHTML.candidates(in: html, pageURL: pageURL)
+        #expect(FaviconHTML.best(found)?.url?.path() == "/neutral.png")
+    }
+
+    @Test("Media queries without a color-scheme preference are neutral")
+    func unrelatedMedia() {
+        let html = #"<link rel="icon" href="/icon.png" media="screen and (min-width: 0px)">"#
+        let found = FaviconHTML.candidates(in: html, pageURL: pageURL)
+        #expect(found.first?.colorSchemePreference == .unspecified)
+    }
+
     @Test("A base64 data: href decodes inline")
     func dataURL() {
         let payload = Data("fake-png-bytes".utf8).base64EncodedString()
