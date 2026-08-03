@@ -1,4 +1,4 @@
-# cap
+[![Capd](./banner.png)](https://cap.jxd.dev)
 
 An open-source native macOS capture and bookmarking app.
 
