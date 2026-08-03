@@ -1,89 +1,84 @@
 ---
-title: Install
-description: Homebrew or direct download, first-run setup, permissions, updating, and uninstalling.
+title: Install Capd
+description: Download Capd, complete first-run setup, update it, or remove it.
 ---
 
-cap requires **macOS 26 or later**. It runs on both Apple silicon and Intel Macs — the
-released binary is universal.
+Capd requires **macOS 26 or later**. Releases are universal, so the same
+download works on Apple silicon and Intel Macs.
+
+## Direct download
+
+1. Download the notarized `.dmg` from the
+   [latest GitHub release](https://github.com/jamiedavenport/capd/releases/latest).
+2. Open the disk image and drag `capd.app` to Applications.
+3. Launch Capd from Applications.
+
+The bundled CLI is available at `/Applications/capd.app/Contents/MacOS/capd`.
+Add that path to your shell configuration if you want to use it directly.
 
 ## Homebrew
 
 ```sh
-brew install jamiedavenport/tap/cap
+brew install jamiedavenport/tap/capd
 ```
 
-The cask installs `cap.app` into `/Applications` and symlinks the `cap` CLI from
-inside the bundle onto your `PATH`.
-
-## Direct download
-
-Download the notarized `.dmg` from
-[GitHub releases](https://github.com/jamiedavenport/cap/releases) and drag `cap.app`
-to Applications. The CLI then lives at `/Applications/cap.app/Contents/MacOS/cap`;
-add it to your `PATH` or alias it yourself.
-
-## Build from source
-
-Requires macOS 26 and Xcode 26.3.
-
-```sh
-git clone https://github.com/jamiedavenport/cap
-cd cap
-./Scripts/bootstrap.sh
-swift build
-```
-
-`Scripts/package-app.sh` produces a complete `cap.app` and `.dmg` locally with an
-ad-hoc signature.
+Homebrew installs `capd.app` into `/Applications` and makes the bundled `capd`
+CLI available on your `PATH`.
 
 ## First run
 
-Launching cap for the first time opens a short onboarding window:
+Capd guides you through four short steps:
 
-1. **Hotkeys.** Shows the three defaults — ⌃⌥C to capture, ⌃⌥N to note the last
-   capture, ⌥⇧Space to search — and lets you rebind any of them. It warns if a chosen
-   combination collides with a macOS system shortcut.
-2. **Accessibility access.** cap reads the text you have selected through the
-   Accessibility API, and uses the same API to refuse capture inside password fields.
-   Granting is optional: if you decline, capture falls back to the clipboard only.
-3. **Browser access.** For each supported browser you have running, macOS asks once
-   for permission to read the front tab's address. Onboarding triggers these prompts
-   up front so they don't interrupt your first real capture.
-4. **Try it.** A guided first capture and first search.
+1. **Choose hotkeys.** Keep the defaults or record combinations that fit your
+   workflow: ⌃⌥C to capture, ⌃⌥N to note the last capture, and ⌥⇧Space to
+   search.
+2. **Grant Accessibility access.** This lets Capd read selected text, detect
+   secure fields, and read the current tab in Firefox-based browsers. It is
+   optional; without it, hotkey capture uses the clipboard fallback.
+3. **Allow browser access.** Safari, Chrome, and Arc use per-browser macOS
+   Automation permission to share the current tab's address and title.
+4. **Try the loop.** Make one capture, open search, and find it again.
 
-cap also installs its background enrichment agent during first launch — see below.
-You can re-check every permission later with `cap doctor`.
+Capd also installs its background helper on first launch. The helper enriches
+captured pages and images even while the menu-bar app is closed.
 
-## The background agent
+{/*
+MEDIA: onboarding.png
+Show the “Try it” onboarding step after a successful first capture. Include the
+two default shortcuts and the green background-helper confirmation so users
+know the setup is short and guided.
+*/}
 
-`cap-agent` runs as a launchd LaunchAgent labelled `dev.jxd.cap.agent`
-(`~/Library/LaunchAgents/dev.jxd.cap.agent.plist`). launchd starts it at login and
-restarts it if it stops. It processes the enrichment queue — page fetches and image
-OCR — so captures made from the CLI or scripts get enriched even when the app is
-closed.
+## Update
 
-Check on it with `cap status`; repair or reinstall it with `cap doctor`. Remove it
-with `cap doctor --uninstall-agent`.
-
-## Updating
-
-The app checks GitHub Releases for a newer version at most once a week (you can turn
-this off in Settings). When one exists, an **Update available** item appears in the
-menu; clicking it copies the upgrade command:
+Capd checks GitHub Releases for a newer version at most once a week. You can
+disable this in Settings. When an update is available, the menu-bar app offers
+to copy this command:
 
 ```sh
-brew upgrade jamiedavenport/tap/cap
+brew upgrade jamiedavenport/tap/capd
 ```
 
-## Uninstalling
+For a direct installation, download the newest `.dmg` and replace the existing
+app in Applications.
+
+## Uninstall
 
 With Homebrew:
 
 ```sh
-brew uninstall cap          # quits the app, removes the agent and the bundle
-brew uninstall --zap cap    # also deletes your captures and the launchd plist
+brew uninstall capd
 ```
 
-Installed from the `.dmg`? Run `cap doctor --uninstall-agent`, quit cap from the menu
-bar, then delete `/Applications/cap.app`. Your data stays in
-`~/Library/Application Support/cap/` until you delete that folder too.
+To remove the app and its stored captures:
+
+```sh
+brew uninstall --zap capd
+```
+
+For a direct installation, run `capd doctor --uninstall-agent`, quit the app,
+and delete `/Applications/capd.app`. Your library remains in
+`~/Library/Application Support/capd/` until you remove that folder.
+
+Want to build from source? See the repository's
+[contributor guide](https://github.com/jamiedavenport/capd/blob/main/CONTRIBUTING.md).

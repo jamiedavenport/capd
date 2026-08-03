@@ -1,68 +1,72 @@
 ---
 title: Search
-description: The search window, keyboard shortcuts, tags, and the filter syntax.
+description: Find captures by what you remember, then narrow results by site, tag, or date.
 ---
 
-Press **⌥⇧Space** to open the search window — a Spotlight-style panel that searches
-as you type. Press it again (or Esc) to dismiss.
+Press **⌥⇧Space** to open Capd's keyboard-first search window. Search starts as
+you type; press the shortcut again or Escape to close it.
 
-Search is full-text over everything cap stores: titles, hosts, notes, selections,
-extracted page bodies, and text recognized inside images. Matches on the title and
-host rank highest, then notes and selections, then body text. While you're typing,
-the last word matches as a prefix — `concur` finds *concurrency*. Queries that don't
-match the full-text index also try a URL substring match, so pasting a fragment of a
-URL works.
+Capd searches titles, websites, notes, selections, readable page content, and
+text recognized inside images. Title and website matches rank highest. The last
+word is treated as a prefix, so `concur` can find *concurrency*.
 
-## Keyboard
+{/*
+MEDIA: search-window.png
+Show a short natural-language query, a selected result with a useful snippet,
+several site favicons, and the clickable tag row. Avoid a staged library made
+entirely from one website—the variety is part of the product's value.
+*/}
+
+## Keyboard shortcuts
 
 | Key | Action |
 |---|---|
-| ↑ / ↓ | Move the selection |
-| ⇥ / ⇧⇥ | Cycle through tag filters, ending back at all captures |
-| ↩ | Open — links in the browser, images in the viewer; text is copied |
-| ⌘↩ | Copy the URL (or the text) |
-| ⌘⌫ | Delete the capture |
-| Esc | Dismiss |
+| ↑ / ↓ | Move through results |
+| ⇥ / ⇧⇥ | Cycle forward or backward through tag filters |
+| ↩ | Open a link or image; copy a text capture |
+| ⌘↩ | Copy the URL or captured text |
+| ⌘⇧⌫ | Delete the selected capture |
+| Esc | Close search |
+
+You can also click a tag to filter or click a result to open it.
 
 ## Tags
 
-cap tags every capture automatically — one to three broad topic tags drawn from a
-shared vocabulary of at most ten, assigned on-device a few seconds after each save
-and reshaped in the background as your library grows. Rows show their tags as chips,
-**⇥** and **⇧⇥** walk through them as filters (most used first), and typing hands
-the filter back to the query. Tagging can be turned off in Settings; see
-[Privacy](/privacy) for how it runs without anything leaving your Mac.
+When on-device tagging is available, Capd gives each capture one to three broad
+topic tags from a small vocabulary that adapts as your library grows. Tags
+appear below the search field and beside each result.
+
+Press Tab and Shift-Tab to move through tag filters, click a tag, or include a
+`tag:` filter in the query. Automatic tagging can be disabled in Settings.
 
 ## Filter syntax
 
-Filters can be typed straight into the query, in the window or the CLI:
+Add filters anywhere in a query:
 
-```
-swift concurrency site:swift.org after:2026-01-01
+```text
+swift concurrency site:swift.org tag:development after:2026-01-01
 ```
 
 | Filter | Meaning |
 |---|---|
-| `site:swift.org` | Only captures from that host, subdomains included |
-| `tag:swift` | Only captures carrying that tag, matched whole — never `swiftui` |
-| `since:2026-01-01` / `after:2026-01-01` | Captured on or after that day |
-| `until:2026-06-30` | Captured up to and including that day |
-| `before:2026-06-30` | Captured before that day |
+| `site:swift.org` | Match that website and its subdomains |
+| `tag:development` | Match a complete tag name |
+| `since:2026-01-01` or `after:2026-01-01` | Captured on or after that date |
+| `until:2026-06-30` | Captured on or before that date |
+| `before:2026-06-30` | Captured before that date |
 
-Dates are `YYYY-MM-DD`. A token that doesn't parse as a filter is searched as
-ordinary text. Malformed queries never error — stray quotes, `AND`, `*`, and emoji
-just search literally.
+Dates use `YYYY-MM-DD`. Text that does not form a valid filter is treated as an
+ordinary search term.
 
-## From the terminal
+## Search from the terminal
 
-`cap search` takes the same query syntax, plus explicit flags that win over inline
-tokens:
+The CLI uses the same search language and also accepts explicit filter flags:
 
 ```sh
-cap search swift concurrency --site swift.org --since 2026-01-01 --until 2026-06-30
-cap search --tag databases
-cap search rust --limit 10 --json
+capd search swift concurrency --site swift.org --since 2026-01-01
+capd search --tag development
+capd search rust --limit 10 --json
 ```
 
-Results come back as plain text, `--format tsv`, or `--json` — the JSON field set
-is a [stable interface](/cli#conventions).
+Results are available as readable text, TSV, or stable JSON. See the
+[CLI conventions](/cli#conventions) for scripting details.

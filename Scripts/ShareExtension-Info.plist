@@ -5,23 +5,23 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>cap</string>
+	<string>Capd</string>
 	<key>CFBundleExecutable</key>
-	<string>CapShareExtension</string>
+	<string>CapdShareExtension</string>
 	<key>CFBundleIconFile</key>
-	<string>cap</string>
+	<string>capd</string>
 	<key>CFBundleIdentifier</key>
-	<string>dev.jxd.cap.share</string>
+	<string>dev.jxd.capd.share</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>cap</string>
+	<string>Capd</string>
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
-	<string>CAP_VERSION</string>
+	<string>CAPD_VERSION</string>
 	<key>CFBundleVersion</key>
-	<string>CAP_VERSION</string>
+	<string>CAPD_VERSION</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
 	<key>NSExtension</key>

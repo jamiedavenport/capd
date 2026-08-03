@@ -1,106 +1,112 @@
 ---
 title: CLI
-description: Capture, search, and export from the terminal with the cap CLI.
+description: Capture, search, manage, and export your Capd library from the terminal.
 ---
 
-The `cap` binary is a first-class way to use cap — everything the hotkey saves can
-also be captured, searched, and exported from a script. Read commands take `--json`,
-whose field set is a stable interface.
+The bundled `capd` command works with the same local library as the Capd app. It
+is useful for quick terminal capture, bulk imports, shell scripts, backups, and
+AI-assistant integrations.
 
-## Capturing
+Homebrew adds `capd` to your `PATH`. Direct installations keep it at
+`/Applications/capd.app/Contents/MacOS/capd`.
 
-```sh
-cap add https://example.com/article      # capture a link; the page fetch is queued
-cap add https://example.com --no-fetch   # capture the link only, skip the fetch
-cap add "remember this" --note "why"     # capture text, with a note
-cap add https://example.com --title "…"  # supply the title yourself
-pbpaste | cap add -                      # capture stdin
-cap add https://example.com --wait       # block until enrichment finishes
-```
-
-`cap add -` reads stdin: when every non-empty line is a URL, each line becomes its
-own capture; otherwise the whole input is one text capture. When some lines of a bulk
-add fail, the successes print on stdout, the failures go to stderr, and the exit code
-is 2.
-
-`--wait` gives up after 60 seconds by default; tune it with `--timeout <seconds>`.
-Captures made with `cap add` are deduplicated exactly like hotkey captures — adding a
-URL you already have reports the existing capture instead.
-
-## Searching and listing
+## Capture
 
 ```sh
-cap search swift concurrency --site swift.org --since 2026-01-01
-cap search 'error handling until:2026-06-30'   # inline filters work too
-cap list --limit 20
+capd add https://example.com/article      # save a link and queue its page content
+capd add https://example.com --no-fetch   # save the link without fetching the page
+capd add "Remember this" --note "Why"     # save text with a note
+capd add https://example.com --title "…"  # provide a title
+pbpaste | capd add -                      # capture standard input
+capd add https://example.com --wait       # wait for enrichment to finish
 ```
 
-`search` and `list` take `--limit` (default 50) and `--format plain|tsv|json`.
-The [filter syntax](/search#filter-syntax) is the same as the search window's.
+When standard input contains only URLs, each non-empty line becomes a separate
+capture. Otherwise, the complete input becomes one text capture.
 
-## Managing captures
+`--wait` times out after 60 seconds by default. Use `--timeout <seconds>` to
+change it. CLI captures use the same duplicate detection as the app.
+
+## Search and list
 
 ```sh
-cap rm 12 14          # delete by id (ids are shown by list and search)
-cap refetch           # requeue all failed or thin page fetches
-cap refetch 12        # requeue specific captures, whatever their state
+capd search swift concurrency --site swift.org --since 2026-01-01
+capd search 'error handling until:2026-06-30'
+capd list --limit 20
 ```
 
-## Exporting
+`search` and `list` accept `--limit` and `--format plain|tsv|json`. The
+[filter syntax](/search#filter-syntax) is shared with the app.
+
+## Manage captures
 
 ```sh
-cap export                      # JSON: every stored field, the lossless backup format
-cap export --format markdown    # a link list with notes and selections quoted
+capd rm 12 14       # delete captures by ID
+capd refetch        # retry all failed or thin page extractions
+capd refetch 12     # retry a specific capture
 ```
 
-## AI assistants
+IDs appear in `capd list` and `capd search` output.
+
+## Export
 
 ```sh
-cap mcp    # serve captures over the Model Context Protocol on stdin/stdout
+capd export                    # lossless JSON with every stored field
+capd export --format markdown  # readable links, notes, and selections
 ```
 
-`cap mcp` lets an AI assistant search your captures. It speaks MCP over
-stdin/stdout and exposes three read-only tools: `search_captures` (the same
-full-text search and filter syntax as `cap search`), `get_capture` (one capture
-with its full extracted page text), and `list_recent`.
+The JSON export is the complete portable backup format. Copy the entire
+[storage folder](/app#where-your-data-lives) when captured image files must be
+included as well.
+
+## Connect an AI assistant
+
+```sh
+capd mcp
+```
+
+`capd mcp` serves three read-only tools over the Model Context Protocol:
+
+- `search_captures` uses Capd's full-text search and filters.
+- `get_capture` returns one capture with its extracted page text.
+- `list_recent` returns the latest captures.
 
 Register it with Claude Code:
 
 ```sh
-claude mcp add cap -- cap mcp
+claude mcp add capd -- capd mcp
 ```
 
-or with Claude Desktop, in `claude_desktop_config.json`:
+Or add it to Claude Desktop's `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "cap": { "command": "cap", "args": ["mcp"] }
+    "capd": { "command": "capd", "args": ["mcp"] }
   }
 }
 ```
 
-The server only reads the store — it cannot add, edit, or delete captures — and
-nothing leaves your machine except the results the assistant asked for.
+Capd's MCP server cannot add, edit, or delete captures. It communicates over
+standard input and output; review the privacy policy of the assistant receiving
+the results to understand whether that assistant sends them elsewhere.
 
-## Health
+## Check health
 
 ```sh
-cap status    # queue depth and ETA, capture counts, database size, agent state
-cap doctor    # integrity check, index rebuild, orphan sweep, agent verify + repair
+capd status   # queue, capture, storage, and background-helper status
+capd doctor   # integrity checks, repairs, and permission status
 ```
 
-`cap status` exits 4 when no agent is running — useful in scripts. `cap doctor`
-repairs what it can (rebuilding the search index, reinstalling the launchd agent) and
-exits 1 if a problem remains. `cap doctor --uninstall-agent` removes the background
-agent; `--skip-agent` checks only the store.
+`capd doctor` can rebuild the search index, remove orphaned image files, and
+repair the background helper. Use `capd doctor --uninstall-agent` to remove the
+helper or `--skip-agent` to check only the library.
 
 ## Conventions
 
-- Data goes to stdout, diagnostics to stderr.
-- Exit codes: 0 success, 1 no results, 2 bad usage, 3 store unavailable, 4 agent not
-  running.
-- `CAP_DIR` overrides the storage root for the CLI, app, and agent alike.
-- `--json` output is stable; plain output is for people and may change. Stable
-  fields are never renamed, retyped, or removed; new fields may be added, so
-  consumers must ignore keys they do not recognize.
+- Data goes to standard output; diagnostics go to standard error.
+- Exit codes are `0` for success, `1` for no results, `2` for invalid usage,
+  `3` when the store is unavailable, and `4` when the helper is not running.
+- `CAPD_DIR` overrides the default storage root.
+- JSON output is stable for scripts. Existing fields are not renamed, retyped,
+  or removed, but new fields may be added. Consumers should ignore unknown keys.

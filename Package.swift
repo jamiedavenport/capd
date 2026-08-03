@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "cap",
+    name: "capd",
     platforms: [.macOS(.v26)],
     products: [
-        .library(name: "CapKit", targets: ["CapKit"]),
-        .library(name: "CapAppUI", targets: ["CapAppUI"]),
-        .executable(name: "cap", targets: ["CapCLI"]),
-        .executable(name: "cap-agent", targets: ["CapAgent"]),
-        .executable(name: "CapApp", targets: ["CapApp"]),
-        .executable(name: "CapShareExtension", targets: ["CapShareExtension"]),
+        .library(name: "CapdKit", targets: ["CapdKit"]),
+        .library(name: "CapdAppUI", targets: ["CapdAppUI"]),
+        .executable(name: "capd", targets: ["CapdCLI"]),
+        .executable(name: "capd-agent", targets: ["CapdAgent"]),
+        .executable(name: "CapdApp", targets: ["CapdApp"]),
+        .executable(name: "CapdShareExtension", targets: ["CapdShareExtension"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
@@ -21,7 +21,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "CapKit",
+            name: "CapdKit",
             dependencies: [
                 .product(name: "GRDB", package: "GRDB.swift"),
                 "SwiftSoup",
@@ -29,39 +29,39 @@ let package = Package(
             resources: [.copy("Resources/Readability.js")]
         ),
         .executableTarget(
-            name: "CapCLI",
+            name: "CapdCLI",
             dependencies: [
-                "CapKit",
+                "CapdKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "MCP", package: "swift-sdk"),
             ]
         ),
         .executableTarget(
-            name: "CapAgent",
-            dependencies: ["CapKit"],
-            resources: [.copy("Resources/dev.jxd.cap.agent.plist")]
+            name: "CapdAgent",
+            dependencies: ["CapdKit"],
+            resources: [.copy("Resources/dev.jxd.capd.agent.plist")]
         ),
         .target(
-            name: "CapAppUI",
+            name: "CapdAppUI",
             dependencies: [
-                "CapKit",
+                "CapdKit",
                 "KeyboardShortcuts",
             ]
         ),
-        .target(name: "CapHandoff"),
+        .target(name: "CapdHandoff"),
         .executableTarget(
-            name: "CapApp",
+            name: "CapdApp",
             dependencies: [
-                "CapKit",
-                "CapAppUI",
-                "CapHandoff",
+                "CapdKit",
+                "CapdAppUI",
+                "CapdHandoff",
                 "KeyboardShortcuts",
             ],
             resources: [.process("Resources")]
         ),
         .executableTarget(
-            name: "CapShareExtension",
-            dependencies: ["CapHandoff"],
+            name: "CapdShareExtension",
+            dependencies: ["CapdHandoff"],
             linkerSettings: [
                 // App extensions enter at NSExtensionMain, not main; this is the
                 // flag Xcode passes when linking an .appex binary.
@@ -69,44 +69,44 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "CapTestHost",
-            dependencies: ["CapKit"],
-            path: "Tests/CapTestHost"
+            name: "CapdTestHost",
+            dependencies: ["CapdKit"],
+            path: "Tests/CapdTestHost"
         ),
         .testTarget(
-            name: "CapKitTests",
+            name: "CapdKitTests",
             dependencies: [
-                "CapKit",
-                "CapTestHost",
+                "CapdKit",
+                "CapdTestHost",
                 .product(name: "GRDB", package: "GRDB.swift"),
                 "SwiftSoup",
             ],
             resources: [.copy("Fixtures")]
         ),
         .testTarget(
-            name: "CapAppTests",
+            name: "CapdAppTests",
             dependencies: [
-                "CapApp",
-                "CapAppUI",
-                "CapHandoff",
-                "CapKit",
+                "CapdApp",
+                "CapdAppUI",
+                "CapdHandoff",
+                "CapdKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),
         .testTarget(
-            name: "CapCLITests",
+            name: "CapdCLITests",
             dependencies: [
-                "CapCLI",
-                "CapKit",
+                "CapdCLI",
+                "CapdKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ],
             resources: [.copy("Fixtures")]
         ),
         .testTarget(
-            name: "CapAgentTests",
+            name: "CapdAgentTests",
             dependencies: [
-                "CapAgent",
-                "CapKit",
+                "CapdAgent",
+                "CapdKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
         ),

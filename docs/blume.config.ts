@@ -1,18 +1,18 @@
 import { defineConfig } from "blume";
 
 export default defineConfig({
-  title: "cap",
-  description: "An open-source native macOS capture and bookmarking app.",
-  logo: { image: "/logo.svg", text: "cap" },
+  title: "Capd",
+  description: "Save anything on your Mac and find it again in seconds.",
+  logo: { image: "/logo.svg", text: "Capd" },
   content: {
     root: "content",
   },
   github: {
     owner: "jamiedavenport",
-    repo: "cap",
+    repo: "capd",
     dir: "docs",
   },
   deployment: {
-    site: "https://cap.jxd.dev",
+    site: "https://capd.jxd.dev",
   },
 });

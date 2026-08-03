@@ -1,57 +1,71 @@
 ---
 title: Privacy
-description: Everything stays on your Mac. Exactly two things touch the network, and both can be turned off.
+description: What stays on your Mac, what can connect to the network, and how on-device processing works.
 ---
 
-Everything cap stores stays on your Mac: one SQLite database and an assets folder
-under `~/Library/Application Support/cap/`. There is no account, no sync service, no
-analytics, and no telemetry of any kind.
+Your Capd library stays on your Mac in one SQLite database and local asset
+folders. Capd has no account, cloud sync, analytics, advertising, or telemetry.
 
-cap produces exactly two kinds of network traffic. Both are disclosed here, and both
-can be turned off.
+This page lists every network feature in the app.
 
-## 1. The page fetch
+## Page-content fetching
 
-When you capture a link, cap stores the readable body of the page so search can match
-its words. If the capture came from a Safari, Chrome, or Arc tab, cap reads the
-rendered page **from that tab** and nothing touches the network. Otherwise — CLI
-captures, scripts, Firefox — cap fetches the URL itself, hardened as follows:
+Capd stores readable page text so search can match more than a bookmark's title.
+When a capture comes from Safari, Chrome, or Arc, Capd first reads the rendered
+page directly from that browser tab. No additional page request is needed.
 
-- http and https only
-- an ephemeral browsing context: no shared cookies, nothing persisted
-- navigation locked to the target URL — no redirects to other pages
-- a 15-second timeout and a 10 MB size cap
+For CLI captures, share-sheet captures, dropped links, and Firefox-based
+browsers, Capd can fetch the page itself. That fetch uses:
 
-A failed fetch keeps the capture (title, URL, selection) and is retryable.
+- HTTP and HTTPS URLs only
+- an ephemeral browsing context with no shared cookies or persisted website data
+- navigation locked to the requested page
+- a 15-second timeout and 10 MB response limit
 
-**Opting out:** per capture with `cap add --no-fetch`, or globally with the *Fetch
-page content for link captures* toggle in Settings.
+A failed fetch does not discard the capture.
 
-## 2. The version check
+**Control it:** use `capd add --no-fetch` for one CLI capture, or disable **Fetch
+page content for link captures** in Settings.
 
-The menu-bar app asks the GitHub Releases API for the latest version at most once a
-week. The request carries nothing beyond the version lookup itself. When a newer
-release exists, an "Update available" menu item appears — updating itself is always
-manual, via Homebrew.
+## Website icons
 
-**Opting out:** the *Check weekly for a new version* toggle in Settings.
+When a saved website first appears in the HUD or search results, Capd may request
+its favicon from that website or the icon location declared by its home page.
+Requests use an ephemeral network session. Valid icons are cached locally in
+the `favicons/` folder; confirmed misses are retried after seven days.
+
+Favicon fetching currently has no separate setting. If a request fails or the
+Mac is offline, Capd displays a built-in symbol instead.
+
+## Update checks
+
+At most once a week, the menu-bar app asks the GitHub Releases API for the latest
+version number. Updating is always manual.
+
+**Control it:** disable **Check weekly for a new version** in Settings.
 
 ## On-device processing
 
-Text recognition in captured images runs entirely on-device using Apple's Vision
-framework. Automatic tagging runs the same way, on Apple's on-device Foundation
-Models (the Apple Intelligence model that ships with macOS) — when Apple
-Intelligence is off or unavailable, captures simply stay untagged. Nothing you
-capture is sent anywhere for processing.
+Image text recognition uses Apple's Vision framework. Automatic topic tagging
+uses Apple's on-device Foundation Models when Apple Intelligence is available.
+Captured content is not sent to a model service.
 
-**Opting out:** the *Auto-tag captures on device* toggle in Settings.
+**Control tagging:** disable **Auto-tag captures on device** in Settings. OCR
+continues to run locally for image captures.
 
-## Sandboxing
+## MCP and other tools
 
-cap runs unsandboxed, with the hardened runtime on release builds. Reading the
-frontmost browser tab through Accessibility and Apple Events is not possible inside
-the App Sandbox — that is also why cap is distributed through Homebrew rather than
-the Mac App Store. Release builds are Developer ID-signed and notarized by Apple.
+The `capd mcp` server reads the local library and returns requested results over
+standard input and output. It does not make network requests itself. A connected
+AI assistant may process those results elsewhere, so its own privacy policy also
+applies.
 
-The source is MIT-licensed and open — audit any of this at
-[github.com/jamiedavenport/cap](https://github.com/jamiedavenport/cap).
+## App security and distribution
+
+Capd runs outside the App Sandbox because reading the frontmost browser tab with
+Accessibility and Automation is incompatible with sandboxing. Release builds
+use the hardened runtime, are signed with a Developer ID certificate, and are
+notarized by Apple.
+
+The source is MIT-licensed and available at
+[github.com/jamiedavenport/capd](https://github.com/jamiedavenport/capd).

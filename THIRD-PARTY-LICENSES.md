@@ -2,7 +2,7 @@
 
 ## Readability.js
 
-`Sources/CapKit/Resources/Readability.js` is vendored verbatim from
+`Sources/CapdKit/Resources/Readability.js` is vendored verbatim from
 [mozilla/readability](https://github.com/mozilla/readability) at tag `0.6.0`.
 
 Copyright (c) 2010 Arc90 Inc

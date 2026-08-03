@@ -1,95 +1,103 @@
 ---
-title: Capturing
-description: What ⌃⌥C saves from each app, notes, images, duplicates, and enrichment.
+title: Capture
+description: Save pages, selections, links, images, and files without breaking focus.
 ---
 
-Press **⌃⌥C** anywhere. cap looks at the frontmost app and saves the most useful
-thing it can read — always without touching what you're doing. The hotkey always
-captures: press it five times quickly and you get five captures.
+Capd offers several ways to save something. Every method uses the same local
+library, duplicate detection, confirmation HUD, and background enrichment.
 
-A toast appears at the top of the screen for a few seconds confirming what was saved.
-**Press ⌃⌥N or click the toast to attach a note** — ⏎ saves, Esc dismisses. If the
-capture already has a note, the field opens with it so you edit rather than overwrite;
-clearing the field and pressing ⏎ removes it.
+## Use the capture hotkey
 
-## What gets captured where
+Press **⌃⌥C** anywhere. Capd inspects the frontmost app and saves the most useful
+content it can read.
 
-| Frontmost app | URL + title | Selected text | Page body for search |
-|---|---|---|---|
-| Safari, Chrome, Arc | ✓ from the front tab | ✓ | ✓ read from the rendered tab |
-| Firefox | — | ✓ | via network fetch when a URL is captured |
-| Any other app | — | ✓ | — |
+| Frontmost app | What the hotkey can save | Page content for search |
+|---|---|---|
+| Safari, Chrome, Arc | Current URL, title, and selected text | Read from the rendered tab |
+| Firefox, Zen, LibreWolf, Waterfox | Current URL, title, and selected text | Fetched from the website |
+| Other apps | Selected text or clipboard content | Not applicable |
 
-**Safari, Chrome, and Arc** give the full experience: cap asks the browser for the
-front tab's URL and title over Apple Events, grabs your selection, and extracts the
-readable page body directly from the rendered tab. Because the body comes from your
-own tab, paywalled or logged-in content you can see is captured without any network
-request.
+For Safari, Chrome, and Arc, reading the rendered tab means content already
+visible to you—including many signed-in or paywalled pages—can be indexed
+without Capd making another page request.
 
-**Firefox** doesn't support the Apple Events interface cap uses, so the hotkey can't
-see the tab's URL — it captures your selected text only. To capture a Firefox link,
-share the page to cap, copy the URL and press the hotkey, or use `cap add <url>`.
-Bodies for those captures come from cap's own hardened fetch instead of the tab.
+Firefox-based browsers expose their current tab through Accessibility rather
+than Automation. Capd can capture the address and title, then fetch readable
+page content separately when page fetching is enabled.
 
-**Everything else** — editors, terminals, chat apps, PDF viewers — captures the
-selected text, remembering which app it came from.
+## Drag to capture
 
-## Selection and the clipboard fallback
+Drag a link, text selection, image, or file toward the MacBook notch. The HUD
+turns into a **Drop to capture** target. Macs without a notch can accept the same
+items on Capd's menu-bar icon.
 
-cap first reads your selection through the Accessibility API. When an app doesn't
-expose its selection that way, cap falls back to a synthetic ⌘C: it snapshots your
-clipboard, copies, captures, and restores the clipboard exactly as it was.
+Image files become searchable image captures. Other local files are saved as
+searchable file paths; Capd does not copy their contents.
 
-The fallback refuses to run when the clipboard holds promised files (like a
-drag-in-progress) or very large data — cap then captures what it can without it, and
-the toast says why.
+{/*
+MEDIA: drag-to-capture.gif
+Show both display variants: first drag a browser link to the notch HUD, then
+briefly show an image dropping onto the menu-bar icon on a non-notched display.
+The “Drop to capture” state and success confirmation should both be visible.
+*/}
 
-If **secure input** is active — a password field, or an app like a password manager
-holding the secure-input flag — cap refuses to capture at all. Nothing is read,
-nothing is stored, and the toast says capture was blocked.
+## Use the share sheet
 
-## What a capture is
+Share a web page from Safari, Chrome, Firefox, or another app and choose Capd.
+The shared URL and title are saved immediately, and readable page content is
+queued for background extraction.
 
-Each capture is a link, a text, or an image:
+## Capture from the terminal
 
-- **Link** — a URL was found (from the browser tab or in the captured text). Stores
-  URL, title, your selection, and later the readable page body.
-- **Text** — no URL; the selected text itself is the capture.
-- **Image** — an image on the clipboard with no URL or text taking precedence. The
-  image is stored as a file, and any text inside it is recognized on-device and made
-  searchable. Images come from the clipboard only — there is no screenshot mode.
+The bundled CLI accepts URLs, text, and standard input:
 
-## Duplicates
+```sh
+capd add https://example.com/article
+capd add "Remember this" --note "Useful for the project"
+pbpaste | capd add -
+```
 
-Capturing the same thing twice doesn't create a second entry. cap normalizes URLs —
-dropping fragments and tracking parameters like `utm_*`, `fbclid`, and `gclid` —
-and hashes the content, so a re-capture bumps the existing entry's *seen* count and
-timestamp instead. The toast tells you: "Already captured 3w ago".
+See the [CLI guide](/cli) for bulk capture and scripting options.
 
-Re-capturing something whose page fetch previously failed retries the fetch.
+## Add a note
 
-## Enrichment
+After a capture, press **⌃⌥N** or click the confirmation HUD. Press Return to
+save the note or Escape to close it. Opening an existing note lets you edit it;
+saving an empty field removes it.
 
-Link captures are enriched in the background by `cap-agent`: the page body is
-extracted (from the tab where possible, otherwise fetched), cleaned to readable
-article text, and indexed for search.
+{/*
+MEDIA: add-note.gif
+Capture a page, click the confirmation HUD, enter one short contextual note,
+and press Return. This should demonstrate that adding context does not require
+opening a separate library window.
+*/}
 
-- A body under about 120 words — or one that looks like a login or paywall wall — is
-  marked **thin** rather than treated as the article.
-- Failures keep the capture (URL, title, selection) and are retried up to three
-  times; after that the capture is marked **failed** and the menu-bar icon shows a
-  badge. `cap refetch` requeues failures, as does simply re-capturing the page.
-- On battery the agent enriches one capture at a time; on mains power, three.
+## Selection and clipboard fallback
 
-## From the share sheet
+Capd first reads selected text through Accessibility. When an app does not
+expose its selection, Capd temporarily copies it, captures the result, and
+restores the clipboard exactly as it was.
 
-cap sits in the macOS share sheet for web pages. Share from Safari, Chrome, Firefox,
-or any app offering a link and pick **cap** — the page goes through the same pipeline
-as the hotkey: deduplicated, confirmed with the toast, body fetch queued. A share
-hands over only the URL and title, so the body comes from cap's hardened fetch, like
-a CLI capture.
+The fallback is skipped when restoring the clipboard would be unsafe, such as
+during a file drag or with unusually large clipboard data. The HUD explains
+what happened.
 
-## From the terminal
+When secure input is active—for example, inside a password field—Capd refuses
+to capture anything. Nothing is read or stored.
 
-`cap add` captures without the app: URLs, text, stdin, with `--note`, `--title`,
-`--no-fetch`, and `--wait`. See the [CLI overview](/cli).
+## What Capd stores
+
+- **Links** include the URL, title, optional selection, and readable page text
+  when extraction succeeds.
+- **Text captures** contain the selected, copied, dropped, or entered text.
+- **Images** are stored locally, with on-device OCR text added to search.
+
+## Duplicates and background enrichment
+
+Capd normalizes URLs by removing fragments and common tracking parameters such
+as `utm_*`, `fbclid`, and `gclid`. Capturing the same item again updates its
+seen count and timestamp instead of creating a duplicate.
+
+The background helper extracts readable page text and runs image OCR. A failed
+page fetch never discards the capture: its URL, title, selection, and note stay
+searchable. Re-capture the page or run `capd refetch` to try again.

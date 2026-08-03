@@ -1,4 +1,4 @@
-# cap
+# Capd
 
 Open-source native macOS capture/bookmarking app — the Pinboard successor.
 

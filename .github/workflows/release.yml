@@ -30,9 +30,9 @@ jobs:
 
       - name: Check tag matches source version
         run: |
-          VERSION=$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/CapKit/CapKit.swift)
+          VERSION=$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/CapdKit/CapdKit.swift)
           if [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
-            echo "tag $GITHUB_REF_NAME does not match CapKit.version $VERSION" >&2
+            echo "tag $GITHUB_REF_NAME does not match CapdKit.version $VERSION" >&2
             exit 1
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -76,41 +76,41 @@ jobs:
             -----BEGIN*) printf '%s\n' "$APP_STORE_CONNECT_API_KEY_P8" > "$RUNNER_TEMP/notary-key.p8" ;;
             *) echo "$APP_STORE_CONNECT_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/notary-key.p8" ;;
           esac
-          xcrun notarytool submit "dist/cap-$VERSION.dmg" \
+          xcrun notarytool submit "dist/capd-$VERSION.dmg" \
             --key "$RUNNER_TEMP/notary-key.p8" \
             --key-id "$APP_STORE_CONNECT_KEY_ID" \
             --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --wait
           rm "$RUNNER_TEMP/notary-key.p8"
-          xcrun stapler staple "dist/cap-$VERSION.dmg"
+          xcrun stapler staple "dist/capd-$VERSION.dmg"
 
       - name: Verify Gatekeeper acceptance
         run: |
-          spctl -a -t open --context context:primary-signature -vv "dist/cap-$VERSION.dmg"
-          MOUNT="$RUNNER_TEMP/cap-dmg"
-          hdiutil attach "dist/cap-$VERSION.dmg" -nobrowse -readonly -mountpoint "$MOUNT"
-          spctl -a -vv "$MOUNT/cap.app"
+          spctl -a -t open --context context:primary-signature -vv "dist/capd-$VERSION.dmg"
+          MOUNT="$RUNNER_TEMP/capd-dmg"
+          hdiutil attach "dist/capd-$VERSION.dmg" -nobrowse -readonly -mountpoint "$MOUNT"
+          spctl -a -vv "$MOUNT/capd.app"
           hdiutil detach "$MOUNT"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "dist/cap-$VERSION.dmg" \
-            --title "cap $VERSION" --verify-tag --generate-notes
+          gh release create "$GITHUB_REF_NAME" "dist/capd-$VERSION.dmg" \
+            --title "Capd $VERSION" --verify-tag --generate-notes
 
       - name: Bump cask in tap
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
-          SHA256=$(shasum -a 256 "dist/cap-$VERSION.dmg" | cut -d' ' -f1)
+          SHA256=$(shasum -a 256 "dist/capd-$VERSION.dmg" | cut -d' ' -f1)
           git clone "https://x-access-token:$TAP_GITHUB_TOKEN@github.com/jamiedavenport/homebrew-tap.git" \
             "$RUNNER_TEMP/tap"
           mkdir -p "$RUNNER_TEMP/tap/Casks"
-          Scripts/make-cask.sh "$VERSION" "$SHA256" > "$RUNNER_TEMP/tap/Casks/cap.rb"
+          Scripts/make-cask.sh "$VERSION" "$SHA256" > "$RUNNER_TEMP/tap/Casks/capd.rb"
           cd "$RUNNER_TEMP/tap"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Casks/cap.rb
-          git commit -m "cap $VERSION"
+          git add Casks/capd.rb
+          git commit -m "capd $VERSION"
           git push

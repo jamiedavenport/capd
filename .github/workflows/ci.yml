@@ -78,4 +78,4 @@ jobs:
       - name: Performance (release)
         run: swift test -c release --filter SearchPerformanceTests
         env:
-          CAP_SEARCH_PERF_BUDGET_MS: "20"
+          CAPD_SEARCH_PERF_BUDGET_MS: "20"
