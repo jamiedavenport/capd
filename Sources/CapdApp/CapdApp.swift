@@ -32,6 +32,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// Accessibility grants.
 @main
 struct CapdApp: App {
+    private static let docsURL = URL(string: "https://capd.jxd.dev")!
+    private static let supportURL = URL(string: "https://github.com/jamiedavenport/capd/issues")!
+    private static let releaseNotesURL =
+        URL(string: "https://github.com/jamiedavenport/capd/releases")!
+
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var state = AppState()
 
@@ -43,44 +48,70 @@ struct CapdApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Text("Capd \(CapdKit.version)")
-            if let failure = state.startupFailure {
-                Text(failure)
-            }
-            if state.failedEnrichmentCount > 0 {
-                Text("Failed enrichments: \(state.failedEnrichmentCount)")
-            }
-            if state.permissions.axLost {
-                Button("Accessibility access lost — Open System Settings") {
-                    state.permissions.openAccessibilitySettings()
+            Group {
+                Label("Capd \(CapdKit.version)", systemImage: "info.circle")
+                if let failure = state.startupFailure {
+                    Label(failure, systemImage: "exclamationmark.octagon")
                 }
-            }
-            if let version = state.updates.availableVersion {
+                if state.failedEnrichmentCount > 0 {
+                    Label(
+                        "Failed enrichments: \(state.failedEnrichmentCount)",
+                        systemImage: "exclamationmark.triangle")
+                }
+                if state.permissions.axLost {
+                    Button(
+                        "Accessibility access lost — Open System Settings",
+                        systemImage: "accessibility"
+                    ) {
+                        state.permissions.openAccessibilitySettings()
+                    }
+                }
+                if let version = state.updates.availableVersion {
+                    Divider()
+                    Button(
+                        "Update available (\(version)) — copy brew command",
+                        systemImage: "arrow.down.circle"
+                    ) {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(
+                            UpdateChecker.upgradeCommand, forType: .string)
+                    }
+                }
                 Divider()
-                Button("Update available (\(version)) — copy brew command") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(
-                        UpdateChecker.upgradeCommand, forType: .string)
+                Button("Search Captures…", systemImage: "magnifyingglass") {
+                    state.showSearch()
                 }
-            }
-            Divider()
-            Button("Search Captures…") {
-                state.showSearch()
-            }
-            Button(
-                state.settings.hasCompletedOnboarding
-                    ? "Replay Introduction…"
-                    : "Continue Setup…"
-            ) {
-                state.showOnboarding()
-            }
-            Divider()
-            SettingsLink()
+                Button(
+                    state.settings.hasCompletedOnboarding
+                        ? "Replay Introduction…"
+                        : "Continue Setup…",
+                    systemImage: state.settings.hasCompletedOnboarding
+                        ? "play.circle"
+                        : "checklist"
+                ) {
+                    state.showOnboarding()
+                }
+                Divider()
+                Link(destination: Self.docsURL) {
+                    Label("Docs", systemImage: "book.closed")
+                }
+                Link(destination: Self.supportURL) {
+                    Label("Support", systemImage: "questionmark.circle")
+                }
+                Link(destination: Self.releaseNotesURL) {
+                    Label("Release Notes", systemImage: "newspaper")
+                }
+                Divider()
+                SettingsLink {
+                    Label("Settings…", systemImage: "gearshape")
+                }
                 .keyboardShortcut(",")
-            Button("Quit Capd") {
-                NSApplication.shared.terminate(nil)
+                Button("Quit Capd", systemImage: "power") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .keyboardShortcut("q")
             }
-            .keyboardShortcut("q")
+            .labelStyle(.titleAndIcon)
         } label: {
             switch state.menuBarGlyph {
             case .dropTarget:
