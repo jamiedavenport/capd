@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+private final class OnboardingWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
+}
+
 /// Owns the first-run window and keeps its permission state fresh while it's on screen.
 @MainActor
 package final class OnboardingWindowController: NSObject, NSWindowDelegate {
@@ -14,16 +19,18 @@ package final class OnboardingWindowController: NSObject, NSWindowDelegate {
     package init(environment: OnboardingEnvironment) {
         model = OnboardingModel(environment: environment)
 
-        let window = NSWindow(
-            contentRect: .zero,
-            styleMask: [.titled, .closable],
+        let window = OnboardingWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false)
-        window.title = "Welcome to Capd"
         window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .darkAqua)
-        window.titlebarAppearsTransparent = true
-        window.backgroundColor = NSColor(Theme.background)
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = true
+        window.isMovableByWindowBackground = true
+        window.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         self.window = window
 
         super.init()
@@ -35,9 +42,14 @@ package final class OnboardingWindowController: NSObject, NSWindowDelegate {
             self?.onFinished?()
             self?.window.close()
         }
+        model.onDeferred = { [weak self] in
+            self?.window.close()
+        }
     }
 
     package func show() {
+        refreshTask?.cancel()
+        model.refresh()
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()

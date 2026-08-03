@@ -88,6 +88,14 @@ final class AppState {
         search?.show()
     }
 
+    func showOnboarding() {
+        if let onboarding {
+            onboarding.show()
+        } else {
+            presentOnboarding()
+        }
+    }
+
     /// Captures pages handed over as `capd://capture` URLs, e.g. by the share extension.
     func capture(handoffs urls: [URL]) {
         for url in urls {
