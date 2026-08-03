@@ -283,6 +283,7 @@ struct CaptureHUDView: View {
     private var symbol: String {
         switch model.content?.style {
         case .captured, .none: "checkmark"
+        case .copied: "doc.on.doc"
         case .duplicate: "clock.arrow.circlepath"
         case .blocked: "lock.fill"
         case .failed: "exclamationmark.triangle.fill"
@@ -291,7 +292,7 @@ struct CaptureHUDView: View {
 
     private var symbolTint: Color {
         switch model.content?.style {
-        case .captured, .none: Theme.success
+        case .captured, .copied, .none: Theme.success
         case .duplicate: .gray
         case .blocked, .failed: Theme.warning
         }
@@ -711,11 +712,14 @@ package final class HUDPanelController {
 }
 
 @MainActor
-private func previewModel(variant: HUDModel.Variant) -> HUDModel {
+private func previewModel(
+    variant: HUDModel.Variant,
+    content: HUDContent = HUDContent(
+        style: .captured, captureID: 1, headline: "Captured", detail: "example.com", kind: .link)
+) -> HUDModel {
     let model = HUDModel()
     model.variant = variant
-    model.content = HUDContent(
-        style: .captured, captureID: 1, headline: "Captured", detail: "example.com", kind: .link)
+    model.content = content
     return model
 }
 
@@ -728,5 +732,18 @@ private func previewModel(variant: HUDModel.Variant) -> HUDModel {
 #Preview("Notch") {
     CaptureHUDView(
         model: previewModel(variant: .notch(gap: 180, height: 38)),
+        beginAnnotation: {}, saveNote: {}, dismiss: {}, hoverChanged: { _ in })
+}
+
+#Preview("Copied") {
+    CaptureHUDView(
+        model: previewModel(
+            variant: .notch(gap: 180, height: 38),
+            content: HUDContent(
+                style: .copied,
+                headline: "Copied to clipboard",
+                detail: "Swift Testing — Apple Developer",
+                kind: .link,
+                host: "developer.apple.com")),
         beginAnnotation: {}, saveNote: {}, dismiss: {}, hoverChanged: { _ in })
 }

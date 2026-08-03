@@ -83,7 +83,7 @@ extension HUDContent.Style {
     /// Failures hold longer than successes: their detail is worth reading.
     var displayDuration: Duration {
         switch self {
-        case .captured: .seconds(3)
+        case .captured, .copied: .seconds(3)
         case .duplicate: .seconds(4)
         case .blocked, .failed: .seconds(6)
         }

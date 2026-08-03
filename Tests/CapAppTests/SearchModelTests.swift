@@ -156,6 +156,37 @@ struct SearchModelTests {
         #expect(log.copied == ["https://example.com/a", "quoted"])
     }
 
+    @Test("Copying shows a copied toast in the HUD")
+    func copyShowsToast() async {
+        let log = ActionLog()
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [makeHit(id: 1, url: "https://example.com/a")] },
+                showHUD: { log.toasts.append($0) }))
+        model.queryText = "x"
+        await model.settle()
+
+        model.copySelected()
+
+        #expect(log.toasts.map(\.style) == [.copied])
+        #expect(log.toasts.map(\.headline) == ["Copied to clipboard"])
+        #expect(log.toasts.map(\.detail) == ["A page"])
+    }
+
+    @Test("Opening a text capture shows the copied toast too")
+    func openTextShowsToast() async {
+        let log = ActionLog()
+        let hit = makeHit(id: 1, kind: .text, url: nil, title: nil, selection: "let x = 1")
+        let model = SearchModel(
+            environment: .stub(search: { _ in [hit] }, showHUD: { log.toasts.append($0) }))
+        model.queryText = "x"
+        await model.settle()
+
+        model.openSelected()
+
+        #expect(log.toasts.map(\.style) == [.copied])
+    }
+
     @Test("Delete re-queries and keeps the selection in range")
     func deleteClampsSelection() async {
         let box = ResultsBox([makeHit(id: 1), makeHit(id: 2), makeHit(id: 3)])
@@ -210,6 +241,7 @@ private final class ActionLog {
     var opened: [URL] = []
     var copied: [String] = []
     var deleted: [Int64] = []
+    var toasts: [HUDContent] = []
     var dismissed = 0
 }
 
@@ -277,7 +309,8 @@ extension SearchEnvironment {
         delete: @escaping @MainActor (Int64) throws -> Void = { _ in },
         openURL: @escaping @MainActor (URL) -> Void = { _ in },
         copyText: @escaping @MainActor (String) -> Void = { _ in },
-        assetFileURL: @escaping @MainActor (String) -> URL? = { _ in nil }
+        assetFileURL: @escaping @MainActor (String) -> URL? = { _ in nil },
+        showHUD: @escaping @MainActor (HUDContent) -> Void = { _ in }
     ) -> SearchEnvironment {
         SearchEnvironment(
             search: search,
@@ -285,6 +318,7 @@ extension SearchEnvironment {
             delete: delete,
             openURL: openURL,
             copyText: copyText,
-            assetFileURL: assetFileURL)
+            assetFileURL: assetFileURL,
+            showHUD: showHUD)
     }
 }
