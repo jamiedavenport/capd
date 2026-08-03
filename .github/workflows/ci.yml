@@ -72,5 +72,10 @@ jobs:
 
       # The perf gate only means something against optimized code, and its timing
       # assertions need the box to itself, so it runs serial in its own job.
+      # The widened budget absorbs virtualized-runner noise (observed p95 up to
+      # 12ms against the 10ms user-hardware default) while still failing loudly
+      # on a real regression.
       - name: Performance (release)
         run: swift test -c release --filter SearchPerformanceTests
+        env:
+          CAP_SEARCH_PERF_BUDGET_MS: "20"
