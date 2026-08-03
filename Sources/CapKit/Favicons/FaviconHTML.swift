@@ -3,11 +3,16 @@ import SwiftSoup
 
 /// One icon a page declares in its `<head>`.
 public struct FaviconCandidate: Sendable, Equatable {
+    public enum ColorSchemePreference: Sendable, Equatable {
+        case dark, unspecified, light
+    }
+
     public var url: URL?
     public var inlineData: Data?
     public var isSVG: Bool
     public var isAppleTouch: Bool
     public var declaredSize: Int?
+    public var colorSchemePreference: ColorSchemePreference
 }
 
 /// Finds the icons a page declares, pure so every shape of `<link>` is testable offline.
@@ -31,6 +36,7 @@ public enum FaviconHTML {
             guard let href = try? link.attr("href"), !href.isEmpty else { continue }
             let type = ((try? link.attr("type")) ?? "").lowercased()
             let declared = maxEdge(inSizes: (try? link.attr("sizes")) ?? "")
+            let scheme = colorSchemePreference(inMedia: (try? link.attr("media")) ?? "")
 
             if let (data, svgFromMeta) = inlineData(fromDataURL: href) {
                 results.append(
@@ -39,7 +45,8 @@ public enum FaviconHTML {
                         inlineData: data,
                         isSVG: svgFromMeta || type.contains("svg"),
                         isAppleTouch: isAppleTouch,
-                        declaredSize: declared))
+                        declaredSize: declared,
+                        colorSchemePreference: scheme))
                 continue
             }
             guard let resolved = URL(string: href, relativeTo: pageURL)?.absoluteURL else {
@@ -52,27 +59,36 @@ public enum FaviconHTML {
                     isSVG: type.contains("svg")
                         || resolved.path(percentEncoded: false).lowercased().hasSuffix(".svg"),
                     isAppleTouch: isAppleTouch,
-                    declaredSize: declared))
+                    declaredSize: declared,
+                    colorSchemePreference: scheme))
         }
         return results
     }
 
     /// The candidate worth one network request: closest declared size at or above the
     /// rendered size wins; an undeclared size outranks a known-small one because it could
-    /// be anything; raster beats SVG at equal rank because it decodes without AppKit.
+    /// be anything; the app renders on dark surfaces only, so at equal size fitness a
+    /// dark-scheme icon beats a neutral one and a light-scheme one ranks last; raster
+    /// beats SVG at equal rank because it decodes without AppKit.
     public static func best(_ candidates: [FaviconCandidate]) -> FaviconCandidate? {
         candidates.min { score($0) < score($1) }
     }
 
-    private static func score(_ candidate: FaviconCandidate) -> (Int, Int, Int) {
+    private static func score(_ candidate: FaviconCandidate) -> (Int, Int, Int, Int) {
         let svgPenalty = candidate.isSVG ? 1 : 0
+        let mediaRank =
+            switch candidate.colorSchemePreference {
+            case .dark: 0
+            case .unspecified: 1
+            case .light: 2
+            }
         // Apple-touch icons are conventionally 180px even when undeclared.
         let size = candidate.declaredSize ?? (candidate.isAppleTouch ? 180 : nil)
-        guard let size else { return (1, 0, svgPenalty) }
+        guard let size else { return (1, mediaRank, 0, svgPenalty) }
         if size >= FaviconPolicy.renderedPixelSize {
-            return (0, size - FaviconPolicy.renderedPixelSize, svgPenalty)
+            return (0, mediaRank, size - FaviconPolicy.renderedPixelSize, svgPenalty)
         }
-        return (2, FaviconPolicy.renderedPixelSize - size, svgPenalty)
+        return (2, mediaRank, FaviconPolicy.renderedPixelSize - size, svgPenalty)
     }
 
     /// `sizes="32x32 64x64"` → 64; `any` and junk → nil.
@@ -84,6 +100,16 @@ public enum FaviconHTML {
                 return edges.count == 2 ? edges.max() : nil
             }
             .max()
+    }
+
+    private static func colorSchemePreference(
+        inMedia media: String
+    ) -> FaviconCandidate.ColorSchemePreference {
+        let normalized = media.lowercased().filter { !$0.isWhitespace }
+        guard normalized.contains("prefers-color-scheme") else { return .unspecified }
+        if normalized.contains("dark") { return .dark }
+        if normalized.contains("light") { return .light }
+        return .unspecified
     }
 
     private static func inlineData(fromDataURL href: String) -> (Data, isSVG: Bool)? {

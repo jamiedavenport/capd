@@ -3,6 +3,13 @@ import CapKit
 import Observation
 import SwiftUI
 
+/// A cached favicon plus the verdict on whether its artwork needs a light chip
+/// behind it to stay legible on the app's near-black surfaces.
+package struct Favicon {
+    package var image: NSImage
+    package var needsLightBacking: Bool
+}
+
 /// Per-host favicon cache: memory in front of `favicons/` on disk, filled on the first
 /// sight of a host. Views read synchronously and fall back to a symbol tile; the fetch
 /// completing mutates observed state, which repaints whichever rows asked.
@@ -12,7 +19,7 @@ package final class FaviconStore {
     private let paths: StoragePaths
     private let fetcher: FaviconFetcher
     private let now: () -> Date
-    private var images: [String: NSImage] = [:]
+    private var icons: [String: Favicon] = [:]
     /// Hosts with a settled answer this session — including misses and transient
     /// failures, so an offline launch doesn't retry on every keystroke.
     @ObservationIgnored private var resolved: Set<String> = []
@@ -31,10 +38,10 @@ package final class FaviconStore {
     /// Deliberately does no I/O: it runs inside view bodies, and mutating observed
     /// state there is not allowed. The disk check rides the same background task as
     /// the network fetch and lands a frame later.
-    func image(forHost host: String) -> NSImage? {
+    func favicon(forHost host: String) -> Favicon? {
         let key = FaviconPolicy.cacheKey(forHost: host)
-        if let image = images[key] {
-            return image
+        if let favicon = icons[key] {
+            return favicon
         }
         if !resolved.contains(key), tasks[key] == nil {
             tasks[key] = Task { await resolve(key) }
@@ -42,7 +49,7 @@ package final class FaviconStore {
         return nil
     }
 
-    /// Lets tests run the fetches spawned by `image(forHost:)` to completion.
+    /// Lets tests run the fetches spawned by `favicon(forHost:)` to completion.
     func awaitPendingFetches() async {
         while let task = tasks.values.first {
             await task.value
@@ -55,7 +62,7 @@ package final class FaviconStore {
         if let data = try? Data(contentsOf: paths.faviconURL(forHost: key)),
             let image = NSImage(data: data)
         {
-            images[key] = image
+            cache(data, image: image, forKey: key)
             resolved.insert(key)
             return
         }
@@ -92,7 +99,16 @@ package final class FaviconStore {
             at: paths.faviconsDirectory, withIntermediateDirectories: true)
         try? pngData.write(to: paths.faviconURL(forHost: key))
         try? FileManager.default.removeItem(at: paths.faviconMissURL(forHost: key))
-        images[key] = image
+        cache(pngData, image: image, forKey: key)
+    }
+
+    /// The verdict is recomputed on every load rather than persisted: the pass over a
+    /// ≤64px PNG is trivial, and it means icons cached by older builds — or judged by
+    /// an older heuristic — are never stuck with a stale answer.
+    private func cache(_ pngData: Data, image: NSImage, forKey key: String) {
+        icons[key] = Favicon(
+            image: image,
+            needsLightBacking: FaviconLuminance.needsLightBacking(pngData: pngData))
     }
 
     private func recordMiss(forKey key: String) {

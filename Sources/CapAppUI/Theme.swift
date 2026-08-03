@@ -6,6 +6,9 @@ import SwiftUI
 enum Theme {
     static let background = Color(red: 0.075, green: 0.075, blue: 0.086)
     static let raised = Color.white.opacity(0.05)
+    /// Chip behind dark favicon artwork: bright enough to carry a black glyph,
+    /// shy of searing pure white in a near-black UI.
+    static let raisedLight = Color.white.opacity(0.9)
     /// Pure black so the capture bar merges with the physical notch.
     static let bar = Color.black
     static let border = Color.white.opacity(0.09)
@@ -64,15 +67,15 @@ struct FaviconTile: View {
     @Environment(\.faviconStore) private var favicons
 
     var body: some View {
-        if let host, let image = favicons?.image(forHost: host) {
-            Image(nsImage: image)
+        if let host, let favicon = favicons?.favicon(forHost: host) {
+            Image(nsImage: favicon.image)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFit()
                 .padding(size * 0.09)
                 .frame(width: size, height: size)
                 .background(
-                    Theme.raised,
+                    favicon.needsLightBacking ? Theme.raisedLight : Theme.raised,
                     in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
         } else {
             IconTile(symbol: fallbackSymbol, tint: fallbackTint, size: size)
