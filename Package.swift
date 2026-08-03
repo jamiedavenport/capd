@@ -16,6 +16,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.2"),
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "3.0.1"),
         .package(url: "https://github.com/scinfu/SwiftSoup", from: "2.13.7"),
+        .package(url: "https://github.com/modelcontextprotocol/swift-sdk", from: "0.12.1"),
     ],
     targets: [
         .target(
@@ -31,6 +32,7 @@ let package = Package(
             dependencies: [
                 "CapKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "MCP", package: "swift-sdk"),
             ]
         ),
         .executableTarget(

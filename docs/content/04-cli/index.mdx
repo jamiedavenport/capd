@@ -53,6 +53,36 @@ cap export                      # JSON: every stored field, the lossless backup 
 cap export --format markdown    # a link list with notes and selections quoted
 ```
 
+## AI assistants
+
+```sh
+cap mcp    # serve captures over the Model Context Protocol on stdin/stdout
+```
+
+`cap mcp` lets an AI assistant search your captures. It speaks MCP over
+stdin/stdout and exposes three read-only tools: `search_captures` (the same
+full-text search and filter syntax as `cap search`), `get_capture` (one capture
+with its full extracted page text), and `list_recent`.
+
+Register it with Claude Code:
+
+```sh
+claude mcp add cap -- cap mcp
+```
+
+or with Claude Desktop, in `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cap": { "command": "cap", "args": ["mcp"] }
+  }
+}
+```
+
+The server only reads the store — it cannot add, edit, or delete captures — and
+nothing leaves your machine except the results the assistant asked for.
+
 ## Health
 
 ```sh

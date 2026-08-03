@@ -38,6 +38,7 @@ cap export --format markdown             # or json, which carries every stored f
 cap refetch                              # requeue failed enrichments; or: cap refetch 12
 cap status                               # queue depth and ETA, store size, agent health
 cap doctor                               # integrity check, index rebuild, orphan sweep, agent repair
+cap mcp                                  # serve read-only search tools to AI assistants over MCP
 ```
 
 Read commands take `--json` and `--format tsv`. The `--json` field set is a stable

@@ -11,7 +11,7 @@ struct Cap: ParsableCommand {
         version: CapKit.version,
         subcommands: [
             Add.self, Search.self, List.self, Rm.self, Export.self, Refetch.self,
-            Status.self, Doctor.self,
+            Status.self, Doctor.self, Mcp.self,
         ]
     )
 
@@ -25,10 +25,14 @@ struct Cap: ParsableCommand {
 /// not running.
 @main
 enum CapMain {
-    static func main() {
+    static func main() async {
         do {
             var command = try Cap.parseAsRoot()
-            try command.run()
+            if var asyncCommand = command as? any AsyncParsableCommand {
+                try await asyncCommand.run()
+            } else {
+                try command.run()
+            }
         } catch let error as CLIError {
             error.terminate()
         } catch {
