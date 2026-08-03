@@ -1,6 +1,7 @@
 import AppKit
 import ApplicationServices
 import CapAppUI
+import CapHandoff
 import CapKit
 import KeyboardShortcuts
 import Observation
@@ -85,6 +86,22 @@ final class AppState {
     func showSearch() {
         onboarding?.noteSearchOpened()
         search?.show()
+    }
+
+    /// Captures pages handed over as `cap://capture` URLs, e.g. by the share extension.
+    func capture(handoffs urls: [URL]) {
+        for url in urls {
+            guard let payload = ShareHandoff.payload(from: url) else {
+                Log.capture.error("dropped a malformed handoff URL")
+                continue
+            }
+            coordinator?.capture(
+                request: CaptureRequest(
+                    url: payload.url,
+                    title: payload.title,
+                    sourceAppBundleID: payload.sourceAppBundleID,
+                    fetchBody: settings.fetchesPageBodies))
+        }
     }
 
     private func start() throws {

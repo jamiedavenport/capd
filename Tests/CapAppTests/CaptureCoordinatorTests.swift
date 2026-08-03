@@ -210,6 +210,39 @@ struct CaptureCoordinatorTests {
         #expect(harness.enriched.first?.url == "https://example.com/a")
     }
 
+    @Test("A handed-off link ingests as built and queues enrichment")
+    func handoffRequestCaptures() async throws {
+        let harness = try Harness()
+
+        harness.coordinator.capture(
+            request: CaptureRequest(
+                url: "https://example.com/a",
+                title: "An example page",
+                sourceAppBundleID: "com.apple.Safari"))
+        await harness.coordinator.drain()
+
+        let request = try #require(harness.requests.first)
+        #expect(request.url == "https://example.com/a")
+        #expect(request.title == "An example page")
+        #expect(harness.presented.first?.style == .captured)
+        #expect(harness.enriched.count == 1)
+    }
+
+    @Test("A handoff queues behind a hotkey press already in flight")
+    func handoffQueuesBehindHotkey() async throws {
+        let harness = try Harness()
+        harness.tab = BrowserTab(url: "https://example.com/tab", title: nil)
+
+        harness.coordinator.capture()
+        harness.coordinator.capture(request: CaptureRequest(url: "https://example.com/shared"))
+        await harness.coordinator.drain()
+
+        #expect(
+            harness.requests.map(\.url) == [
+                "https://example.com/tab", "https://example.com/shared",
+            ])
+    }
+
     @Test("A dropped link captures like a hotkey press and queues enrichment")
     func droppedLinkCaptures() async throws {
         let harness = try Harness()

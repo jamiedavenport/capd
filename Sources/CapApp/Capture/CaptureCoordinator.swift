@@ -49,6 +49,14 @@ final class CaptureCoordinator {
         }
     }
 
+    /// Queues a request built outside the app, e.g. from the share extension's handoff.
+    func capture(request: CaptureRequest) {
+        chain = Task { [previous = chain] in
+            await previous?.value
+            self.ingestAndPresent(request, fallbackNote: nil)
+        }
+    }
+
     /// Waits for every queued capture and every enrichment it started.
     func drain() async {
         await chain?.value

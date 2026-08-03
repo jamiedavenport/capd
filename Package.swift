@@ -10,6 +10,7 @@ let package = Package(
         .executable(name: "cap", targets: ["CapCLI"]),
         .executable(name: "cap-agent", targets: ["CapAgent"]),
         .executable(name: "CapApp", targets: ["CapApp"]),
+        .executable(name: "CapShareExtension", targets: ["CapShareExtension"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.11.1"),
@@ -45,14 +46,25 @@ let package = Package(
                 "KeyboardShortcuts",
             ]
         ),
+        .target(name: "CapHandoff"),
         .executableTarget(
             name: "CapApp",
             dependencies: [
                 "CapKit",
                 "CapAppUI",
+                "CapHandoff",
                 "KeyboardShortcuts",
             ],
             resources: [.process("Resources")]
+        ),
+        .executableTarget(
+            name: "CapShareExtension",
+            dependencies: ["CapHandoff"],
+            linkerSettings: [
+                // App extensions enter at NSExtensionMain, not main; this is the
+                // flag Xcode passes when linking an .appex binary.
+                .unsafeFlags(["-Xlinker", "-e", "-Xlinker", "_NSExtensionMain"])
+            ]
         ),
         .executableTarget(
             name: "CapTestHost",
@@ -74,6 +86,7 @@ let package = Package(
             dependencies: [
                 "CapApp",
                 "CapAppUI",
+                "CapHandoff",
                 "CapKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]
