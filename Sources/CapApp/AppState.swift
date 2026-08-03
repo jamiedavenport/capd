@@ -124,6 +124,10 @@ final class AppState {
             self?.coordinator?.capture()
         }
 
+        KeyboardShortcuts.onKeyDown(for: .annotate) { [weak self] in
+            self?.hud?.beginAnnotation()
+        }
+
         KeyboardShortcuts.onKeyDown(for: .search) { [weak self] in
             self?.onboarding?.noteSearchOpened()
             self?.search?.toggle()

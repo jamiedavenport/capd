@@ -1,5 +1,6 @@
 import AppKit
 import CapKit
+import KeyboardShortcuts
 import SwiftUI
 
 @MainActor
@@ -66,7 +67,7 @@ struct CaptureHUDView: View {
         .onHover(perform: hoverChanged)
         .help(
             model.content?.canAnnotate == true && !model.isAnnotating
-                ? "Click to add a note" : "")
+                ? "Click or press \(annotateShortcutLabel) to add a note" : "")
     }
 
     @ViewBuilder private var barRow: some View {
@@ -171,7 +172,16 @@ struct CaptureHUDView: View {
                 .lineLimit(1)
                 .contentTransition(.numericText())
             statusBadge
+            if model.content?.canAnnotate == true, !model.isAnnotating {
+                ShortcutHint(label: "Note", keys: [annotateShortcutLabel])
+                    .font(.system(size: 11))
+                    .transition(.opacity)
+            }
         }
+    }
+
+    private var annotateShortcutLabel: String {
+        KeyboardShortcuts.getShortcut(for: .annotate).map { "\($0)" } ?? "⌃⌥N"
     }
 
     /// The outcome badge doubles as the dismiss button while the pointer is on the bar.
@@ -493,9 +503,11 @@ final class HUDPanelController {
         }
     }
 
-    private func beginAnnotation() {
-        guard presentation.beginAnnotation() else { return }
+    func beginAnnotation() {
+        // A hotkey landing mid-drag must not open the drawer under the drop face.
+        guard dropGeometry == nil, presentation.beginAnnotation() else { return }
         dismissTask?.cancel()
+        model.note = model.content?.note ?? ""
         withAnimation(reduceMotion ? nil : Theme.spring) {
             model.isAnnotating = true
         }
@@ -504,11 +516,10 @@ final class HUDPanelController {
     }
 
     private func saveNoteAndDismiss() {
-        if let id = model.content?.captureID {
-            let note = model.note.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !note.isEmpty {
-                saveNote(id, note)
-            }
+        if let content = model.content, let id = content.captureID,
+            let note = content.noteEdit(from: model.note)
+        {
+            saveNote(id, note)
         }
         requestDismiss()
     }

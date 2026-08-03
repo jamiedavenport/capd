@@ -4,9 +4,9 @@ import Testing
 
 @testable import CapKit
 
-/// Byte-for-byte checks of the machine-readable output documented in `docs/cli-contract.md`.
-/// A failure here means the stable interface changed: either the change is a bug, or the
-/// contract document and these fixtures must be updated together, deliberately.
+/// Byte-for-byte checks of the CLI's machine-readable output — the stable interface
+/// scripts rely on. A failure here means that interface changed: either the change is
+/// a bug, or these fixtures must be updated deliberately.
 @Suite("cap CLI golden output")
 struct CLIGoldenTests {
     @Test("list --json matches the golden file")

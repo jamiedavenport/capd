@@ -89,6 +89,47 @@ struct HUDPresentationTests {
         #expect(presentation.isAnnotating == false)
     }
 
+    @Test("Annotation is a no-op with nothing displayed")
+    func annotationRequiresDisplay() {
+        var presentation = HUDPresentation()
+
+        #expect(presentation.beginAnnotation() == false)
+        #expect(presentation.isAnnotating == false)
+    }
+
+    @Test("Annotation cannot start again while already annotating")
+    func annotationAbsorbsRepeatRequests() {
+        var presentation = HUDPresentation()
+
+        _ = presentation.show(captured)
+        let first = presentation.beginAnnotation()
+        let second = presentation.beginAnnotation()
+
+        #expect(first)
+        #expect(second == false)
+        #expect(presentation.isAnnotating)
+    }
+
+    @Test("A duplicate toast can be annotated")
+    func duplicateCanAnnotate() {
+        var presentation = HUDPresentation()
+
+        _ = presentation.show(duplicate)
+        let began = presentation.beginAnnotation()
+
+        #expect(began)
+    }
+
+    @Test("Annotation cannot start after dismissal")
+    func annotationRequiresVisibleToast() {
+        var presentation = HUDPresentation()
+
+        _ = presentation.show(captured)
+        _ = presentation.dismiss()
+
+        #expect(presentation.beginAnnotation() == false)
+    }
+
     @Test("A capture during annotation is buffered, not shown")
     func annotationBuffersIncoming() {
         var presentation = HUDPresentation()
