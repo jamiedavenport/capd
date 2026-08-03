@@ -21,6 +21,9 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             defer: false)
         window.title = "Welcome to cap"
         window.isReleasedWhenClosed = false
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.titlebarAppearsTransparent = true
+        window.backgroundColor = NSColor(Theme.background)
         self.window = window
 
         super.init()

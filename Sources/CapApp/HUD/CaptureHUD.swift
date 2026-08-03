@@ -1,14 +1,25 @@
 import AppKit
+import CapKit
 import SwiftUI
 
 @MainActor
 @Observable
 final class HUDModel {
+    /// Which physical top-of-screen form the bar takes. On a notched display the bar
+    /// wraps the notch, content split across its flanks; everywhere else it's a pill
+    /// hanging from the menu bar.
+    enum Variant: Equatable {
+        case notch(gap: CGFloat, height: CGFloat)
+        case pill
+    }
+
     var content: HUDContent?
+    var variant: Variant = .pill
     var streak = 1
     var revision = 0
     var isAnnotating = false
     var isHovering = false
+    var revealed = false
     var note = ""
 }
 
@@ -20,57 +31,26 @@ struct CaptureHUDView: View {
     var hoverChanged: (Bool) -> Void
 
     @FocusState private var noteFieldFocused: Bool
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-    /// Transparent border around the card so the close button can overhang it.
-    static let margin: CGFloat = 8
-
-    private var shape: RoundedRectangle {
-        PanelStyle.shape
+    /// Flush with the screen's top edge; only the bottom corners are drawn.
+    private var shape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: 0,
+            bottomLeadingRadius: 14,
+            bottomTrailingRadius: 14,
+            topTrailingRadius: 0,
+            style: .continuous)
     }
 
     var body: some View {
-        card
-            .overlay(alignment: .topLeading) { closeButton }
-            .padding(Self.margin)
-            .onHover(perform: hoverChanged)
-    }
-
-    private var card: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
-                IconTile(symbol: symbol, tint: symbolTint, bounce: model.revision)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(headline)
-                        .font(.system(size: 13, weight: .medium))
-                        .contentTransition(.opacity)
-                    if let detail = model.content?.detail {
-                        Text(detail)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .contentTransition(.opacity)
-                    }
-                    if model.content?.canAnnotate == true, !model.isAnnotating {
-                        Text("Click to add a note")
-                            .font(.system(size: 11))
-                            .foregroundStyle(model.isHovering ? .secondary : .tertiary)
-                    }
-                }
-            }
+        VStack(spacing: 0) {
+            barRow
             if model.isAnnotating {
-                TextField("Note", text: $model.note, prompt: Text("Add a note — ⏎ saves"))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 280)
-                    .focused($noteFieldFocused)
-                    .onSubmit(saveNote)
-                    .onAppear { noteFieldFocused = true }
+                annotationDrawer
             }
         }
-        .padding(12)
-        .frame(minWidth: 240, maxWidth: 360, alignment: .leading)
-        .background(cardBackground)
-        .overlay(shape.strokeBorder(.quaternary, lineWidth: 1))
+        .background(Theme.bar)
+        .clipShape(shape)
         .contentShape(shape)
         .pointerStyle(
             model.content?.canAnnotate == true && !model.isAnnotating ? .link : .default
@@ -81,36 +61,163 @@ struct CaptureHUDView: View {
             }
         }
         .onExitCommand(perform: dismiss)
+        .onHover(perform: hoverChanged)
+        .help(
+            model.content?.canAnnotate == true && !model.isAnnotating
+                ? "Click to add a note" : "")
     }
 
-    @ViewBuilder private var cardBackground: some View {
-        if reduceTransparency {
-            shape.fill(Color(nsColor: .windowBackgroundColor))
-        } else {
-            shape.fill(.regularMaterial)
+    @ViewBuilder private var barRow: some View {
+        switch model.variant {
+        case .notch(let gap, let height):
+            HStack(spacing: 0) {
+                flank(.leading) {
+                    source.offset(x: model.revealed ? 0 : 56)
+                }
+                Color.clear.frame(width: gap + 12)
+                flank(.trailing) {
+                    outcome.offset(x: model.revealed ? 0 : -56)
+                }
+            }
+            .frame(height: height + 6)
+        case .pill:
+            HStack(spacing: 10) {
+                outcome
+                separatorDot
+                source
+            }
+            .padding(.horizontal, 14)
+            .frame(height: 34)
         }
     }
 
-    @ViewBuilder private var closeButton: some View {
-        if model.isHovering, model.content != nil {
+    /// Both flanks measure both contents invisibly so they end up the same width and
+    /// the notch gap stays centered on the physical notch.
+    private func flank(_ alignment: Alignment, @ViewBuilder content: () -> some View)
+        -> some View
+    {
+        ZStack(alignment: alignment) {
+            source.hidden()
+            outcome.hidden()
+            content()
+        }
+        .padding(.horizontal, 14)
+    }
+
+    private var source: some View {
+        HStack(spacing: 7) {
+            IconTile(symbol: kindSymbol, tint: kindTint, size: 17)
+            Text(sourceLine ?? "cap")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: 190, alignment: .leading)
+                .contentTransition(.opacity)
+        }
+    }
+
+    private var outcome: some View {
+        HStack(spacing: 8) {
+            Text(headline)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Theme.text)
+                .lineLimit(1)
+                .contentTransition(.numericText())
+            statusBadge
+        }
+    }
+
+    /// The outcome badge doubles as the dismiss button while the pointer is on the bar.
+    @ViewBuilder private var statusBadge: some View {
+        if model.isHovering, !model.isAnnotating {
             Button(action: dismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 18, height: 18)
-                    .background(.thickMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(.quaternary, lineWidth: 1))
+                badgeCircle(symbol: "xmark", tint: .gray)
             }
             .buttonStyle(.plain)
-            .offset(x: -7, y: -7)
-            .transition(.opacity)
             .accessibilityLabel("Dismiss")
+        } else {
+            badgeCircle(symbol: symbol, tint: symbolTint)
         }
+    }
+
+    private func badgeCircle(symbol: String, tint: Color) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 7, weight: .bold))
+            .foregroundStyle(.black.opacity(0.8))
+            .symbolEffect(.bounce, value: model.revision)
+            .frame(width: 14, height: 14)
+            .background(tint.gradient, in: Circle())
+    }
+
+    private var separatorDot: some View {
+        Circle()
+            .fill(Theme.textTertiary)
+            .frame(width: 3, height: 3)
+    }
+
+    private var annotationDrawer: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let detail = model.content?.detail {
+                Text(detail)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textSecondary)
+                    .lineLimit(2)
+            }
+            TextField(
+                "Note", text: $model.note,
+                prompt: Text("Add a note — ⏎ saves").foregroundStyle(Theme.textTertiary)
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.text)
+            .tint(Theme.text)
+            .focused($noteFieldFocused)
+            .onSubmit(saveNote)
+            .onAppear { noteFieldFocused = true }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .frame(minWidth: 300)
+            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(Theme.border, lineWidth: 1))
+        }
+        .padding(.horizontal, 14)
+        .padding(.bottom, 12)
+        .padding(.top, 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private var headline: String {
         guard let content = model.content else { return "" }
         return model.streak > 1 ? "\(content.headline) · \(model.streak)" : content.headline
+    }
+
+    private var sourceLine: String? {
+        model.content?.detail?
+            .split(whereSeparator: \.isNewline)
+            .first
+            .map(String.init)
+    }
+
+    private var kindSymbol: String {
+        switch model.content?.kind {
+        case .link: "link"
+        case .text: "text.alignleft"
+        case .image: "photo"
+        case .none: "bookmark"
+        }
+    }
+
+    private var kindTint: Color {
+        switch model.content?.kind {
+        case .link: .blue
+        case .text: .orange
+        case .image: .purple
+        case .none: .gray
+        }
     }
 
     private var symbol: String {
@@ -124,20 +231,25 @@ struct CaptureHUDView: View {
 
     private var symbolTint: Color {
         switch model.content?.style {
-        case .captured, .none: .green
+        case .captured, .none: Theme.success
         case .duplicate: .gray
-        case .blocked, .failed: .orange
+        case .blocked, .failed: Theme.warning
         }
     }
 }
 
-/// Borderless so the toast draws its own shape; key-capable so ⏎ and esc reach the
-/// note field without activating the app.
+/// Borderless so the bar draws its own shape; key-capable so ⏎ and esc reach the
+/// note field without activating the app. Frames are left unconstrained so the bar
+/// may sit flush with the screen edge, inside the notch's menu-bar band.
 private final class HUDPanel: NSPanel {
     var onCancel: (() -> Void)?
     var onResignKey: (() -> Void)?
 
     override var canBecomeKey: Bool { true }
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 
     override func cancelOperation(_ sender: Any?) {
         onCancel?()
@@ -149,7 +261,7 @@ private final class HUDPanel: NSPanel {
     }
 }
 
-/// Owns the toast window: animates capture outcomes in and out and turns a click
+/// Owns the bar window: animates capture outcomes in and out and turns a click
 /// into the annotation flow. Display rules live in `HUDPresentation`.
 @MainActor
 final class HUDPanelController {
@@ -178,6 +290,7 @@ final class HUDPanelController {
         panel.becomesKeyOnlyIfNeeded = true
         panel.isReleasedWhenClosed = false
         panel.animationBehavior = .none
+        panel.appearance = NSAppearance(named: .darkAqua)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.panel = panel
 
@@ -196,15 +309,35 @@ final class HUDPanelController {
     func show(_ content: HUDContent) {
         apply(presentation.show(content))
         guard presentation.display?.content == content else { return }
+        if !panel.isVisible {
+            configureVariant()
+        }
         syncModel()
         presentWindow()
         AccessibilityNotification.Announcement(content.headline).post()
     }
 
+    /// Picked once per appearance so the bar doesn't jump forms mid-display: the
+    /// notch wrap on a notched screen, the menu-bar pill everywhere else.
+    private func configureVariant() {
+        let screen = screenUnderMouse()
+        anchorScreen = screen
+        if let screen,
+            screen.safeAreaInsets.top > 0,
+            let left = screen.auxiliaryTopLeftArea,
+            let right = screen.auxiliaryTopRightArea
+        {
+            let gap = screen.frame.width - left.width - right.width
+            model.variant = .notch(gap: gap, height: screen.safeAreaInsets.top)
+        } else {
+            model.variant = .pill
+        }
+    }
+
     private func beginAnnotation() {
         guard presentation.beginAnnotation() else { return }
         dismissTask?.cancel()
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.15)) {
+        withAnimation(reduceMotion ? nil : Theme.spring) {
             model.isAnnotating = true
         }
         layout(animated: true)
@@ -288,23 +421,35 @@ final class HUDPanelController {
                 context.duration = 0.12
                 panel.animator().alphaValue = 1
             }
+            withAnimation(reduceMotion ? nil : Theme.spring) {
+                model.revealed = true
+            }
             layout(animated: true)
             return
         }
-        anchorScreen = screenUnderMouse()
+        model.revealed = false
         layout(animated: false)
         let final = panel.frame
         panel.alphaValue = 0
-        if !reduceMotion {
+        // The pill drops out from under the menu bar; the notch bar stays put and its
+        // content slides out from behind the notch instead.
+        if case .pill = model.variant, !reduceMotion {
             panel.setFrameOrigin(NSPoint(x: final.minX, y: final.minY + 10))
         }
         panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.28
+            context.duration = 0.22
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().alphaValue = 1
             if !reduceMotion {
                 panel.animator().setFrame(final, display: true)
+            }
+        }
+        if reduceMotion {
+            model.revealed = true
+        } else {
+            withAnimation(Theme.spring) {
+                model.revealed = true
             }
         }
     }
@@ -313,11 +458,16 @@ final class HUDPanelController {
         dismissTask?.cancel()
         hideTask?.cancel()
         let exit = panel.frame.offsetBy(dx: 0, dy: reduceMotion ? 0 : 8)
+        if !reduceMotion {
+            withAnimation(.easeIn(duration: 0.15)) {
+                model.revealed = false
+            }
+        }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().alphaValue = 0
-            if !reduceMotion {
+            if case .pill = model.variant, !reduceMotion {
                 panel.animator().setFrame(exit, display: true)
             }
         }
@@ -330,20 +480,27 @@ final class HUDPanelController {
             model.streak = 1
             model.isAnnotating = false
             model.isHovering = false
+            model.revealed = false
             model.note = ""
         }
     }
 
-    /// The card keeps a fixed top-right anchor, so growth extends left and down.
+    /// Top-center anchor: the bar hugs the top edge (notch) or the menu bar's lower
+    /// edge (pill), and annotation growth extends downward.
     private func layout(animated: Bool) {
         hosting.layoutSubtreeIfNeeded()
         let size = hosting.fittingSize
         guard let screen = anchorScreen ?? screenUnderMouse() else { return }
-        let inset = 16 - CaptureHUDView.margin
-        let visible = screen.visibleFrame
+        let top: CGFloat
+        switch model.variant {
+        case .notch:
+            top = screen.frame.maxY
+        case .pill:
+            top = screen.visibleFrame.maxY
+        }
         let frame = NSRect(
-            x: visible.maxX - size.width - inset,
-            y: visible.maxY - size.height - inset,
+            x: (screen.frame.midX - size.width / 2).rounded(),
+            y: top - size.height,
             width: size.width,
             height: size.height)
         if animated, panel.isVisible, !reduceMotion {

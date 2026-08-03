@@ -44,26 +44,69 @@ extension OnboardingStep {
 struct OnboardingView: View {
     @Bindable var model: OnboardingModel
 
+    @State private var direction: Edge = .trailing
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(model.step.title)
-                    .font(.title2.bold())
-                Text(model.step.subtitle)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(model.step.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Theme.text)
+                    Text(model.step.subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .id("header-\(model.step.rawValue)")
+                .transition(.opacity)
+                Spacer(minLength: 16)
+                stepDots
             }
             .padding(24)
 
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .padding(.horizontal, 24)
+            ZStack(alignment: .topLeading) {
+                content
+                    .id(model.step)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: direction).combined(with: .opacity),
+                            removal: .move(edge: direction == .trailing ? .leading : .trailing)
+                                .combined(with: .opacity)))
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .padding(.horizontal, 24)
+            .clipped()
 
-            Divider()
+            hairline
             footer
                 .padding(16)
         }
         .frame(width: 540, height: 400)
+        .background(Theme.background)
+        .preferredColorScheme(.dark)
+    }
+
+    private var stepDots: some View {
+        HStack(spacing: 4) {
+            ForEach(OnboardingStep.allCases, id: \.self) { step in
+                Capsule()
+                    .fill(dotColor(for: step))
+                    .frame(width: step == model.step ? 16 : 5, height: 5)
+            }
+        }
+        .padding(.top, 5)
+    }
+
+    private func dotColor(for step: OnboardingStep) -> Color {
+        if step == model.step { return Theme.text }
+        return step.rawValue < model.step.rawValue ? Theme.textSecondary : Theme.raised
+    }
+
+    private var hairline: some View {
+        Rectangle()
+            .fill(Theme.border)
+            .frame(height: 1)
     }
 
     @ViewBuilder
@@ -99,24 +142,28 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 4) {
             KeyboardShortcuts.Recorder(label, name: name)
             Text(hint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.textSecondary)
             if model.conflicted.contains(name) {
                 Label(
                     "Taken by a macOS system shortcut — record another combination.",
                     systemImage: "exclamationmark.triangle.fill"
                 )
-                .font(.caption)
-                .foregroundStyle(.orange)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.warning)
+                .transition(.opacity)
             }
         }
+        .animation(.easeInOut(duration: 0.15), value: model.conflicted)
     }
 
     private var accessibility: some View {
         VStack(alignment: .leading, spacing: 12) {
             if model.axTrusted {
                 Label("Accessibility access granted", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.success)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
             } else {
                 HStack(spacing: 12) {
                     Button("Grant Accessibility Access…") {
@@ -130,11 +177,12 @@ struct OnboardingView: View {
                     "If you skip this, cap is clipboard-only: capture saves what you've "
                         + "already copied, and can't read the text you've selected."
                 )
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .animation(Theme.spring, value: model.axTrusted)
     }
 
     private var browsers: some View {
@@ -144,26 +192,33 @@ struct OnboardingView: View {
                     "No supported browser is running. That's fine — macOS will ask "
                         + "the first time you capture from one."
                 )
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.textSecondary)
             } else {
                 ForEach(model.runningBrowsers, id: \.self) { browser in
                     browserRow(browser)
                 }
             }
         }
+        .animation(Theme.quickSpring, value: model.consents)
     }
 
     private func browserRow(_ browser: Browser) -> some View {
         HStack {
             Text(browser.displayName)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.text)
             Spacer()
             switch model.consents[browser] {
             case .granted:
                 Label("Allowed", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.success)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
             case .denied:
                 Label("Declined", systemImage: "xmark.circle")
-                    .foregroundStyle(.orange)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.warning)
                 Button("Open System Settings") {
                     model.openAutomationSettings()
                 }
@@ -183,14 +238,16 @@ struct OnboardingView: View {
 
     private var firstCapture: some View {
         VStack(alignment: .leading, spacing: 14) {
-            guidedRow(
-                done: model.hasCaptured,
-                text: "Press \(model.captureShortcut ?? "the capture hotkey") in any app "
-                    + "to save your first capture.")
-            guidedRow(
-                done: model.hasSearched,
-                text: "Press \(model.searchShortcut ?? "the search hotkey") and type a "
-                    + "word from it.")
+            guidedRow(done: model.hasCaptured) {
+                Text("Press")
+                Keycap(label: model.captureShortcut ?? "⌃⌥C")
+                Text("in any app to save your first capture.")
+            }
+            guidedRow(done: model.hasSearched) {
+                Text("Press")
+                Keycap(label: model.searchShortcut ?? "⌥⇧Space")
+                Text("and type a word from it.")
+            }
             Spacer()
             Label(
                 model.agentLoaded
@@ -198,25 +255,30 @@ struct OnboardingView: View {
                     : "Background enrichment agent not running yet — `cap doctor` can repair it.",
                 systemImage: model.agentLoaded ? "checkmark.circle" : "exclamationmark.circle"
             )
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            .font(.system(size: 11))
+            .foregroundStyle(Theme.textSecondary)
         }
     }
 
-    private func guidedRow(done: Bool, text: String) -> some View {
+    private func guidedRow(done: Bool, @ViewBuilder text: () -> some View) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                .foregroundStyle(done ? .green : .secondary)
-            Text(text)
-                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(done ? Theme.success : Theme.textTertiary)
+                .contentTransition(.symbolEffect(.replace))
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                text()
+            }
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.text)
         }
+        .animation(Theme.spring, value: done)
     }
 
     private var footer: some View {
         HStack {
             if model.step != .hotkeys {
                 Button("Back") {
-                    model.back()
+                    go(.back)
                 }
             }
             Spacer()
@@ -228,10 +290,24 @@ struct OnboardingView: View {
                 .keyboardShortcut(.defaultAction)
             } else {
                 Button("Continue") {
-                    model.advance()
+                    go(.forward)
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private enum Move {
+        case forward, back
+    }
+
+    private func go(_ move: Move) {
+        direction = move == .forward ? .trailing : .leading
+        withAnimation(Theme.spring) {
+            switch move {
+            case .forward: model.advance()
+            case .back: model.back()
             }
         }
     }
