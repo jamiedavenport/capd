@@ -1,71 +1,79 @@
 ---
-title: Menu bar & settings
-description: The menu-bar icon, settings, where your data lives, and diagnostics.
+title: Menu bar and settings
+description: Understand Capd's menu, preferences, local storage, permissions, and diagnostics.
 ---
 
-cap lives in the menu bar — there is no Dock icon or main window.
+Capd lives in the menu bar. It has no Dock icon or always-open library window;
+capture happens in the current app and search appears only when requested.
 
-## The menu
+## Menu-bar app
 
-- **Search Captures…** — opens the search window (same as ⌥⇧Space)
-- **Update available** — appears when a newer release exists; copies the
-  `brew upgrade` command
-- **Failed enrichments: N** — appears when page fetches have failed; run
-  `cap refetch` or re-capture the page to retry
-- **Settings…** (⌘,) and **Quit cap** (⌘Q)
+The menu provides quick access to search, settings, update notices, failed page
+extractions, and quit. The normal bookmark icon becomes slashed when Capd needs
+attention, such as after lost Accessibility access or a startup problem.
 
-The bookmark icon switches to a slashed variant when something needs attention:
-failed enrichments, a startup problem, or lost Accessibility access — in that last
-case a menu item deep-links to the right pane of System Settings.
+The menu-bar icon is also a drop target for links, text, images, and files. On a
+MacBook with a display notch, the capture HUD offers a larger notch-shaped drop
+target as you drag toward it.
+
+{/*
+MEDIA: menu-and-settings.png
+Use a two-panel image: the menu on the left and the compact Settings window on
+the right. Keep the current version visible and show all three settings groups
+so users can see the app has a deliberately small configuration surface.
+*/}
 
 ## Settings
 
-- **Hotkeys** — rebind capture (⌃⌥C), note (⌃⌥N), and search (⌥⇧Space)
-- **Fetch page content for link captures** — turn off cap's network fetch entirely;
-  bodies then come only from browser tabs
-- **Check weekly for a new version** — turn off the update check
-- **Auto-tag captures on device** — turn off automatic tagging; the toggle explains
-  itself when Apple Intelligence is off or unavailable
+- **Hotkeys** changes capture (⌃⌥C), note (⌃⌥N), and search (⌥⇧Space).
+- **Fetch page content for link captures** disables Capd's own article fetches.
+  Content read directly from an open browser tab is unaffected.
+- **Check weekly for a new version** disables the GitHub Releases check.
+- **Auto-tag captures on device** disables automatic topic tagging. Capd
+  explains when Apple Intelligence is unavailable.
 
-That's the whole settings surface. There is no configuration file; the only
-environment variable is `CAP_DIR`, which moves the storage root (default
-`~/Library/Application Support/cap/`) for the app, agent, and CLI together.
+There is no configuration file. `CAP_DIR` is the only environment variable; it
+changes the shared storage root for the app, helper, and CLI.
 
 ## Where your data lives
 
+The default storage root is `~/Library/Application Support/cap/`.
+
 | Path | Contents |
 |---|---|
-| `cap.sqlite` | every capture, plus the full-text index |
-| `assets/` | captured images, content-addressed by hash |
-| `agent.lock` | lock file proving a live agent |
+| `cap.sqlite` | Captures, notes, tags, metadata, and the full-text index |
+| `assets/` | Captured images, stored by content hash |
+| `favicons/` | Cached website icons and short-lived missing-icon records |
+| `agent.lock` | The background helper's live-process lock |
 
-All inside the storage root. Backing up that folder — or `cap export`, whose JSON
-carries every stored field — is a complete backup.
+Copying the complete folder creates a full backup. `cap export` creates a
+portable data export, but captured image files remain in `assets/`.
 
 ## Permissions
 
-cap asks for two permissions, both optional:
+Capd requests two optional macOS permissions:
 
-- **Accessibility** — reading your selected text, and detecting password fields so
-  capture can refuse them. Without it, capture uses the clipboard fallback only.
-- **Automation (Apple Events)** — asking Safari, Chrome, or Arc for the front tab's
-  URL and title. macOS prompts once per browser.
+- **Accessibility** reads selected text, detects secure fields, and reads tab
+  details from Firefox-based browsers. Without it, the hotkey uses clipboard
+  fallback and cannot inspect a current Firefox-based tab.
+- **Automation** asks Safari, Chrome, and Arc for the front tab's address and
+  title. macOS stores consent separately for each browser.
 
-macOS silently revokes Accessibility when an app's code signature changes, which can
-happen across updates. cap detects this and prompts to re-grant; the menu-bar icon
-degrades until access is restored.
+macOS may revoke Accessibility when an app's code signature changes after an
+update. Capd detects this, explains the reduced behavior, and links to the
+correct System Settings pane.
 
 ## Diagnostics
 
-`cap status` reports queue depth and ETA, capture counts by state, database size, and
-agent health. `cap doctor` checks database integrity, rebuilds the search index,
-sweeps orphaned image files, verifies (and reinstalls) the launchd agent, and reports
-Accessibility state.
+`cap status` reports the enrichment queue, capture counts, database size, and
+background-helper state. `cap doctor` checks database integrity, rebuilds the
+search index, removes orphaned image files, repairs the helper, and reports
+Accessibility status.
 
-For a live view of what cap is doing:
+For a live log stream:
 
 ```sh
 log stream --predicate 'subsystem == "dev.jxd.cap"'
 ```
 
-Log categories are `capture`, `pipeline`, `store`, and `agent`.
+Log categories include `capture`, `pipeline`, `store`, and `agent`.

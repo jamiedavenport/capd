@@ -1,38 +1,73 @@
 ---
-title: What is cap?
-description: An open-source native macOS capture and bookmarking app.
+title: Capd
+description: Save anything on your Mac and find it again in seconds.
 ---
 
-cap is an open-source, native macOS capture and bookmarking app. Press a hotkey on
-anything worth keeping — a page, a paragraph, an image — and find it again later with
-full-text search.
+## Save anything. Find it in seconds.
 
-- **Capture with one keystroke.** ⌃⌥C saves whatever is in front of you: the page in
-  your browser, the text you have selected, or an image on the clipboard. A toast
-  confirms the capture; click it to attach a note.
-- **Recall instantly.** ⌥⇧Space opens a Spotlight-style search window over everything
-  you have saved — including the readable body of captured pages and text recognized
-  inside images.
-- **Local-first.** Everything lives in a single SQLite database under
-  `~/Library/Application Support/cap/`. No account, no sync service, no telemetry.
-- **Scriptable.** The `cap` CLI captures, searches, and exports from the terminal,
-  with stable `--json` output and documented exit codes.
+Capd is a private, native macOS app for capturing useful web pages, selected
+text, links, notes, and images—then finding them again with full-text search.
 
-## How it works
+No account. No subscription. No telemetry. Your library stays on your Mac.
 
-cap is a menu-bar app (no Dock icon) with two companions that install alongside it:
+[Download the latest release](https://github.com/jamiedavenport/cap/releases/latest)
+· [Install with Homebrew](/install#homebrew)
 
-- the **`cap` CLI**, symlinked onto your `PATH` by the Homebrew cask
-- **`cap-agent`**, a background worker managed by `launchd` that enriches captures —
-  fetching page bodies and running OCR — even when the app is not running
+{/*
+MEDIA: capture-to-search.gif
+Show a 10–15 second loop: select a paragraph in a browser, press ⌃⌥C, see the
+capture HUD, then open search with ⌥⇧Space and find the page using a phrase from
+its body. This is the clearest possible demonstration of Capd's core promise.
+*/}
 
-Link captures store more than the URL: cap extracts the readable article body so
-search can match the words on the page, not just its title.
+## Capture without breaking focus
 
-## Start here
+Press **⌃⌥C** in any app, drag a link or image to the menu bar or MacBook notch,
+or share a page through the macOS share sheet. A compact HUD confirms what was
+saved and lets you add a note without opening a main window.
 
-- [Install](/install) — Homebrew or direct download, and what first-run setup asks for
-- [Capturing](/capture) — what the hotkey saves from each app, and why
-- [Search](/search) — the search window and the `site:` / date filter syntax
-- [CLI](/cli) — capture and search from the terminal
-- [Privacy](/privacy) — exactly what touches the network (two things, both optional)
+Capd understands links, selected text, clipboard images, and dropped files. It
+also removes common tracking parameters and folds repeat captures into the
+existing item.
+
+[See every way to capture](/capture)
+
+## Search what you remember
+
+Press **⌥⇧Space** for fast, keyboard-first search across titles, websites,
+notes, selections, readable page content, and text recognized inside images.
+On-device tags provide another quick way to narrow a growing library.
+
+{/*
+MEDIA: search-window.png
+Show a realistic library with favicons, short result snippets, and the tag row.
+Use a query that matches words from an article body rather than its title to
+show why Capd is more useful than a conventional bookmark list.
+*/}
+
+[Learn about search and filters](/search)
+
+## Private by design
+
+Everything Capd stores lives in a SQLite database and assets folder on your
+Mac. There is no cloud account, sync service, analytics, or telemetry. OCR and
+automatic tagging run on-device.
+
+[Read the privacy details](/privacy)
+
+## Powerful when you need it
+
+The bundled `cap` CLI captures, searches, and exports the same local library.
+It offers stable JSON output for automation and a read-only MCP server for
+compatible AI assistants.
+
+[Explore the CLI](/cli)
+
+## Get started
+
+1. [Download and install Capd](/install).
+2. Press **⌃⌥C** anywhere to save your first capture.
+3. Press **⌥⇧Space** and search for a word from it.
+
+Need more detail? Continue with [Capturing](/capture), [Search](/search),
+[Menu bar and settings](/app), or the [FAQ](/faq).
