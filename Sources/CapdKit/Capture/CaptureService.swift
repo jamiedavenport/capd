@@ -81,6 +81,9 @@ public struct CaptureService: Sendable {
         _ classification: Classification,
         from request: CaptureRequest
     ) throws -> Capture {
+        let tags = Self.pinnedTags(request.tags)
+        let tagsVersion = tags == nil ? 0 : Capture.pinnedTagsVersion
+
         switch classification {
         case .link(let url, let selection):
             return Capture(
@@ -91,6 +94,8 @@ public struct CaptureService: Sendable {
                 note: request.note,
                 selection: selection,
                 sourceAppBundleID: request.sourceAppBundleID,
+                tags: tags,
+                tagsVersion: tagsVersion,
                 // A link captured with no fetch is born terminal, and `ok -> pending` stays a
                 // legal transition so a later refetch can put it back in the queue.
                 enrichmentState: request.fetchBody ? .pending : .ok,
@@ -107,6 +112,8 @@ public struct CaptureService: Sendable {
                 // an extracted page.
                 selection: text,
                 sourceAppBundleID: request.sourceAppBundleID,
+                tags: tags,
+                tagsVersion: tagsVersion,
                 enrichmentState: .ok,
                 contentHash: Self.hexDigest(of: Data(text.utf8)),
                 createdAt: request.capturedAt
@@ -120,6 +127,8 @@ public struct CaptureService: Sendable {
                 note: request.note,
                 assetPath: try writeAsset(imageData, digest: digest),
                 sourceAppBundleID: request.sourceAppBundleID,
+                tags: tags,
+                tagsVersion: tagsVersion,
                 enrichmentState: .pending,
                 contentHash: digest,
                 createdAt: request.capturedAt
@@ -136,6 +145,17 @@ public struct CaptureService: Sendable {
             at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try imageData.write(to: url, options: .atomic)
         return relativePath
+    }
+
+    /// Request tags folded to the stored shape, or nil when none survive — the same
+    /// normalization the agent's tags go through, so one grammar covers both.
+    private static func pinnedTags(_ raw: [String]) -> String? {
+        var tags: [String] = []
+        for candidate in raw {
+            guard let tag = TagService.normalize(candidate), !tags.contains(tag) else { continue }
+            tags.append(tag)
+        }
+        return tags.isEmpty ? nil : tags.joined(separator: " ")
     }
 
     private static func normalized(_ value: String?) -> String? {

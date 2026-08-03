@@ -66,7 +66,7 @@ public struct TagService: Sendable {
         let taxonomy = try store.taxonomy()
         guard taxonomy.taggingEnabled else { return false }
 
-        let usage = try store.tagUsage()
+        let usage = try store.tagUsage(includePinned: false)
         let due =
             taxonomy.taggedSinceConsolidation >= Self.consolidationInterval
             || usage.count > Taxonomy.maxTags
