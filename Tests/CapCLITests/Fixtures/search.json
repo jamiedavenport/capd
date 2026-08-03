@@ -17,6 +17,7 @@
       "seen_count" : 2,
       "selection" : "actors isolate state",
       "source_app_bundle_id" : "com.apple.Safari",
+      "tags_version" : 0,
       "title" : "Structured Concurrency Notes",
       "updated_at" : "2026-03-03T00:01:00.750Z",
       "url" : "https:\/\/example.com\/reading?id=42"

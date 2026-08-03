@@ -6,8 +6,8 @@ struct Search: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Search captures.",
         discussion: """
-            Query text may also carry inline site:, since:/after:, before:, and until: \
-            filters; the flags below win when both are given.
+            Query text may also carry inline site:, tag:, since:/after:, before:, and \
+            until: filters; the flags below win when both are given.
             """)
 
     @Argument(help: "The search query.")
@@ -15,6 +15,9 @@ struct Search: ParsableCommand {
 
     @Option(help: "Only captures from this host or its subdomains.")
     var site: String?
+
+    @Option(help: "Only captures carrying this tag.")
+    var tag: String?
 
     @Option(help: "Only captures on or after this day (YYYY-MM-DD).")
     var since: String?
@@ -33,6 +36,9 @@ struct Search: ParsableCommand {
 
         if let site {
             parsed.site = site.lowercased()
+        }
+        if let tag {
+            parsed.tag = tag.drop(while: { $0 == "#" }).lowercased()
         }
         if let since {
             guard let start = parser.inclusiveDayStart(since) else {

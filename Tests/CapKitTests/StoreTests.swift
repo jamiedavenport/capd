@@ -14,6 +14,7 @@ struct StoreTests {
             try store.dbPool.read { db in
                 let hasCaptures = try db.tableExists(Schema.captures)
                 let hasFTS = try db.tableExists(Schema.capturesFTS)
+                let hasTaxonomy = try db.tableExists(Schema.taxonomy)
                 let triggers = try String.fetchSet(
                     db, sql: "SELECT name FROM sqlite_master WHERE type = 'trigger'")
                 let indexes = try Set(db.indexes(on: Schema.captures).map(\.name))
@@ -23,15 +24,16 @@ struct StoreTests {
 
                 #expect(hasCaptures)
                 #expect(hasFTS)
+                #expect(hasTaxonomy)
                 #expect(
                     triggers == ["__captures_fts_ai", "__captures_fts_ad", "__captures_fts_au"])
                 #expect(
                     indexes == [
                         "captures_on_content_hash", "captures_on_enrichment_state",
                         "captures_on_created_at", "captures_on_host", "captures_on_url",
-                        "captures_on_title",
+                        "captures_on_title", "captures_on_tags_version",
                     ])
-                #expect(applied == ["001"])
+                #expect(applied == ["001", "002"])
                 #expect(journalMode == "wal")
                 #expect(foreignKeys == 1)
             }
@@ -55,7 +57,7 @@ struct StoreTests {
                 let count = try Capture.fetchCount(db)
                 let survivor = try Capture.fetchOne(db)
 
-                #expect(applied == ["001"])
+                #expect(applied == ["001", "002"])
                 #expect(count == 1)
                 #expect(survivor?.title == "Durable")
             }
@@ -260,7 +262,7 @@ struct StoreTests {
             let store = try Store(paths: paths)
             try store.dbPool.write { db in
                 try db.execute(
-                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('002')")
+                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('003')")
             }
 
             #expect(throws: StoreError.databaseIsNewerThanApp) {
@@ -333,9 +335,10 @@ struct StoreTests {
         }
     }
 
-    /// Migration 001 freezes these into CHECK constraints and FTS columns, so widening one
-    /// only reaches databases created afterwards. Adding a case must fail here, not at runtime.
-    @Test("The persisted vocabularies match what migration 001 froze")
+    /// The migrations freeze these into CHECK constraints and FTS columns, so widening one
+    /// only reaches databases created afterwards. Adding a case must fail here, not at
+    /// runtime — and a ranking change means a new migration that recreates the FTS table.
+    @Test("The persisted vocabularies match what the migrations froze")
     func persistedVocabulariesArePinned() {
         #expect(CaptureKind.allCases.map(\.rawValue) == ["link", "text", "image"])
         #expect(
@@ -345,8 +348,8 @@ struct StoreTests {
         #expect(BodySource.allCases.map(\.rawValue) == ["tab", "fetch"])
         #expect(
             Schema.ranking.map(\.column)
-                == ["title", "host", "note", "selection", "body", "ocr_text"])
-        #expect(Schema.ranking.map(\.weight) == [4.0, 3.0, 2.0, 2.0, 1.0, 1.0])
+                == ["title", "host", "tags", "note", "selection", "body", "ocr_text"])
+        #expect(Schema.ranking.map(\.weight) == [4.0, 3.0, 3.0, 2.0, 2.0, 1.0, 1.0])
     }
 
     @Test("Timestamps default to the creation time when not supplied")

@@ -16,6 +16,7 @@
     "seen_count" : 2,
     "selection" : "actors isolate state",
     "source_app_bundle_id" : "com.apple.Safari",
+    "tags_version" : 0,
     "title" : "Structured Concurrency Notes",
     "updated_at" : "2026-03-03T00:01:00.750Z",
     "url" : "https:\/\/example.com\/reading?id=42"
@@ -32,6 +33,8 @@
     "ocr_text" : "error code 418: I'm a teapot",
     "seen_count" : 1,
     "source_app_bundle_id" : "com.apple.Safari",
+    "tags" : "kitchen hardware",
+    "tags_version" : 1,
     "title" : "Kettle screenshot",
     "updated_at" : "2026-03-02T00:00:00.250Z"
   },
@@ -45,6 +48,7 @@
     "last_seen_at" : "2026-03-01T00:00:00.125Z",
     "seen_count" : 1,
     "selection" : "remember the milk",
+    "tags_version" : 0,
     "updated_at" : "2026-03-01T00:00:00.125Z"
   }
 ]

@@ -69,6 +69,13 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
     public var assetPath: String?
     public var sourceAppBundleID: String?
 
+    /// Space-joined lowercase tags, nil until the tagging pass has run.
+    public var tags: String?
+    /// The taxonomy version the tags were assigned under; 0 marks a capture that still
+    /// needs tagging, which is what lets nil tags mean "nothing applied" rather than
+    /// "not yet processed".
+    public var tagsVersion: Int
+
     public var enrichmentState: EnrichmentState
     public var bodyStatus: BodyStatus
     public var bodySource: BodySource?
@@ -94,6 +101,8 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         ocrText: String? = nil,
         assetPath: String? = nil,
         sourceAppBundleID: String? = nil,
+        tags: String? = nil,
+        tagsVersion: Int = 0,
         enrichmentState: EnrichmentState = .pending,
         bodyStatus: BodyStatus = .none,
         bodySource: BodySource? = nil,
@@ -116,6 +125,8 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         self.ocrText = ocrText
         self.assetPath = assetPath
         self.sourceAppBundleID = sourceAppBundleID
+        self.tags = tags
+        self.tagsVersion = tagsVersion
         self.enrichmentState = enrichmentState
         self.bodyStatus = bodyStatus
         self.bodySource = bodySource
@@ -126,6 +137,10 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         self.updatedAt = updatedAt ?? createdAt
         self.lastSeenAt = lastSeenAt ?? createdAt
         self.seenCount = seenCount
+    }
+
+    public var tagList: [String] {
+        tags?.split(separator: " ").map(String.init) ?? []
     }
 }
 
@@ -144,6 +159,8 @@ extension Capture: FetchableRecord, MutablePersistableRecord {
         case ocrText = "ocr_text"
         case assetPath = "asset_path"
         case sourceAppBundleID = "source_app_bundle_id"
+        case tags
+        case tagsVersion = "tags_version"
         case enrichmentState = "enrichment_state"
         case bodyStatus = "body_status"
         case bodySource = "body_source"
