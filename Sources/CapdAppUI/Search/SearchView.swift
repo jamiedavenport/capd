@@ -95,6 +95,11 @@ struct SearchView: View {
     /// navigating never means leaving the keyboard or the query. Tab is claimed before
     /// AppKit spends it on focus traversal — the field is the only focusable thing here.
     private func handleKey(_ press: KeyPress) -> KeyPress.Result {
+        if let forward = Self.tagCycleForward(for: press.key, modifiers: press.modifiers) {
+            model.cycleTag(forward: forward)
+            return .handled
+        }
+
         switch press.key {
         case .upArrow:
             model.moveSelection(by: -1)
@@ -102,15 +107,27 @@ struct SearchView: View {
         case .downArrow:
             model.moveSelection(by: 1)
             return .handled
-        case .tab:
-            model.cycleTag(forward: !press.modifiers.contains(.shift))
-            return .handled
         case .return where press.modifiers.contains(.command):
             model.copySelected()
             return .handled
         default:
             return .ignored
         }
+    }
+
+    /// AppKit may represent Shift-Tab as either Tab plus the Shift modifier or as the
+    /// legacy Backtab control character. Accept both forms so the field editor cannot
+    /// turn reverse tag navigation into focus traversal.
+    static func tagCycleForward(
+        for key: KeyEquivalent, modifiers: EventModifiers
+    ) -> Bool? {
+        if key == .tab {
+            return !modifiers.contains(.shift)
+        }
+        if key == KeyEquivalent(Character("\u{19}")) {
+            return false
+        }
+        return nil
     }
 
     @ViewBuilder private var results: some View {
