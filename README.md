@@ -56,12 +56,7 @@ Image text is recognized on-device and becomes searchable.
 Re-capturing the same item updates the existing entry instead of creating a
 duplicate. Add a note from the confirmation HUD with `⌃⌥N`.
 
-<!--
-MEDIA: drag-to-capture.gif
-Show a link and an image being dragged toward the MacBook notch. The HUD should
-change to “Drop to capture,” accept each item, and confirm it without opening a
-main window.
--->
+![Drag a link to the MacBook notch to capture it with Capd](./docs/public/drag-to-capture.gif)
 
 [Explore every capture method](https://capd.jxd.dev/capture).
 
