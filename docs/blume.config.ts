@@ -3,7 +3,7 @@ import { defineConfig } from "blume";
 export default defineConfig({
   title: "cap",
   description: "An open-source native macOS capture and bookmarking app.",
-  logo: { text: "cap" },
+  logo: { image: "/logo.svg", text: "cap" },
   content: {
     root: "content",
   },
