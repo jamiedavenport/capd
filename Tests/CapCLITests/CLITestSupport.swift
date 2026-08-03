@@ -4,7 +4,7 @@ import Testing
 private final class BinaryLocator {}
 
 /// The `cap` product lands in the same build directory as this test bundle.
-private let capBinary = Bundle(for: BinaryLocator.self).bundleURL
+let capBinary = Bundle(for: BinaryLocator.self).bundleURL
     .deletingLastPathComponent()
     .appendingPathComponent("cap", isDirectory: false)
 

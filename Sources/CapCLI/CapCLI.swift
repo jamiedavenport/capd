@@ -11,7 +11,7 @@ struct Cap: ParsableCommand {
         version: CapKit.version,
         subcommands: [
             Add.self, Search.self, List.self, Rm.self, Export.self, Refetch.self,
-            Status.self, Doctor.self,
+            Status.self, Doctor.self, Mcp.self,
         ]
     )
 
