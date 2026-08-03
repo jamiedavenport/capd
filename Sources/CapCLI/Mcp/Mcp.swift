@@ -1,9 +1,10 @@
 import ArgumentParser
 import CapKit
+import Dispatch
 import Foundation
 import MCP
 
-struct Mcp: AsyncParsableCommand {
+struct Mcp: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "mcp",
         abstract: "Serve captures to AI assistants over the Model Context Protocol.",
@@ -14,8 +15,30 @@ struct Mcp: AsyncParsableCommand {
                 claude mcp add cap -- cap mcp
             """)
 
-    func run() async throws {
-        let toolbox = McpToolbox(service: SearchService(store: try openStore()))
+    /// Synchronous, bridging to the async server by hand: CapCLITests links this
+    /// executable into the test bundle, and an async entry point anywhere on that path
+    /// makes SwiftPM's release-mode test runner execute cap's main instead of the tests.
+    func run() throws {
+        let service = SearchService(store: try openStore())
+
+        nonisolated(unsafe) var failure: (any Error)?
+        let finished = DispatchSemaphore(value: 0)
+        Task.detached {
+            do {
+                try await Self.serve(service)
+            } catch {
+                failure = error
+            }
+            finished.signal()
+        }
+        finished.wait()
+        if let failure {
+            throw failure
+        }
+    }
+
+    private static func serve(_ service: SearchService) async throws {
+        let toolbox = McpToolbox(service: service)
 
         let server = Server(
             name: "cap",

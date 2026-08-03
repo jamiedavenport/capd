@@ -25,14 +25,10 @@ struct Cap: ParsableCommand {
 /// not running.
 @main
 enum CapMain {
-    static func main() async {
+    static func main() {
         do {
             var command = try Cap.parseAsRoot()
-            if var asyncCommand = command as? any AsyncParsableCommand {
-                try await asyncCommand.run()
-            } else {
-                try command.run()
-            }
+            try command.run()
         } catch let error as CLIError {
             error.terminate()
         } catch {
