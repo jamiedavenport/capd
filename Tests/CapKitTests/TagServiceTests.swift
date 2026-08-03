@@ -85,7 +85,9 @@ struct TagServiceTests {
             try seed(store, [makeCapture(title: "Waiting")])
             let service = TagService(
                 store: store,
-                tagger: StubTagger(available: .unavailable(reason: "off")) { _ in ["never"] })
+                tagger: StubTagger(available: .unavailable(.appleIntelligenceOff)) { _ in
+                    ["never"]
+                })
 
             #expect(try await service.tagNext() == 0)
             #expect(try store.untaggedCaptures(limit: 10).count == 1)

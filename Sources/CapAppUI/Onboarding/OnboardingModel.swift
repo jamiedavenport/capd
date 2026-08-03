@@ -1,4 +1,5 @@
 import AppKit
+import CapKit
 import KeyboardShortcuts
 import Observation
 
@@ -6,6 +7,7 @@ enum OnboardingStep: Int, CaseIterable {
     case hotkeys
     case accessibility
     case browsers
+    case intelligence
     case firstCapture
 }
 
@@ -18,6 +20,8 @@ package struct OnboardingEnvironment {
     var requestAXTrust: @MainActor () -> Void
     var openAXSettings: @MainActor () -> Void
     var openAutomationSettings: @MainActor () -> Void
+    var openIntelligenceSettings: @MainActor () -> Void
+    var taggerAvailability: @MainActor () -> TaggerAvailability
     var runningBrowsers: @MainActor () -> [Browser]
     var automationStatus: @MainActor (Browser) -> AutomationConsentStatus
     var requestAutomationConsent: @MainActor (Browser) async -> AutomationConsentStatus
@@ -32,6 +36,8 @@ package struct OnboardingEnvironment {
         requestAXTrust: @escaping @MainActor () -> Void,
         openAXSettings: @escaping @MainActor () -> Void,
         openAutomationSettings: @escaping @MainActor () -> Void,
+        openIntelligenceSettings: @escaping @MainActor () -> Void,
+        taggerAvailability: @escaping @MainActor () -> TaggerAvailability,
         runningBrowsers: @escaping @MainActor () -> [Browser],
         automationStatus: @escaping @MainActor (Browser) -> AutomationConsentStatus,
         requestAutomationConsent: @escaping @MainActor (Browser) async -> AutomationConsentStatus,
@@ -45,6 +51,8 @@ package struct OnboardingEnvironment {
         self.requestAXTrust = requestAXTrust
         self.openAXSettings = openAXSettings
         self.openAutomationSettings = openAutomationSettings
+        self.openIntelligenceSettings = openIntelligenceSettings
+        self.taggerAvailability = taggerAvailability
         self.runningBrowsers = runningBrowsers
         self.automationStatus = automationStatus
         self.requestAutomationConsent = requestAutomationConsent
@@ -67,6 +75,7 @@ final class OnboardingModel {
     private(set) var searchShortcut: String?
     private(set) var conflicted: Set<KeyboardShortcuts.Name> = []
     private(set) var axTrusted = false
+    private(set) var taggerAvailability: TaggerAvailability = .available
     private(set) var runningBrowsers: [Browser] = []
     private(set) var consents: [Browser: AutomationConsentStatus] = [:]
     private(set) var pendingConsents: [Browser: Task<Void, Never>] = [:]
@@ -108,6 +117,10 @@ final class OnboardingModel {
         environment.openAutomationSettings()
     }
 
+    func openIntelligenceSettings() {
+        environment.openIntelligenceSettings()
+    }
+
     @discardableResult
     func requestConsent(for browser: Browser) -> Task<Void, Never> {
         let task = Task {
@@ -137,6 +150,7 @@ final class OnboardingModel {
                 return environment.isShortcutTakenBySystem(shortcut)
             })
         axTrusted = environment.isAXTrusted()
+        taggerAvailability = environment.taggerAvailability()
         agentLoaded = environment.isAgentLoaded()
         if !hasCaptured, environment.captureCount() > 0 {
             hasCaptured = true

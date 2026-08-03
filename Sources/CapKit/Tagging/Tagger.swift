@@ -24,7 +24,27 @@ public struct TaggingInput: Sendable, Equatable {
 
 public enum TaggerAvailability: Sendable, Equatable {
     case available
-    case unavailable(reason: String)
+    case unavailable(Reason)
+
+    public enum Reason: Sendable, Equatable {
+        case deviceNotEligible
+        case appleIntelligenceOff
+        case modelDownloading
+        case unknown
+
+        public var explanation: String {
+            switch self {
+            case .deviceNotEligible:
+                "This Mac cannot run Apple Intelligence."
+            case .appleIntelligenceOff:
+                "Apple Intelligence is turned off in System Settings."
+            case .modelDownloading:
+                "The Apple Intelligence model is still downloading."
+            case .unknown:
+                "Apple Intelligence is unavailable."
+            }
+        }
+    }
 }
 
 public enum TaggingError: Error, Equatable {
