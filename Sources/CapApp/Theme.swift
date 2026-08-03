@@ -52,6 +52,34 @@ struct IconTile: View {
     }
 }
 
+/// `IconTile`'s footprint with a site's favicon in place of the symbol. Falls back to
+/// the symbol tile whenever no favicon is known — no host, store absent, still
+/// fetching, or the site has none — so rows never shift while an icon loads.
+struct FaviconTile: View {
+    var host: String?
+    var fallbackSymbol: String
+    var fallbackTint: Color
+    var size: CGFloat
+
+    @Environment(\.faviconStore) private var favicons
+
+    var body: some View {
+        if let host, let image = favicons?.image(forHost: host) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .padding(size * 0.09)
+                .frame(width: size, height: size)
+                .background(
+                    Theme.raised,
+                    in: RoundedRectangle(cornerRadius: size * 0.28, style: .continuous))
+        } else {
+            IconTile(symbol: fallbackSymbol, tint: fallbackTint, size: size)
+        }
+    }
+}
+
 /// A single keyboard-key chip, e.g. `⌘` or `↩`.
 struct Keycap: View {
     var label: String

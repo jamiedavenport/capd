@@ -16,6 +16,7 @@ struct HUDContent: Equatable {
     var detail: String?
     var kind: CaptureKind? = nil
     var note: String? = nil
+    var host: String? = nil
 
     var canAnnotate: Bool {
         captureID != nil
@@ -39,7 +40,8 @@ struct HUDContent: Equatable {
                 headline: fallbackNote == nil ? "Captured" : "Captured link only",
                 detail: joined(subject, fallbackNote),
                 kind: capture.kind,
-                note: capture.note)
+                note: capture.note,
+                host: capture.kind == .link ? capture.host : nil)
         case .alreadyCaptured(_, let previousSeenAt):
             return HUDContent(
                 style: .duplicate,
@@ -47,7 +49,8 @@ struct HUDContent: Equatable {
                 headline: "Already captured \(relativeDescription(of: previousSeenAt, to: now))",
                 detail: joined(subject, fallbackNote),
                 kind: capture.kind,
-                note: capture.note)
+                note: capture.note,
+                host: capture.kind == .link ? capture.host : nil)
         }
     }
 

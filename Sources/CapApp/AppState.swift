@@ -86,10 +86,13 @@ final class AppState {
             store: store,
             guards: [SecureInputGuard(probes: [SystemSecureInputProbe(), AXReader()])])
         let enrichment = EnrichmentService(store: store, steps: [TabFirstBodyStep()])
+        let favicons = FaviconStore(paths: store.paths)
 
-        let hud = HUDPanelController(saveNote: { id, note in
-            _ = try? captureService.annotate(id, note: note)
-        })
+        let hud = HUDPanelController(
+            favicons: favicons,
+            saveNote: { id, note in
+                _ = try? captureService.annotate(id, note: note)
+            })
         self.hud = hud
 
         let settings = self.settings
@@ -117,7 +120,8 @@ final class AppState {
 
         let searchService = SearchService(store: store)
         search = SearchWindowController(
-            environment: .live(searchService: searchService, store: store))
+            environment: .live(searchService: searchService, store: store),
+            favicons: favicons)
         totalCaptures = { (try? searchService.totalCaptureCount()) ?? 0 }
 
         KeyboardShortcuts.onKeyDown(for: .capture) { [weak self] in

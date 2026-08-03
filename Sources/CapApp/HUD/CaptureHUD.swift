@@ -153,7 +153,11 @@ struct CaptureHUDView: View {
 
     private var source: some View {
         HStack(spacing: 7) {
-            IconTile(symbol: kindSymbol, tint: kindTint, size: 17)
+            FaviconTile(
+                host: model.content?.host,
+                fallbackSymbol: kindSymbol,
+                fallbackTint: kindTint,
+                size: 17)
             Text(sourceLine ?? "cap")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Theme.text)
@@ -324,7 +328,7 @@ final class HUDPanelController {
     private let model = HUDModel()
     private let saveNote: (Int64, String) -> Void
     private let panel: HUDPanel
-    private var hosting: NSHostingView<CaptureHUDView>!
+    private var hosting: NSHostingView<AnyView>!
     private var presentation = HUDPresentation()
     private var dismissTask: Task<Void, Never>?
     private var hideTask: Task<Void, Never>?
@@ -339,7 +343,7 @@ final class HUDPanelController {
     private var dropPending = false
     private var dropWithdrawTask: Task<Void, Never>?
 
-    init(saveNote: @escaping (Int64, String) -> Void) {
+    init(favicons: FaviconStore?, saveNote: @escaping (Int64, String) -> Void) {
         self.saveNote = saveNote
 
         let panel = HUDPanel(
@@ -360,12 +364,15 @@ final class HUDPanelController {
         self.panel = panel
 
         hosting = NSHostingView(
-            rootView: CaptureHUDView(
-                model: model,
-                beginAnnotation: { [weak self] in self?.beginAnnotation() },
-                saveNote: { [weak self] in self?.saveNoteAndDismiss() },
-                dismiss: { [weak self] in self?.requestDismiss() },
-                hoverChanged: { [weak self] in self?.hoverChanged($0) }))
+            rootView: AnyView(
+                CaptureHUDView(
+                    model: model,
+                    beginAnnotation: { [weak self] in self?.beginAnnotation() },
+                    saveNote: { [weak self] in self?.saveNoteAndDismiss() },
+                    dismiss: { [weak self] in self?.requestDismiss() },
+                    hoverChanged: { [weak self] in self?.hoverChanged($0) }
+                )
+                .environment(\.faviconStore, favicons)))
         // A plain container rather than the hosting view itself, so the drop overlay
         // never has to live inside NSHostingView's managed hierarchy.
         let container = NSView()
