@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test:
+  lint:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
@@ -25,25 +25,52 @@ jobs:
       - name: Select Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app
 
+      - name: Lint
+        run: swift format lint --strict --recursive --parallel Sources Tests Package.swift
+
+  build-test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
+
       - name: Report toolchain
         run: swift --version
 
       - uses: actions/cache@v6
         with:
           path: .build
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
-
-      - name: Lint
-        run: swift format lint --strict --recursive --parallel Sources Tests Package.swift
-
-      - name: Build
-        run: swift build --build-tests
+          key: spm-debug-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            spm-debug-${{ runner.os }}-
+            spm-${{ runner.os }}-
 
       - name: Test
-        run: swift test
+        run: swift test --parallel
 
-      # The perf gate only means something against optimized code; the debug run above
-      # skips it.
+  performance:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
+
+      - uses: actions/cache@v6
+        with:
+          path: .build
+          key: spm-release-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            spm-release-${{ runner.os }}-
+            spm-${{ runner.os }}-
+
+      # The perf gate only means something against optimized code, and its timing
+      # assertions need the box to itself, so it runs serial in its own job.
       - name: Performance (release)
         run: swift test -c release --filter SearchPerformanceTests
