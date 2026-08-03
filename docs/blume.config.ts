@@ -10,7 +10,7 @@ export default defineConfig({
   github: {
     owner: "jamiedavenport",
     repo: "cap",
-    dir: "website",
+    dir: "docs",
   },
   deployment: {
     site: "https://cap.jxd.dev",

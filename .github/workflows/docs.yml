@@ -3,13 +3,13 @@ name: Docs
 on:
   pull_request:
     paths:
-      - "website/**"
+      - "docs/**"
       - "docs/cli-contract.md"
       - ".github/workflows/docs.yml"
   push:
     branches: [main]
     paths:
-      - "website/**"
+      - "docs/**"
       - "docs/cli-contract.md"
       - ".github/workflows/docs.yml"
 
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: website
+        working-directory: docs
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,7 +35,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: website/package-lock.json
+          cache-dependency-path: docs/package-lock.json
 
       - name: Install
         run: npm ci
@@ -50,5 +50,5 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: website
+          workingDirectory: docs
           command: deploy

@@ -1,7 +1,6 @@
 # cap
 
 Open-source native macOS capture/bookmarking app — the Pinboard successor.
-Design doc: ~/.gstack/projects/cap/jamie-main-design-20260802-134500.md
 
 # Linear
 
@@ -21,7 +20,7 @@ Design doc: ~/.gstack/projects/cap/jamie-main-design-20260802-134500.md
 - Never add `TODO(TICKET)`, "coming in v0.2", or "Status: scaffold".
 - These go stale silently and can't be verified from the codebase.
 - Rationale belongs in commit messages and PR descriptions.
-- Roadmap belongs in Linear or `TODOS.md`.
+- Roadmap belongs in Linear or Github issues.
 - Architecture belongs in `docs/designs/`.
 
 # READMEs
