@@ -32,8 +32,22 @@ package final class AppSettings {
         didSet { defaults.set(latestKnownVersion, forKey: Key.latestKnownVersion) }
     }
 
+    /// Persisted in the capture store rather than `UserDefaults`: the flag must reach
+    /// `cap-agent`, a separate process that cannot see the app's defaults. The app seeds
+    /// the value from the store at launch and writes back through `saveAutoTags`.
+    package var autoTagsCaptures: Bool {
+        didSet { saveAutoTags(autoTagsCaptures) }
+    }
+
+    /// Injected by the app; the inert default keeps previews and tests store-free.
+    @ObservationIgnored package var saveAutoTags: (Bool) -> Void = { _ in }
+
+    /// Nil when on-device tagging can run; otherwise why it cannot.
+    package var autoTagsUnavailableReason: String?
+
     package init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        autoTagsCaptures = true
         fetchesPageBodies = defaults.object(forKey: Key.fetchesPageBodies) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true

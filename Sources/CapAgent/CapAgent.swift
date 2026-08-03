@@ -2,7 +2,7 @@ import CapKit
 import Foundation
 import os
 
-/// The background enrichment worker: page fetch, body extraction, and OCR.
+/// The background enrichment worker: page fetch, body extraction, OCR, and tagging.
 ///
 /// One binary, three modes: the launchd-supervised agent (no arguments), a short-lived
 /// `fetch` child whose WebKit crashes die with it instead of with the agent, and
@@ -60,6 +60,7 @@ struct CapAgent {
                 steps: [FetchChildStep(agentExecutable: executable), OCRStep()])
             let queue = EnrichmentQueue(
                 enrichment: enrichment, isOnMainsPower: PowerStatus.isOnMainsPower)
+            let tagging = TagService(store: store, tagger: FoundationModelTagger())
 
             logger.info("cap-agent \(CapKit.version, privacy: .public) started")
 
@@ -73,6 +74,7 @@ struct CapAgent {
                     if ((try? enrichment.pendingCount()) ?? 0) > 0 {
                         await queue.drain()
                     }
+                    await tag(with: tagging)
                     try? await Task.sleep(for: pollInterval)
                 }
             }
@@ -82,6 +84,20 @@ struct CapAgent {
             let reason = String(describing: error)
             logger.error("cap-agent failed to start: \(reason, privacy: .public)")
             exit(EXIT_FAILURE)
+        }
+    }
+
+    private static func tag(with tagging: TagService) async {
+        do {
+            let batch = DrainPolicy.width(onMainsPower: PowerStatus.isOnMainsPower())
+            let processed = try await tagging.tagNext(batch: batch)
+            if processed > 0 {
+                logger.info("tagged \(processed) capture(s)")
+            }
+        } catch {
+            // Transient model failures wait for the next tick; the rows stay queued.
+            let reason = String(describing: error)
+            logger.error("tagging failed: \(reason, privacy: .public)")
         }
     }
 
