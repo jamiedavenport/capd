@@ -12,6 +12,7 @@ package struct SearchEnvironment {
     var openURL: @MainActor (URL) -> Void
     var copyText: @MainActor (String) -> Void
     var assetFileURL: @MainActor (String) -> URL?
+    var showHUD: @MainActor (HUDContent) -> Void
 
     package init(
         search: @escaping @Sendable (String) async throws -> [SearchHit],
@@ -19,7 +20,8 @@ package struct SearchEnvironment {
         delete: @escaping @MainActor (Int64) throws -> Void,
         openURL: @escaping @MainActor (URL) -> Void,
         copyText: @escaping @MainActor (String) -> Void,
-        assetFileURL: @escaping @MainActor (String) -> URL?
+        assetFileURL: @escaping @MainActor (String) -> URL?,
+        showHUD: @escaping @MainActor (HUDContent) -> Void
     ) {
         self.search = search
         self.totalCount = totalCount
@@ -27,6 +29,7 @@ package struct SearchEnvironment {
         self.openURL = openURL
         self.copyText = copyText
         self.assetFileURL = assetFileURL
+        self.showHUD = showHUD
     }
 }
 
@@ -94,6 +97,7 @@ final class SearchModel {
             environment.openURL(file)
         } else if let text = Self.primaryText(of: capture) {
             environment.copyText(text)
+            environment.showHUD(.copied(capture))
         }
         dismiss()
     }
@@ -102,6 +106,7 @@ final class SearchModel {
         guard let capture = selectedHit?.capture else { return }
         guard let text = capture.url ?? Self.primaryText(of: capture) else { return }
         environment.copyText(text)
+        environment.showHUD(.copied(capture))
         dismiss()
     }
 

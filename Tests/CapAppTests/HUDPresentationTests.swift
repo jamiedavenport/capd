@@ -51,6 +51,17 @@ struct HUDPresentationTests {
         #expect(presentation.display?.streak == 1)
     }
 
+    @Test("A copied toast gets the success duration and no streak")
+    func copiedDuration() {
+        var presentation = HUDPresentation()
+
+        _ = presentation.show(captured)
+        let action = presentation.show(copied)
+
+        #expect(action == .restart(.seconds(3)))
+        #expect(presentation.display?.streak == 1)
+    }
+
     @Test("Hover pauses the timer; leaving restarts it for the visible style")
     func hoverPausesAndResumes() {
         var presentation = HUDPresentation()
@@ -229,6 +240,8 @@ private let secondCapture = HUDContent(
     style: .captured, captureID: 2, headline: "Captured", detail: "example.org")
 private let duplicate = HUDContent(
     style: .duplicate, captureID: 3, headline: "Already captured 2 min. ago", detail: nil)
+private let copied = HUDContent(
+    style: .copied, headline: "Copied to clipboard", detail: "A page")
 private let blocked = HUDContent(
     style: .blocked, headline: "Capture blocked", detail: "Secure input is active.")
 private let failed = HUDContent(

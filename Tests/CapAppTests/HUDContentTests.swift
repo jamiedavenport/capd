@@ -3,6 +3,7 @@ import Testing
 
 @testable import CapApp
 @testable import CapAppUI
+@testable import CapKit
 
 @Suite("HUDContent")
 struct HUDContentTests {
@@ -34,5 +35,24 @@ struct HUDContentTests {
             style: .duplicate, captureID: 1, headline: "Already captured", note: "old thought")
 
         #expect(content.noteEdit(from: "new thought") == "new thought")
+    }
+
+    @Test("A copied toast names the page and offers no note")
+    func copiedNamesThePage() {
+        let capture = Capture(
+            id: 4,
+            kind: .link,
+            url: "https://example.com/a",
+            host: "example.com",
+            title: "A page",
+            createdAt: Date(timeIntervalSince1970: 1_000_000))
+
+        let content = HUDContent.copied(capture)
+
+        #expect(content.style == .copied)
+        #expect(content.headline == "Copied to clipboard")
+        #expect(content.detail == "A page")
+        #expect(content.host == "example.com")
+        #expect(!content.canAnnotate)
     }
 }

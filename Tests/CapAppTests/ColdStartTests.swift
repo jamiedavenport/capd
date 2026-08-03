@@ -42,7 +42,8 @@ struct ColdStartTests {
         await coordinator.drain()
 
         let model = SearchModel(
-            environment: .live(searchService: SearchService(store: store), store: store))
+            environment: .live(
+                searchService: SearchService(store: store), store: store, showHUD: { _ in }))
         model.queryText = "swift testing"
         await model.settle()
 

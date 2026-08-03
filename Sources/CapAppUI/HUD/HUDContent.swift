@@ -6,6 +6,7 @@ package struct HUDContent: Equatable {
     enum Style: Equatable {
         case captured
         case duplicate
+        case copied
         case blocked
         case failed
     }
@@ -54,6 +55,15 @@ package struct HUDContent: Equatable {
                 note: capture.note,
                 host: capture.kind == .link ? capture.host : nil)
         }
+    }
+
+    package static func copied(_ capture: Capture) -> HUDContent {
+        HUDContent(
+            style: .copied,
+            headline: "Copied to clipboard",
+            detail: subject(of: capture),
+            kind: capture.kind,
+            host: capture.kind == .link ? capture.host : nil)
     }
 
     package static func blocked() -> HUDContent {

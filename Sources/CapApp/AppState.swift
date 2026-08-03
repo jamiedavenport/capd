@@ -127,7 +127,10 @@ final class AppState {
 
         let searchService = SearchService(store: store)
         search = SearchWindowController(
-            environment: .live(searchService: searchService, store: store),
+            environment: .live(
+                searchService: searchService,
+                store: store,
+                showHUD: { hud.show($0) }),
             favicons: favicons)
         totalCaptures = { (try? searchService.totalCaptureCount()) ?? 0 }
 
@@ -239,7 +242,11 @@ private func openSystemSettings(pane: String) {
 }
 
 extension SearchEnvironment {
-    static func live(searchService: SearchService, store: Store) -> SearchEnvironment {
+    static func live(
+        searchService: SearchService,
+        store: Store,
+        showHUD: @escaping @MainActor (HUDContent) -> Void
+    ) -> SearchEnvironment {
         SearchEnvironment(
             search: { try searchService.search($0) },
             totalCount: { try searchService.totalCaptureCount() },
@@ -250,7 +257,8 @@ extension SearchEnvironment {
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
             },
-            assetFileURL: { store.paths.assetURL(forRelativePath: $0) })
+            assetFileURL: { store.paths.assetURL(forRelativePath: $0) },
+            showHUD: showHUD)
     }
 }
 
