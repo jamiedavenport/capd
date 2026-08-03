@@ -3,6 +3,7 @@ import KeyboardShortcuts
 import Testing
 
 @testable import CapApp
+@testable import CapAppUI
 
 @MainActor
 @Suite("Onboarding")

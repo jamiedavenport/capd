@@ -1,6 +1,6 @@
 import AppKit
+import CapAppUI
 import CapKit
-import KeyboardShortcuts
 import SwiftUI
 
 extension NSImage {
@@ -12,15 +12,6 @@ extension NSImage {
         image.isTemplate = true
         return image
     }
-}
-
-extension KeyboardShortcuts.Name {
-    // ⌃⌥Space is reserved by macOS for input-source switching.
-    static let search = Self("search", initial: .init(.space, modifiers: [.option, .shift]))
-
-    static let capture = Self("capture", initial: .init(.c, modifiers: [.control, .option]))
-
-    static let annotate = Self("annotate", initial: .init(.n, modifiers: [.control, .option]))
 }
 
 /// The cap menu-bar app.

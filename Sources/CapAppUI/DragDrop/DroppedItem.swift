@@ -1,12 +1,12 @@
 import AppKit
 
 /// One item of a drag, reduced to the representations cap can capture.
-struct DroppedItem: Equatable, Sendable {
-    var urlString: String? = nil
-    var urlTitle: String? = nil
-    var fileURL: URL? = nil
-    var string: String? = nil
-    var imagePNG: Data? = nil
+package struct DroppedItem: Equatable, Sendable {
+    package var urlString: String? = nil
+    package var urlTitle: String? = nil
+    package var fileURL: URL? = nil
+    package var string: String? = nil
+    package var imagePNG: Data? = nil
 }
 
 extension DroppedItem {

@@ -324,7 +324,7 @@ private final class HUDPanel: NSPanel {
 /// Owns the bar window: animates capture outcomes in and out and turns a click
 /// into the annotation flow. Display rules live in `HUDPresentation`.
 @MainActor
-final class HUDPanelController {
+package final class HUDPanelController {
     private let model = HUDModel()
     private let saveNote: (Int64, String) -> Void
     private let panel: HUDPanel
@@ -335,7 +335,7 @@ final class HUDPanelController {
     private var anchorScreen: NSScreen?
 
     /// Where dropped items go; set once the capture path exists.
-    var performDrop: (([DroppedItem]) -> Void)?
+    package var performDrop: (([DroppedItem]) -> Void)?
     private let dropView = DropTargetView()
     private var dropGeometry: NotchGeometry?
     /// A drop landed and its outcome toast hasn't arrived yet; the bar keeps its
@@ -343,7 +343,7 @@ final class HUDPanelController {
     private var dropPending = false
     private var dropWithdrawTask: Task<Void, Never>?
 
-    init(favicons: FaviconStore?, saveNote: @escaping (Int64, String) -> Void) {
+    package init(favicons: FaviconStore?, saveNote: @escaping (Int64, String) -> Void) {
         self.saveNote = saveNote
 
         let panel = HUDPanel(
@@ -386,7 +386,7 @@ final class HUDPanelController {
         dropView.onDrop = { [weak self] in self?.completeDrop($0) }
     }
 
-    func show(_ content: HUDContent) {
+    package func show(_ content: HUDContent) {
         apply(presentation.show(content))
         if dropGeometry != nil {
             // The bar is busy being a drop target; the toast takes over on withdrawal.
@@ -411,7 +411,7 @@ final class HUDPanelController {
 
     /// Tracks a system-wide drag; the bar offers itself when the drag nears a notch
     /// and withdraws when it wanders off.
-    func dragMoved(to mouse: NSPoint) {
+    package func dragMoved(to mouse: NSPoint) {
         if let notch = dropGeometry {
             if DropZonePolicy.withdraws(mouse: mouse, notch: notch, barFrame: panel.frame) {
                 withdrawDropTarget()
@@ -431,7 +431,7 @@ final class HUDPanelController {
     /// The monitor's mouse-up arrives before AppKit delivers the drop to `dropView`,
     /// so a release over the bar must not tear the target down — `completeDrop` is
     /// still coming. The timer only reaps a release that produced no drop.
-    func dragEnded() {
+    package func dragEnded() {
         guard let notch = dropGeometry else { return }
         let mouse = NSEvent.mouseLocation
         if DropZonePolicy.withdraws(mouse: mouse, notch: notch, barFrame: panel.frame) {
@@ -510,7 +510,7 @@ final class HUDPanelController {
         }
     }
 
-    func beginAnnotation() {
+    package func beginAnnotation() {
         // A hotkey landing mid-drag must not open the drawer under the drop face.
         guard dropGeometry == nil, presentation.beginAnnotation() else { return }
         dismissTask?.cancel()
@@ -708,4 +708,25 @@ final class HUDPanelController {
     private var reduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
+}
+
+@MainActor
+private func previewModel(variant: HUDModel.Variant) -> HUDModel {
+    let model = HUDModel()
+    model.variant = variant
+    model.content = HUDContent(
+        style: .captured, captureID: 1, headline: "Captured", detail: "example.com", kind: .link)
+    return model
+}
+
+#Preview("Pill") {
+    CaptureHUDView(
+        model: previewModel(variant: .pill),
+        beginAnnotation: {}, saveNote: {}, dismiss: {}, hoverChanged: { _ in })
+}
+
+#Preview("Notch") {
+    CaptureHUDView(
+        model: previewModel(variant: .notch(gap: 180, height: 38)),
+        beginAnnotation: {}, saveNote: {}, dismiss: {}, hoverChanged: { _ in })
 }

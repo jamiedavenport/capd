@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v26)],
     products: [
         .library(name: "CapKit", targets: ["CapKit"]),
+        .library(name: "CapAppUI", targets: ["CapAppUI"]),
         .executable(name: "cap", targets: ["CapCLI"]),
         .executable(name: "cap-agent", targets: ["CapAgent"]),
         .executable(name: "CapApp", targets: ["CapApp"]),
@@ -37,10 +38,18 @@ let package = Package(
             dependencies: ["CapKit"],
             resources: [.copy("Resources/dev.jxd.cap.agent.plist")]
         ),
+        .target(
+            name: "CapAppUI",
+            dependencies: [
+                "CapKit",
+                "KeyboardShortcuts",
+            ]
+        ),
         .executableTarget(
             name: "CapApp",
             dependencies: [
                 "CapKit",
+                "CapAppUI",
                 "KeyboardShortcuts",
             ],
             resources: [.process("Resources")]
@@ -64,6 +73,7 @@ let package = Package(
             name: "CapAppTests",
             dependencies: [
                 "CapApp",
+                "CapAppUI",
                 "CapKit",
                 .product(name: "GRDB", package: "GRDB.swift"),
             ]

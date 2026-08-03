@@ -16,11 +16,11 @@ private final class SearchPanel: NSPanel {
 /// Owns the search window: summons it Spotlight-style on the active screen, hands the
 /// keyboard to the query field, and dismisses on Escape or on losing focus.
 @MainActor
-final class SearchWindowController: NSObject, NSWindowDelegate {
+package final class SearchWindowController: NSObject, NSWindowDelegate {
     private let model: SearchModel
     private let panel: SearchPanel
 
-    init(environment: SearchEnvironment, favicons: FaviconStore?) {
+    package init(environment: SearchEnvironment, favicons: FaviconStore?) {
         model = SearchModel(environment: environment)
 
         let panel = SearchPanel(
@@ -51,7 +51,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         model.onDismiss = { [weak self] in self?.hide() }
     }
 
-    func toggle() {
+    package func toggle() {
         if panel.isVisible {
             hide()
         } else {
@@ -60,7 +60,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
     }
 
     /// Summons with a short fade-and-settle; dismissal is instant, like Spotlight.
-    func show() {
+    package func show() {
         model.activate()
         position()
         let final = panel.frame
@@ -87,7 +87,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         panel.orderOut(nil)
     }
 
-    func windowDidResignKey(_ notification: Notification) {
+    package func windowDidResignKey(_ notification: Notification) {
         hide()
     }
 

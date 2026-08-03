@@ -3,6 +3,7 @@ import Synchronization
 import Testing
 
 @testable import CapApp
+@testable import CapAppUI
 @testable import CapKit
 
 @MainActor

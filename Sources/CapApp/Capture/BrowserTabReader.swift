@@ -1,3 +1,4 @@
+import CapAppUI
 import Foundation
 
 /// A browser's frontmost tab, as reported by the browser itself.

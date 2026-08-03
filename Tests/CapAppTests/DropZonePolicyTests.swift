@@ -2,6 +2,7 @@ import CoreGraphics
 import Testing
 
 @testable import CapApp
+@testable import CapAppUI
 
 @Suite("DropZonePolicy")
 struct DropZonePolicyTests {

@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import CapAppUI
 import CapKit
 import KeyboardShortcuts
 import Observation

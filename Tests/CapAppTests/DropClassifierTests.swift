@@ -4,6 +4,7 @@ import Foundation
 import Testing
 
 @testable import CapApp
+@testable import CapAppUI
 
 @Suite("DropClassifier")
 struct DropClassifierTests {

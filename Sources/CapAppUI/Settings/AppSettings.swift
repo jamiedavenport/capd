@@ -5,34 +5,34 @@ import Observation
 /// inject a throwaway suite.
 @MainActor
 @Observable
-final class AppSettings {
+package final class AppSettings {
     private let defaults: UserDefaults
 
-    var fetchesPageBodies: Bool {
+    package var fetchesPageBodies: Bool {
         didSet { defaults.set(fetchesPageBodies, forKey: Key.fetchesPageBodies) }
     }
 
-    var hasCompletedOnboarding: Bool {
+    package var hasCompletedOnboarding: Bool {
         didSet { defaults.set(hasCompletedOnboarding, forKey: Key.hasCompletedOnboarding) }
     }
 
-    var checksForUpdates: Bool {
+    package var checksForUpdates: Bool {
         didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) }
     }
 
-    var axGrantedBefore: Bool {
+    package var axGrantedBefore: Bool {
         didSet { defaults.set(axGrantedBefore, forKey: Key.axGrantedBefore) }
     }
 
-    var lastUpdateCheck: Date? {
+    package var lastUpdateCheck: Date? {
         didSet { defaults.set(lastUpdateCheck, forKey: Key.lastUpdateCheck) }
     }
 
-    var latestKnownVersion: String? {
+    package var latestKnownVersion: String? {
         didSet { defaults.set(latestKnownVersion, forKey: Key.latestKnownVersion) }
     }
 
-    init(defaults: UserDefaults = .standard) {
+    package init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         fetchesPageBodies = defaults.object(forKey: Key.fetchesPageBodies) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)

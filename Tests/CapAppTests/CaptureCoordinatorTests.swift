@@ -4,6 +4,7 @@ import GRDB
 import Testing
 
 @testable import CapApp
+@testable import CapAppUI
 
 @MainActor
 @Suite("CaptureCoordinator")

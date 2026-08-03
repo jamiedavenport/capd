@@ -1,10 +1,14 @@
 import KeyboardShortcuts
 import SwiftUI
 
-struct SettingsView: View {
+package struct SettingsView: View {
     @Bindable var settings: AppSettings
 
-    var body: some View {
+    package init(settings: AppSettings) {
+        self.settings = settings
+    }
+
+    package var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             section("Hotkeys") {
                 row("Capture") {
@@ -78,4 +82,9 @@ struct SettingsView: View {
             .frame(height: 1)
             .padding(.leading, 12)
     }
+}
+
+#Preview {
+    let defaults = UserDefaults(suiteName: "dev.jxd.cap.preview")!
+    SettingsView(settings: AppSettings(defaults: defaults))
 }
