@@ -1,14 +1,11 @@
 import ApplicationServices
 
-/// Reads the frontmost tab out of a Gecko browser over Accessibility: Gecko has no
-/// Apple Events tab dictionary, but the content document is an `AXWebArea` carrying
-/// the page URL in `AXURL`.
+/// Reads the frontmost browser document over Accessibility from the largest `AXWebArea`.
 ///
-/// Best-effort like the other AX readers — a missing grant or a window with no web
-/// area comes back nil. Gecko builds its accessibility tree lazily on the first
-/// query, so a failed attempt gets one short-delay retry before giving up.
-enum GeckoTabReader {
-    @MainActor
+/// Best-effort like the other AX readers — a missing grant or a window with no web area
+/// comes back nil. Browsers may build their accessibility tree lazily on the first query,
+/// so a failed attempt gets one short-delay retry before giving up.
+enum AXBrowserTabReader {
     static func read(processIdentifier pid: pid_t) async -> BrowserTab? {
         if let tab = attempt(pid) { return tab }
         try? await Task.sleep(for: .milliseconds(150))
@@ -100,5 +97,11 @@ enum GeckoTabReader {
         var size = CGSize.zero
         guard AXValueGetValue((value as! AXValue), .cgSize, &size) else { return 0 }
         return size.width * size.height
+    }
+}
+
+enum GeckoTabReader {
+    static func read(processIdentifier pid: pid_t) async -> BrowserTab? {
+        await AXBrowserTabReader.read(processIdentifier: pid)
     }
 }

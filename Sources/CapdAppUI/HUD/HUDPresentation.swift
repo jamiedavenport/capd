@@ -85,6 +85,7 @@ extension HUDContent.Style {
         switch self {
         case .captured, .copied: .seconds(3)
         case .duplicate: .seconds(4)
+        case .insight: .seconds(6)
         case .blocked, .failed: .seconds(6)
         }
     }

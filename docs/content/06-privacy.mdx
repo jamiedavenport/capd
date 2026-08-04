@@ -44,6 +44,24 @@ version number. Updating is always manual.
 
 **Control it:** disable **Check weekly for a new version** in Settings.
 
+## Contextual reminders and link attribution
+
+Contextual reminders read the visible browser URL through Accessibility after
+you pause on a page. The URL is normalized and checked against the local capture
+database. Unmatched URLs and browsing history are not persisted, and no page is
+captured or fetched by this check.
+
+While reminders are enabled, ordinary links opened from Capd include
+`utm_source=capd.jxd.dev&utm_medium=app`. This tells the destination website's
+own analytics that Capd opened the link and lets Capd suppress a redundant
+reminder. Existing campaign parameters are not replaced, and Capd does not add
+attribution to local, signed, authentication, checkout, or payment URLs. A local
+suppression is also used, so reminder behavior does not depend on the website
+retaining these parameters.
+
+**Control it:** contextual observation and link attribution are both disabled
+when **Contextual reminders** is off.
+
 ## On-device processing
 
 Image text recognition uses Apple's Vision framework. Automatic topic tagging

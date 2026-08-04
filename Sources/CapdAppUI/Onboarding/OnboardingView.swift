@@ -327,13 +327,13 @@ struct OnboardingView: View {
 
     private var accessibilityTile: some View {
         permissionTile(
-            title: "Selected text",
+            title: "App context",
             symbol: "accessibility",
             status: model.axTrusted ? "Connected" : "Optional",
             statusColor: model.axTrusted ? Theme.success : Theme.textTertiary
         ) {
             if model.axTrusted {
-                permissionReady("Accessibility access granted.")
+                permissionReady("Can read selections and visible browser pages.")
             } else {
                 HStack(spacing: 8) {
                     Button("Allow…") { model.requestAccessibility() }
@@ -513,20 +513,51 @@ struct OnboardingView: View {
     }
 
     private var firstCapture: some View {
-        HStack(spacing: 14) {
-            GuidedAction(
-                number: "01",
-                title: "Capture something useful",
-                detail: "From any app, save the page, selection, link, or image in front of you.",
-                shortcut: model.captureShortcut ?? "⌃⌥C",
-                done: model.hasCaptured)
+        VStack(spacing: 14) {
+            HStack(spacing: 14) {
+                GuidedAction(
+                    number: "01",
+                    title: "Capture something useful",
+                    detail:
+                        "From any app, save the page, selection, link, or image in front of you.",
+                    shortcut: model.captureShortcut ?? "⌃⌥C",
+                    done: model.hasCaptured)
 
-            GuidedAction(
-                number: "02",
-                title: "Find it again",
-                detail: "Open Capd and search for a word you remember from the capture.",
-                shortcut: model.searchShortcut ?? "⌥⇧Space",
-                done: model.hasSearched)
+                GuidedAction(
+                    number: "02",
+                    title: "Find it again",
+                    detail: "Open Capd and search for a word you remember from the capture.",
+                    shortcut: model.searchShortcut ?? "⌥⇧Space",
+                    done: model.hasSearched)
+            }
+
+            Toggle(
+                isOn: Binding(
+                    get: { model.contextualRemindersEnabled },
+                    set: { model.setContextualRemindersEnabled($0) })
+            ) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Remind me when I revisit something I've saved")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Theme.text)
+                    Text(
+                        "Uses Accessibility to check visible URLs locally. Links opened from Capd include "
+                            + "capd.jxd.dev attribution."
+                    )
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .tint(Theme.success)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(Theme.raised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Theme.border, lineWidth: 1)
+            }
         }
         .overlay(alignment: .bottomLeading) {
             Label(
@@ -537,7 +568,7 @@ struct OnboardingView: View {
             )
             .font(.system(size: 10.5))
             .foregroundStyle(Theme.textTertiary)
-            .offset(y: 28)
+            .offset(y: 26)
         }
     }
 

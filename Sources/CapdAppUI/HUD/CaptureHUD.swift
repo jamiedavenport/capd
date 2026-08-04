@@ -285,6 +285,7 @@ struct CaptureHUDView: View {
         case .captured, .none: "checkmark"
         case .copied: "doc.on.doc"
         case .duplicate: "clock.arrow.circlepath"
+        case .insight: "sparkles"
         case .blocked: "lock.fill"
         case .failed: "exclamationmark.triangle.fill"
         }
@@ -294,6 +295,7 @@ struct CaptureHUDView: View {
         switch model.content?.style {
         case .captured, .copied, .none: Theme.success
         case .duplicate: .gray
+        case .insight: Theme.accent
         case .blocked, .failed: Theme.warning
         }
     }

@@ -51,6 +51,14 @@ struct HUDPresentationTests {
         #expect(presentation.display?.streak == 1)
     }
 
+    @Test("A contextual insight stays long enough to read")
+    func insightDuration() {
+        var presentation = HUDPresentation()
+        let insight = HUDContent(style: .insight, headline: "Saved 8 mo. ago")
+
+        #expect(presentation.show(insight) == .restart(.seconds(6)))
+    }
+
     @Test("A copied toast gets the success duration and no streak")
     func copiedDuration() {
         var presentation = HUDPresentation()

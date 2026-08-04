@@ -3,14 +3,14 @@ import Foundation
 /// Canonicalizes a link for hashing, so that cosmetic variants of one URL dedupe to one
 /// capture. The stored `url` column keeps the string as captured; only `content_hash` sees
 /// this form.
-enum URLNormalizer {
+public enum URLNormalizer {
     private static let trackingPrefixes = ["utm_"]
     private static let trackingNames: Set<String> = [
         "fbclid", "gclid", "gbraid", "wbraid", "msclkid", "twclid", "dclid",
         "mc_cid", "mc_eid", "igshid",
     ]
 
-    static func normalize(_ url: URL) -> String {
+    public static func normalize(_ url: URL) -> String {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return url.absoluteString
         }

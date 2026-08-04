@@ -20,6 +20,13 @@ package final class AppSettings {
         didSet { defaults.set(checksForUpdates, forKey: Key.checksForUpdates) }
     }
 
+    package var contextualRemindersEnabled: Bool {
+        didSet {
+            defaults.set(contextualRemindersEnabled, forKey: Key.contextualRemindersEnabled)
+            contextualRemindersChanged(contextualRemindersEnabled)
+        }
+    }
+
     package var axGrantedBefore: Bool {
         didSet { defaults.set(axGrantedBefore, forKey: Key.axGrantedBefore) }
     }
@@ -42,12 +49,16 @@ package final class AppSettings {
     /// Injected by the app; the inert default keeps previews and tests store-free.
     @ObservationIgnored package var saveAutoTags: (Bool) -> Void = { _ in }
 
+    @ObservationIgnored package var contextualRemindersChanged: (Bool) -> Void = { _ in }
+
     /// Nil when on-device tagging can run; otherwise why it cannot.
     package var autoTagsUnavailableReason: String?
 
     package init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         autoTagsCaptures = true
+        contextualRemindersEnabled =
+            defaults.object(forKey: Key.contextualRemindersEnabled) as? Bool ?? false
         fetchesPageBodies = defaults.object(forKey: Key.fetchesPageBodies) as? Bool ?? true
         hasCompletedOnboarding = defaults.bool(forKey: Key.hasCompletedOnboarding)
         checksForUpdates = defaults.object(forKey: Key.checksForUpdates) as? Bool ?? true
@@ -60,6 +71,7 @@ package final class AppSettings {
         static let fetchesPageBodies = "fetchesPageBodies"
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
         static let checksForUpdates = "checksForUpdates"
+        static let contextualRemindersEnabled = "contextualRemindersEnabled"
         static let axGrantedBefore = "axGrantedBefore"
         static let lastUpdateCheck = "lastUpdateCheck"
         static let latestKnownVersion = "latestKnownVersion"

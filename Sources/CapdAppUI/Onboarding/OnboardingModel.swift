@@ -27,6 +27,8 @@ package struct OnboardingEnvironment {
     var automationStatus: @MainActor (Browser) -> AutomationConsentStatus
     var requestAutomationConsent: @MainActor (Browser) async -> AutomationConsentStatus
     var captureCount: @MainActor () -> Int
+    var contextualRemindersEnabled: @MainActor () -> Bool
+    var setContextualRemindersEnabled: @MainActor (Bool) -> Void
     var installAgent: @MainActor () -> Void
     var isAgentLoaded: @MainActor () -> Bool
 
@@ -45,6 +47,8 @@ package struct OnboardingEnvironment {
         automationStatus: @escaping @MainActor (Browser) -> AutomationConsentStatus,
         requestAutomationConsent: @escaping @MainActor (Browser) async -> AutomationConsentStatus,
         captureCount: @escaping @MainActor () -> Int,
+        contextualRemindersEnabled: @escaping @MainActor () -> Bool,
+        setContextualRemindersEnabled: @escaping @MainActor (Bool) -> Void,
         installAgent: @escaping @MainActor () -> Void,
         isAgentLoaded: @escaping @MainActor () -> Bool
     ) {
@@ -62,6 +66,8 @@ package struct OnboardingEnvironment {
         self.automationStatus = automationStatus
         self.requestAutomationConsent = requestAutomationConsent
         self.captureCount = captureCount
+        self.contextualRemindersEnabled = contextualRemindersEnabled
+        self.setContextualRemindersEnabled = setContextualRemindersEnabled
         self.installAgent = installAgent
         self.isAgentLoaded = isAgentLoaded
     }
@@ -89,6 +95,7 @@ final class OnboardingModel {
     private(set) var pendingConsents: [Browser: Task<Void, Never>] = [:]
     private(set) var hasCaptured = false
     private(set) var hasSearched = false
+    private(set) var contextualRemindersEnabled = false
     private(set) var agentLoaded = false
 
     init(environment: OnboardingEnvironment) {
@@ -148,6 +155,11 @@ final class OnboardingModel {
         hasSearched = true
     }
 
+    func setContextualRemindersEnabled(_ enabled: Bool) {
+        contextualRemindersEnabled = enabled
+        environment.setContextualRemindersEnabled(enabled)
+    }
+
     func finish() {
         onFinished?()
     }
@@ -179,6 +191,7 @@ final class OnboardingModel {
         if !hasCaptured, environment.captureCount() > 0 {
             hasCaptured = true
         }
+        contextualRemindersEnabled = environment.contextualRemindersEnabled()
         runningBrowsers = environment.runningBrowsers().filter(\.supportsTabExtraction)
         for browser in runningBrowsers where pendingConsents[browser] == nil {
             consents[browser] = environment.automationStatus(browser)

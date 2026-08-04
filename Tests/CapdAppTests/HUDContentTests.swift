@@ -55,4 +55,46 @@ struct HUDContentTests {
         #expect(content.host == "example.com")
         #expect(!content.canAnnotate)
     }
+
+    @Test("A saved-page insight leads with the original note")
+    func savedPageShowsNote() {
+        let saved = Date(timeIntervalSinceReferenceDate: 1_000)
+        let capture = Capture(
+            id: 4,
+            kind: .link,
+            url: "https://example.com/a",
+            host: "example.com",
+            title: "A page",
+            note: "use this for onboarding",
+            createdAt: saved)
+
+        let content = HUDContent.previouslySaved(
+            capture, now: saved.addingTimeInterval(60 * 60 * 24 * 60))
+
+        #expect(content.style == .insight)
+        #expect(content.headline.hasPrefix("Saved "))
+        #expect(content.detail == "“use this for onboarding”")
+        #expect(content.host == "example.com")
+        #expect(!content.canAnnotate)
+    }
+
+    @Test("A revisited page shows its count and last visit without a note")
+    func savedPageShowsHistory() {
+        let saved = Date(timeIntervalSinceReferenceDate: 1_000)
+        let capture = Capture(
+            id: 4,
+            kind: .link,
+            url: "https://example.com/a",
+            host: "example.com",
+            title: "A page",
+            createdAt: saved,
+            lastSeenAt: saved.addingTimeInterval(60 * 60 * 24 * 20),
+            seenCount: 3)
+
+        let content = HUDContent.previouslySaved(
+            capture, now: saved.addingTimeInterval(60 * 60 * 24 * 60))
+
+        #expect(content.headline.contains("seen 3×"))
+        #expect(content.detail?.hasPrefix("Last seen ") == true)
+    }
 }
