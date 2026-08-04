@@ -40,6 +40,50 @@ extension Store {
         }
     }
 
+    /// Asks the agent to clear and regenerate every automatically assigned tag on its
+    /// next polling pass. The request lives in the shared store so the app never races
+    /// the agent, which remains the only process that writes tag assignments.
+    public func requestRetagging(now: Date = Date()) throws {
+        try dbPool.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE \(Schema.taxonomy)
+                    SET retag_requested = 1, updated_at = :now
+                    WHERE id = 1
+                    """,
+                arguments: ["now": now])
+        }
+    }
+
+    /// Consumes a manual retag request and returns the number of automatic assignments
+    /// reset. Pinned tags came from the capturer and remain untouched.
+    func consumeRetaggingRequest(now: Date = Date()) throws -> Int {
+        try dbPool.write { db in
+            let requested =
+                try Bool.fetchOne(
+                    db,
+                    sql: "SELECT retag_requested FROM \(Schema.taxonomy) WHERE id = 1") ?? false
+            guard requested else { return 0 }
+
+            let count =
+                try Capture
+                .filter(Capture.CodingKeys.tagsVersion > 0)
+                .updateAll(
+                    db,
+                    Capture.CodingKeys.tags.set(to: nil),
+                    Capture.CodingKeys.tagsVersion.set(to: 0),
+                    Capture.CodingKeys.updatedAt.set(to: now))
+            try db.execute(
+                sql: """
+                    UPDATE \(Schema.taxonomy)
+                    SET retag_requested = 0, updated_at = :now
+                    WHERE id = 1
+                    """,
+                arguments: ["now": now])
+            return count
+        }
+    }
+
     /// Captures the tagging pass still owes tags, oldest first. Rows mid-enrichment are
     /// skipped so tagging sees the page body once there is one.
     func untaggedCaptures(limit: Int) throws -> [Capture] {
@@ -204,9 +248,15 @@ extension Store {
     static func persistTaxonomy(_ taxonomy: Taxonomy, in db: Database) throws {
         try db.execute(
             sql: """
-                INSERT OR REPLACE INTO \(Schema.taxonomy)
+                INSERT INTO \(Schema.taxonomy)
                     (id, version, tags, tagged_since_consolidation, tagging_enabled, updated_at)
                 VALUES (1, :version, :tags, :tagged, :enabled, :now)
+                ON CONFLICT(id) DO UPDATE SET
+                    version = excluded.version,
+                    tags = excluded.tags,
+                    tagged_since_consolidation = excluded.tagged_since_consolidation,
+                    tagging_enabled = excluded.tagging_enabled,
+                    updated_at = excluded.updated_at
                 """,
             arguments: [
                 "version": taxonomy.version,

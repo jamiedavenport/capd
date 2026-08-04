@@ -36,6 +36,28 @@ struct TagServiceTests {
         }
     }
 
+    @Test("A manual request retags existing automatic assignments")
+    func manualRetagging() async throws {
+        try await withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            var capture = makeCapture(title: "SwiftUI field guide")
+            capture.tags = "old"
+            capture.tagsVersion = 1
+            let ids = try seed(store, [capture])
+            try store.requestRetagging()
+            let service = TagService(store: store, tagger: StubTagger { _ in ["swift"] })
+
+            #expect(try await service.tagNext() == 1)
+
+            let retagged = try await store.reader.read { db in
+                try Capture.fetchOne(db, key: ids[0])
+            }
+            let taxonomyVersion = try store.taxonomy().version
+            #expect(retagged?.tagList == ["swift"])
+            #expect(retagged?.tagsVersion == taxonomyVersion)
+        }
+    }
+
     @Test("A full taxonomy stops inventions but keeps matches")
     func fullTaxonomy() async throws {
         try await withTemporaryPaths { paths in

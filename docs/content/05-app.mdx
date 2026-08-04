@@ -33,7 +33,9 @@ so users can see the app has a deliberately small configuration surface.
   reminds you when its normalized URL is already saved. It is off until you
   explicitly enable it.
 - **Auto-tag captures on device** disables automatic topic tagging. Capd
-  explains when Apple Intelligence is unavailable.
+  explains when Apple Intelligence is unavailable. **Retag All** clears only
+  automatically assigned tags and asks the background helper to regenerate them;
+  tags supplied by an import are preserved.
 
 There is no configuration file. `CAPD_DIR` is the only environment variable; it
 changes the shared storage root for the app, helper, and CLI.

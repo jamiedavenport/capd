@@ -5,7 +5,14 @@ enum Migrations {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("001", migrate: createCaptures)
+        migrator.registerMigration("002", migrate: addRetagRequest)
         return migrator
+    }
+
+    static func addRetagRequest(_ db: Database) throws {
+        try db.alter(table: Schema.taxonomy) { t in
+            t.add(column: "retag_requested", .boolean).notNull().defaults(to: false)
+        }
     }
 
     static func createCaptures(_ db: Database) throws {

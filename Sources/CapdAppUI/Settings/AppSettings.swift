@@ -49,6 +49,9 @@ package final class AppSettings {
     /// Injected by the app; the inert default keeps previews and tests store-free.
     @ObservationIgnored package var saveAutoTags: (Bool) -> Void = { _ in }
 
+    /// Persists a request for the background agent to regenerate automatic tags.
+    @ObservationIgnored package var requestRetagging: () -> Void = {}
+
     @ObservationIgnored package var contextualRemindersChanged: (Bool) -> Void = { _ in }
 
     /// Nil when on-device tagging can run; otherwise why it cannot.

@@ -31,6 +31,8 @@ public struct TagService: Sendable {
         var taxonomy = try store.taxonomy()
         guard taxonomy.taggingEnabled else { return 0 }
 
+        _ = try store.consumeRetaggingRequest(now: now)
+
         let candidates = try store.untaggedCaptures(limit: batch)
         var processed = 0
         for capture in candidates {

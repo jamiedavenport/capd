@@ -50,6 +50,14 @@ package struct SettingsView: View {
                     toggle($settings.autoTagsCaptures)
                         .disabled(settings.autoTagsUnavailableReason != nil)
                 }
+                hairline
+                row("Regenerate automatic tags") {
+                    Button("Retag All", action: settings.requestRetagging)
+                        .controlSize(.small)
+                        .disabled(
+                            !settings.autoTagsCaptures
+                                || settings.autoTagsUnavailableReason != nil)
+                }
                 if let reason = settings.autoTagsUnavailableReason {
                     Text(reason)
                         .font(.system(size: 10.5))

@@ -15,13 +15,15 @@ index (weighted like `host`), so tag words match free-text queries too.
 The taxonomy is a single row in the `taxonomy` table: the ordered tag list, a
 `version`, a `tagged_since_consolidation` counter, and the `tagging_enabled` flag.
 The flag lives in the database rather than `UserDefaults` because `capd-agent` — a
-separate binary — has to obey it.
+separate binary — has to obey it. A `retag_requested` flag carries the manual
+Retag All action across the same process boundary.
 
 ## Single writer
 
 Tagging does not use the enrichment pipeline's claim protocol. `capd-agent` already
 holds an exclusive flock per store, so it is the only process that assigns tags or
-revises the taxonomy; the app and CLI are pure readers. That makes the
+revises the taxonomy; the app only changes the enabled and retag-request controls,
+and the CLI is a pure reader. That makes the
 `tags_version = 0` scan race-free without any claim machinery, and keeps model
 inference off the app's interactive path. `TagService` itself is process-agnostic —
 if Foundation Models ever proves unusable from a launchd agent, the same service can
@@ -60,3 +62,6 @@ only on mains power.
 - Tags flow through `capd export --json` with the rest of the capture fields.
 - The settings toggle writes through to the store and disables itself, with the
   reason, when Apple Intelligence is off or unavailable.
+- The Retag All settings action records a request in the taxonomy row. The agent
+  consumes it on its next poll, clears automatic assignments, and works through
+  them incrementally; imported pinned tags are preserved.
