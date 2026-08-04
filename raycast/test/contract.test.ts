@@ -119,7 +119,7 @@ describe("exit codes", () => {
 });
 
 describe("abort detection", () => {
-  it("recognises both shapes Node uses", () => {
+  it("recognizes both shapes Node uses", () => {
     expect(isAbort({ name: "AbortError" })).toBe(true);
     expect(isAbort({ code: "ABORT_ERR" })).toBe(true);
     expect(isAbort({ code: 1 })).toBe(false);
@@ -128,7 +128,7 @@ describe("abort detection", () => {
 });
 
 describe("add output", () => {
-  it("recognises a re-capture", () => {
+  it("recognizes a re-capture", () => {
     expect(wasAlreadyCaptured("Already captured #3 (2026-03-03): Notes — https://example.com")).toBe(true);
     expect(wasAlreadyCaptured("Captured #4: Notes — https://example.com")).toBe(false);
   });

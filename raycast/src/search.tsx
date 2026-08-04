@@ -42,11 +42,13 @@ export default function Command() {
       searchBarPlaceholder={PLACEHOLDER}
       throttle
     >
-      <List.EmptyView
-        icon={Icon.MagnifyingGlass}
-        title={query ? "No matching captures" : "Nothing captured yet"}
-        description={query ? "Try fewer words, or drop a site: or tag: filter." : "Press ⌃⌥C anywhere to capture."}
-      />
+      {isLoading ? null : (
+        <List.EmptyView
+          icon={Icon.MagnifyingGlass}
+          title={query ? "No matching captures" : "Nothing captured yet"}
+          description={query ? "Try fewer words, or drop a site: or tag: filter." : "Press ⌃⌥C anywhere to capture."}
+        />
+      )}
       {(data ?? []).map((hit) => (
         <List.Item
           key={hit.capture.id}

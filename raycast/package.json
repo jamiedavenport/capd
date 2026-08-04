@@ -48,7 +48,8 @@
       "required": false,
       "default": "25",
       "title": "Result Limit",
-      "description": "Maximum number of search results to show."
+      "description": "Maximum number of search results to show.",
+      "placeholder": "25"
     }
   ],
   "dependencies": {
