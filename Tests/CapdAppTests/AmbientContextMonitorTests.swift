@@ -41,6 +41,43 @@ struct AmbientContextMonitorTests {
         #expect(presented == [insight])
     }
 
+    @Test("A capture completed during lookup does not replace the capture HUD")
+    func captureDuringLookupSuppressesInsight() async throws {
+        let url = try #require(URL(string: "https://example.com/article"))
+        let capture = Capture(
+            id: 1,
+            kind: .link,
+            url: url.absoluteString,
+            host: "example.com",
+            createdAt: Date(timeIntervalSinceReferenceDate: 1_000))
+        let insight = ContextInsight(kind: .previouslySaved, capture: capture)
+        let suppressions = ContextSuppressionRegistry()
+        var presented: [ContextInsight] = []
+        let monitor = AmbientContextMonitor(
+            environment: AmbientContextEnvironment(
+                isSecureInputActive: { false },
+                frontmostTarget: {
+                    FrontmostTarget(
+                        bundleID: Browser.safari.rawValue,
+                        name: "Safari",
+                        processIdentifier: 1)
+                },
+                browserTab: { _, _ in BrowserTab(url: url.absoluteString) },
+                isSuppressed: { suppressions.contains($0) },
+                insight: { _ in
+                    await MainActor.run { suppressions.register(capture: capture) }
+                    return insight
+                },
+                present: { presented.append($0) },
+                now: { Date(timeIntervalSinceReferenceDate: 1_000) }),
+            policy: ContextReminderPolicy(dwellTime: 0))
+
+        await monitor.poll()
+        await monitor.poll()
+
+        #expect(presented.isEmpty)
+    }
+
     @Test("Secure input prevents browser observation")
     func secureInputStopsObservation() async throws {
         let url = try #require(URL(string: "https://example.com/article"))

@@ -2,6 +2,7 @@ import Foundation
 import Testing
 
 @testable import CapdApp
+@testable import CapdKit
 
 @Suite("Context URL policy")
 struct ContextURLPolicyTests {
@@ -64,5 +65,23 @@ struct ContextURLPolicyTests {
 
         #expect(registry.contains(attributed, now: now.addingTimeInterval(29)))
         #expect(!registry.contains(attributed, now: now.addingTimeInterval(31)))
+    }
+
+    @MainActor
+    @Test("Captured links register a local suppression")
+    func capturedLinkIsSuppressed() throws {
+        let registry = ContextSuppressionRegistry(lifetime: 30)
+        let url = try #require(URL(string: "https://example.com/article"))
+        let capture = Capture(
+            id: 1,
+            kind: .link,
+            url: url.absoluteString,
+            host: "example.com",
+            createdAt: Date(timeIntervalSinceReferenceDate: 1_000))
+        let now = Date(timeIntervalSinceReferenceDate: 1_000)
+
+        registry.register(capture: capture, now: now)
+
+        #expect(registry.contains(url, now: now))
     }
 }

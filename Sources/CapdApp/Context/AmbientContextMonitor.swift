@@ -55,7 +55,8 @@ final class AmbientContextMonitor {
         let action = policy.observe(
             url, externallySuppressed: environment.isSuppressed(url), now: environment.now())
         guard case .lookUp(let observation) = action,
-            let insight = await environment.insight(observation), policy.isCurrent(observation)
+            let insight = await environment.insight(observation),
+            !environment.isSuppressed(observation.url), policy.isCurrent(observation)
         else { return }
         environment.present(insight)
     }
