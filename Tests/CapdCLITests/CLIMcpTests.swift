@@ -63,7 +63,7 @@ struct CLIMcpTests {
             let tools = try #require(result(listed)["tools"] as? [[String: Any]])
             #expect(
                 tools.compactMap { $0["name"] as? String }
-                    == ["search_captures", "get_capture", "list_recent"])
+                    == ["search_captures", "get_capture", "list_recent", "ask_cap"])
 
             let searched = try roundTrip(
                 """

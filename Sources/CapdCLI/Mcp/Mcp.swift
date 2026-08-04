@@ -50,7 +50,7 @@ struct Mcp: ParsableCommand {
             .init(tools: toolbox.definitions)
         }
         await server.withMethodHandler(CallTool.self) { params in
-            toolbox.call(name: params.name, arguments: params.arguments ?? [:])
+            await toolbox.call(name: params.name, arguments: params.arguments ?? [:])
         }
 
         try await server.start(transport: StdioTransport())

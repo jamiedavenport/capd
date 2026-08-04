@@ -65,8 +65,8 @@ when **Contextual reminders** is off.
 ## On-device processing
 
 Image text recognition uses Apple's Vision framework. Automatic topic tagging
-uses Apple's on-device Foundation Models when Apple Intelligence is available.
-Captured content is not sent to a model service.
+and Ask Cap answers use Apple's on-device Foundation Models when Apple
+Intelligence is available. Captured content is not sent to a model service.
 
 **Control tagging:** disable **Auto-tag captures on device** in Settings. OCR
 continues to run locally for image captures.
@@ -74,8 +74,10 @@ continues to run locally for image captures.
 ## MCP and other tools
 
 The `capd mcp` server reads the local library and returns requested results over
-standard input and output. It does not make network requests itself. A connected
-AI assistant may process those results elsewhere, so its own privacy policy also
+standard input and output. Its `ask_cap` tool generates the answer on-device;
+the answer, citations, and bounded source excerpts then travel to the connected
+client. The server does not make network requests itself. A connected AI
+assistant may process those results elsewhere, so its own privacy policy also
 applies.
 
 ## App security and distribution
