@@ -7,5 +7,11 @@ dist/
 .swiftpm/
 DerivedData/
 
+# Raycast
+raycast/node_modules/
+raycast/dist/
+raycast/raycast-env.d.ts
+raycast/.raycast-swift-build/
+
 # macOS
 .DS_Store
