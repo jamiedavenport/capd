@@ -71,11 +71,12 @@ jobs:
       - name: Install
         run: npm ci
 
-      # `ray build` needs the Raycast app and a signed-in account, so CI checks the
-      # extension the way it can: types, lint, and the CLI-contract tests.
+      # `ray build` typechecks and, before that, generates raycast-env.d.ts from the
+      # manifest — the source uses those generated Preferences and Arguments types, so
+      # a bare `tsc` here would not compile.
       - name: Check
         run: |
-          npx tsc --noEmit
+          npx ray build -e dist
           npx eslint .
           npx prettier --check "src/**/*.{ts,tsx}" "test/**/*.ts"
           npx vitest run
