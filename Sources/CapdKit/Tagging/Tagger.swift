@@ -67,8 +67,20 @@ public protocol Tagger: Sendable {
         mayInventNew: Bool
     ) async throws -> [String]
 
+    /// Plans a coherent vocabulary from captures spread across the library before a
+    /// manual full-library retag. Implementations should treat `existing` as suggestions,
+    /// not a closed set.
+    func planTaxonomy(_ samples: [TaggingInput], existing: [String]) async throws -> [String]
+
     /// A revised taxonomy given how the current one is being used.
     func reviseTaxonomy(_ usage: [TagUsage]) async throws -> TaxonomyRevision
+}
+
+extension Tagger {
+    public func planTaxonomy(_ samples: [TaggingInput], existing: [String]) async throws -> [String]
+    {
+        existing
+    }
 }
 
 /// The consolidation outcome: the tags to keep and the renames that fold everything

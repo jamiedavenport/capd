@@ -65,6 +65,7 @@ struct CapdAgent {
             logger.info("capd-agent \(CapdKit.version, privacy: .public) started")
 
             Task {
+                var taggingRetry = TagRetryPolicy()
                 // At startup every `fetching` row was abandoned by a crash, except a
                 // capture the app is enriching this instant; stealing that one wastes a
                 // fetch but the state machine keeps both writers safe.
@@ -74,7 +75,18 @@ struct CapdAgent {
                     if ((try? enrichment.pendingCount()) ?? 0) > 0 {
                         await queue.drain()
                     }
-                    await tag(with: tagging)
+                    if taggingRetry.shouldAttempt() {
+                        do {
+                            try await tag(with: tagging)
+                            taggingRetry.recordSuccess()
+                        } catch {
+                            let delay = taggingRetry.recordFailure()
+                            let reason = String(describing: error)
+                            logger.error(
+                                "tagging failed; retrying in \(delay, privacy: .public)s: \(reason, privacy: .public)"
+                            )
+                        }
+                    }
                     try? await Task.sleep(for: pollInterval)
                 }
             }
@@ -87,22 +99,16 @@ struct CapdAgent {
         }
     }
 
-    private static func tag(with tagging: TagService) async {
-        do {
-            let onMains = PowerStatus.isOnMainsPower()
-            let batch = DrainPolicy.width(onMainsPower: onMains)
-            let processed = try await tagging.tagNext(batch: batch)
-            if processed > 0 {
-                logger.info("tagged \(processed) capture(s)")
-            }
-            // The sweep rewrites rows in bulk, so it waits for mains power.
-            if onMains, try await tagging.consolidateIfNeeded() {
-                logger.notice("consolidated the tag taxonomy")
-            }
-        } catch {
-            // Transient model failures wait for the next tick; the rows stay queued.
-            let reason = String(describing: error)
-            logger.error("tagging failed: \(reason, privacy: .public)")
+    private static func tag(with tagging: TagService) async throws {
+        let onMains = PowerStatus.isOnMainsPower()
+        let batch = DrainPolicy.width(onMainsPower: onMains)
+        let processed = try await tagging.tagNext(batch: batch)
+        if processed > 0 {
+            logger.info("tagged \(processed) capture(s)")
+        }
+        // The sweep rewrites rows in bulk, so it waits for mains power.
+        if onMains, try await tagging.consolidateIfNeeded() {
+            logger.notice("consolidated the tag taxonomy")
         }
     }
 

@@ -6,7 +6,14 @@ enum Migrations {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("001", migrate: createCaptures)
         migrator.registerMigration("002", migrate: addRetagRequest)
+        migrator.registerMigration("003", migrate: addRetagProgress)
         return migrator
+    }
+
+    static func addRetagProgress(_ db: Database) throws {
+        try db.alter(table: Schema.taxonomy) { t in
+            t.add(column: "retag_in_progress", .boolean).notNull().defaults(to: false)
+        }
     }
 
     static func addRetagRequest(_ db: Database) throws {

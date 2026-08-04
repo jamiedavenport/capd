@@ -67,7 +67,7 @@ struct StoreTaggingTests {
             let ids = try seed(store, [automaticallyTagged, processedWithoutTags, pinned])
 
             try store.requestRetagging()
-            #expect(try store.consumeRetaggingRequest() == 2)
+            #expect(try store.prepareRetagging(tags: ["planned"]) == 2)
 
             let captures = try store.reader.read { db in try Capture.fetchAll(db) }
             let automatic = captures.first { $0.id == ids[0] }
@@ -77,7 +77,8 @@ struct StoreTaggingTests {
             #expect(captures.first { $0.id == ids[2] }?.tags == "reading")
             #expect(
                 captures.first { $0.id == ids[2] }?.tagsVersion == Capture.pinnedTagsVersion)
-            #expect(try store.consumeRetaggingRequest() == 0)
+            #expect(try store.prepareRetagging(tags: ["planned"]) == 0)
+            #expect(try store.taxonomy().retagInProgress)
         }
     }
 
@@ -93,7 +94,7 @@ struct StoreTaggingTests {
             try store.requestRetagging()
             try store.saveTaxonomy(taxonomy)
 
-            #expect(try store.consumeRetaggingRequest() == 1)
+            #expect(try store.prepareRetagging(tags: ["planned"]) == 1)
         }
     }
 
@@ -118,6 +119,48 @@ struct StoreTaggingTests {
                     sql: "SELECT retag_requested FROM \(Schema.taxonomy) WHERE id = 1")
             }
             #expect(requested == true)
+        }
+    }
+
+    @Test("Migration 003 adds persisted retag progress")
+    func migratesRetagProgress() throws {
+        try withTemporaryPaths { paths in
+            try paths.createDirectories()
+            do {
+                let pool = try DatabasePool(path: paths.databaseURL.path)
+                var migrator = DatabaseMigrator()
+                migrator.registerMigration("001", migrate: Migrations.createCaptures)
+                migrator.registerMigration("002", migrate: Migrations.addRetagRequest)
+                try migrator.migrate(pool)
+                try pool.close()
+            }
+
+            let store = try Store(paths: paths)
+
+            #expect(try !store.taxonomy().retagInProgress)
+            let persisted = try store.reader.read { db in
+                try Bool.fetchOne(
+                    db,
+                    sql: "SELECT retag_in_progress FROM \(Schema.taxonomy) WHERE id = 1")
+            }
+            #expect(persisted == false)
+        }
+    }
+
+    @Test("Retag planning samples are evenly spread and exclude pinned captures")
+    func representativeRetaggingSamples() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            var captures = (1...9).map {
+                makeCapture(title: "Capture \($0)", enrichmentState: .ok)
+            }
+            captures[4].tags = "imported"
+            captures[4].tagsVersion = Capture.pinnedTagsVersion
+            _ = try seed(store, captures)
+
+            let samples = try store.retaggingSamples(limit: 3)
+
+            #expect(samples.map(\.title) == ["Capture 1", "Capture 4", "Capture 9"])
         }
     }
 
@@ -178,6 +221,22 @@ struct StoreTaggingTests {
             #expect(capture?.tagList == [])
             #expect(capture?.tagsVersion == taxonomy.version)
             #expect(try store.untaggedCaptures(limit: 10).isEmpty)
+        }
+    }
+
+    @Test("Completing the last queued capture ends the fixed retag pass")
+    func completingRetagging() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(store, [makeCapture(title: "Article", enrichmentState: .ok)])
+            try store.requestRetagging()
+            _ = try store.prepareRetagging(tags: ["swift"])
+            let taxonomy = try store.taxonomy()
+            #expect(taxonomy.retagInProgress)
+
+            try store.completeTagging(id: ids[0], tags: ["swift"], taxonomy: taxonomy)
+
+            #expect(try !store.taxonomy().retagInProgress)
         }
     }
 

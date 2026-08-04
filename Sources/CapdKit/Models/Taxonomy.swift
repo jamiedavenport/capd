@@ -12,6 +12,8 @@ public struct Taxonomy: Sendable, Equatable {
     public var tags: [String]
     public var taggedSinceConsolidation: Int
     public var taggingEnabled: Bool
+    /// True while a manual full-library pass is assigning against a fixed vocabulary.
+    public var retagInProgress: Bool
     public var updatedAt: Date
 
     public init(
@@ -19,12 +21,14 @@ public struct Taxonomy: Sendable, Equatable {
         tags: [String] = [],
         taggedSinceConsolidation: Int = 0,
         taggingEnabled: Bool = true,
+        retagInProgress: Bool = false,
         updatedAt: Date
     ) {
         self.version = version
         self.tags = tags
         self.taggedSinceConsolidation = taggedSinceConsolidation
         self.taggingEnabled = taggingEnabled
+        self.retagInProgress = retagInProgress
         self.updatedAt = updatedAt
     }
 }

@@ -53,6 +53,30 @@ public struct FoundationModelTagger: Tagger {
         }
     }
 
+    public func planTaxonomy(_ samples: [TaggingInput], existing: [String]) async throws -> [String]
+    {
+        let session = LanguageModelSession(
+            instructions: """
+                You design the global topic vocabulary for a bookmarking app. Choose a \
+                coherent set of at most \(Taxonomy.maxTags) broad, reusable tags that covers \
+                the whole sample. Merge overlapping topics and avoid tags that fit only one \
+                item. A tag is one lowercase word, or two joined by a hyphen.
+                """)
+        let current = existing.isEmpty ? "none" : existing.joined(separator: ", ")
+        let listing = samples.enumerated().map { index, input in
+            "\(index + 1). \(Self.describeForPlanning(input))"
+        }.joined(separator: "\n")
+
+        do {
+            let response = try await session.respond(
+                to: Prompt("Existing tags: \(current)\nRepresentative captures:\n\(listing)"),
+                generating: TaxonomyPlan.self)
+            return response.content.tags
+        } catch let error as LanguageModelSession.GenerationError {
+            throw Self.mapped(error)
+        }
+    }
+
     public func reviseTaxonomy(_ usage: [TagUsage]) async throws -> TaxonomyRevision {
         let session = LanguageModelSession(
             instructions: """
@@ -87,9 +111,10 @@ public struct FoundationModelTagger: Tagger {
 
     /// Guardrail refusals and window overflows would recur on retry, so they surface as
     /// ``TaggingError/contentRejected``; anything else is worth retrying later.
-    private static func mapped(_ error: LanguageModelSession.GenerationError) -> any Error {
+    static func mapped(_ error: LanguageModelSession.GenerationError) -> any Error {
         switch error {
-        case .guardrailViolation, .exceededContextWindowSize:
+        case .guardrailViolation, .exceededContextWindowSize, .refusal,
+            .unsupportedLanguageOrLocale:
             TaggingError.contentRejected
         case .assetsUnavailable:
             TaggingError.unavailable
@@ -109,11 +134,32 @@ public struct FoundationModelTagger: Tagger {
         if let excerpt = input.excerpt, !excerpt.isEmpty { lines.append("Content: \(excerpt)") }
         return lines.isEmpty ? "An untitled capture with no text." : lines.joined(separator: "\n")
     }
+
+    /// Keeps the whole planning prompt comfortably inside the model's small context window.
+    /// Titles and sites usually carry the topic; a short excerpt covers untitled captures.
+    private static func describeForPlanning(_ input: TaggingInput) -> String {
+        var parts: [String] = []
+        if let title = input.title, !title.isEmpty { parts.append("Title: \(title)") }
+        if let host = input.host, !host.isEmpty { parts.append("Site: \(host)") }
+        if let note = input.note, !note.isEmpty { parts.append("Note: \(note.prefix(120))") }
+        if let excerpt = input.excerpt, !excerpt.isEmpty {
+            parts.append("Excerpt: \(excerpt.prefix(240))")
+        }
+        return parts.isEmpty ? "Untitled capture" : parts.joined(separator: " | ")
+    }
 }
 
 @Generable
 private struct TagCandidates {
     @Guide(description: "Three candidate topic tags, best first", .count(3))
+    var tags: [String]
+}
+
+@Generable
+private struct TaxonomyPlan {
+    @Guide(
+        description: "Broad global topic tags, most useful first",
+        .maximumCount(Taxonomy.maxTags))
     var tags: [String]
 }
 

@@ -1,4 +1,5 @@
 import Foundation
+import FoundationModels
 import Synchronization
 import Testing
 
@@ -55,6 +56,56 @@ struct TagServiceTests {
             let taxonomyVersion = try store.taxonomy().version
             #expect(retagged?.tagList == ["swift"])
             #expect(retagged?.tagsVersion == taxonomyVersion)
+        }
+    }
+
+    @Test("A manual retag plans globally and keeps the vocabulary fixed across batches")
+    func plannedManualRetagging() async throws {
+        try await withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            var first = makeCapture(title: "SwiftUI field guide")
+            first.tags = "old"
+            first.tagsVersion = 1
+            var second = makeCapture(title: "Postgres tuning")
+            second.tags = "old"
+            second.tagsVersion = 1
+            let ids = try seed(store, [first, second])
+            try store.requestRetagging()
+
+            let observations = Mutex([(taxonomy: [String], mayInvent: Bool)]())
+            let service = TagService(
+                store: store,
+                tagger: PlanningStubTagger(
+                    plan: { samples, _ in
+                        #expect(
+                            samples.map(\.title) == [
+                                "SwiftUI field guide", "Postgres tuning",
+                            ])
+                        return ["Swift", "Databases"]
+                    },
+                    assign: { input, taxonomy, mayInvent in
+                        observations.withLock {
+                            $0.append((taxonomy: taxonomy, mayInvent: mayInvent))
+                        }
+                        return input.title?.hasPrefix("Swift") == true
+                            ? ["swift"] : ["databases", "novel"]
+                    }))
+
+            #expect(try await service.tagNext(batch: 1) == 1)
+            let during = try store.taxonomy()
+            #expect(during.tags == ["swift", "databases"])
+            #expect(during.retagInProgress)
+
+            #expect(try await service.tagNext(batch: 1) == 1)
+            let finished = try store.taxonomy()
+            #expect(!finished.retagInProgress)
+            #expect(finished.tags == ["swift", "databases"])
+            #expect(finished.taggedSinceConsolidation == 0)
+            #expect(observations.withLock { $0.allSatisfy { !$0.mayInvent } })
+
+            let captures = try await store.reader.read { db in try Capture.fetchAll(db) }
+            #expect(captures.first { $0.id == ids[0] }?.tagList == ["swift"])
+            #expect(captures.first { $0.id == ids[1] }?.tagList == ["databases"])
         }
     }
 
@@ -133,6 +184,44 @@ struct TagServiceTests {
             #expect(capture?.tagsVersion != 0)
             #expect(try store.untaggedCaptures(limit: 10).isEmpty)
         }
+    }
+
+    @Test("A rejected capture does not block later captures in its batch")
+    func rejectedContentContinuesBatch() async throws {
+        try await withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store, [makeCapture(title: "Refused"), makeCapture(title: "Tag me")])
+            let service = TagService(
+                store: store,
+                tagger: StubTagger { input in
+                    if input.title == "Refused" { throw TaggingError.contentRejected }
+                    return ["general"]
+                })
+
+            #expect(try await service.tagNext(batch: 2) == 2)
+
+            let captures = try await store.reader.read { db in try Capture.fetchAll(db) }
+            #expect(captures.first { $0.id == ids[0] }?.tagsVersion != 0)
+            #expect(captures.first { $0.id == ids[1] }?.tagList == ["general"])
+            #expect(try store.untaggedCaptures(limit: 10).isEmpty)
+        }
+    }
+
+    @Test("Model refusals and unsupported languages are terminal content failures")
+    func terminalFoundationModelErrors() {
+        let context = LanguageModelSession.GenerationError.Context(debugDescription: "test")
+        let refusal = LanguageModelSession.GenerationError.Refusal(transcriptEntries: [])
+        let errors: [LanguageModelSession.GenerationError] = [
+            .refusal(refusal, context),
+            .unsupportedLanguageOrLocale(context),
+        ]
+
+        for error in errors {
+            #expect(FoundationModelTagger.mapped(error) as? TaggingError == .contentRejected)
+        }
+        #expect(
+            FoundationModelTagger.mapped(.rateLimited(context)) as? TaggingError == nil)
     }
 
     @Test("A transient failure stops the batch and keeps the capture queued")
@@ -215,6 +304,27 @@ private struct StubTagger: Tagger {
         _ input: TaggingInput, taxonomy: [String], mayInventNew: Bool
     ) async throws -> [String] {
         try await result(input)
+    }
+
+    func reviseTaxonomy(_ usage: [TagUsage]) async throws -> TaxonomyRevision {
+        TaxonomyRevision(keep: [], merges: [:])
+    }
+}
+
+private struct PlanningStubTagger: Tagger {
+    let plan: @Sendable ([TaggingInput], [String]) async throws -> [String]
+    let assign: @Sendable (TaggingInput, [String], Bool) async throws -> [String]
+
+    func availability() -> TaggerAvailability { .available }
+
+    func assignTags(
+        _ input: TaggingInput, taxonomy: [String], mayInventNew: Bool
+    ) async throws -> [String] {
+        try await assign(input, taxonomy, mayInventNew)
+    }
+
+    func planTaxonomy(_ samples: [TaggingInput], existing: [String]) async throws -> [String] {
+        try await plan(samples, existing)
     }
 
     func reviseTaxonomy(_ usage: [TagUsage]) async throws -> TaxonomyRevision {

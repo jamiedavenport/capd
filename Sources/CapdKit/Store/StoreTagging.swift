@@ -55,9 +55,48 @@ extension Store {
         }
     }
 
-    /// Consumes a manual retag request and returns the number of automatic assignments
-    /// reset. Pinned tags came from the capturer and remain untouched.
-    func consumeRetaggingRequest(now: Date = Date()) throws -> Int {
+    func retaggingRequested() throws -> Bool {
+        try reader.read { db in
+            try Bool.fetchOne(
+                db, sql: "SELECT retag_requested FROM \(Schema.taxonomy) WHERE id = 1") ?? false
+        }
+    }
+
+    /// Captures spread evenly across the library, used to plan a coherent vocabulary before
+    /// a full retag. Only IDs are loaded for the whole library; full rows are fetched for the
+    /// bounded sample.
+    func retaggingSamples(limit: Int) throws -> [Capture] {
+        guard limit > 0 else { return [] }
+        return try reader.read { db in
+            let ids = try Int64.fetchAll(
+                db,
+                sql: """
+                    SELECT id FROM \(Schema.captures)
+                    WHERE tags_version != :pinned
+                        AND enrichment_state IN (:ok, :thin, :failed)
+                    ORDER BY id
+                    """,
+                arguments: [
+                    "pinned": Capture.pinnedTagsVersion,
+                    "ok": EnrichmentState.ok.rawValue,
+                    "thin": EnrichmentState.thin.rawValue,
+                    "failed": EnrichmentState.failed.rawValue,
+                ])
+            guard ids.count > limit, limit > 1 else {
+                return try ids.prefix(limit).compactMap { try Capture.fetchOne(db, key: $0) }
+            }
+
+            let selected = (0..<limit).map { index in
+                ids[index * (ids.count - 1) / (limit - 1)]
+            }
+            return try selected.compactMap { try Capture.fetchOne(db, key: $0) }
+        }
+    }
+
+    /// Atomically installs the planned fixed vocabulary, resets automatic assignments, and
+    /// starts the full-library pass. A concurrent request is consumed only by this write.
+    @discardableResult
+    func prepareRetagging(tags: [String], now: Date = Date()) throws -> Int {
         try dbPool.write { db in
             let requested =
                 try Bool.fetchOne(
@@ -73,13 +112,29 @@ extension Store {
                     Capture.CodingKeys.tags.set(to: nil),
                     Capture.CodingKeys.tagsVersion.set(to: 0),
                     Capture.CodingKeys.updatedAt.set(to: now))
+            let queued =
+                try Int.fetchOne(
+                    db,
+                    sql: """
+                        SELECT COUNT(*) FROM \(Schema.captures)
+                        WHERE tags_version = 0
+                        """) ?? 0
             try db.execute(
                 sql: """
                     UPDATE \(Schema.taxonomy)
-                    SET retag_requested = 0, updated_at = :now
+                    SET version = version + 1,
+                        tags = :tags,
+                        tagged_since_consolidation = 0,
+                        retag_requested = 0,
+                        retag_in_progress = :inProgress,
+                        updated_at = :now
                     WHERE id = 1
                     """,
-                arguments: ["now": now])
+                arguments: [
+                    "tags": tags.joined(separator: " "),
+                    "inProgress": queued > 0 && !tags.isEmpty,
+                    "now": now,
+                ])
             return count
         }
     }
@@ -127,6 +182,22 @@ extension Store {
                     "id": id,
                 ])
             try Self.persistTaxonomy(taxonomy, in: db)
+            if taxonomy.retagInProgress {
+                let queued =
+                    try Int.fetchOne(
+                        db,
+                        sql: "SELECT COUNT(*) FROM \(Schema.captures) WHERE tags_version = 0")
+                    ?? 0
+                if queued == 0 {
+                    try db.execute(
+                        sql: """
+                            UPDATE \(Schema.taxonomy)
+                            SET retag_in_progress = 0, updated_at = :now
+                            WHERE id = 1
+                            """,
+                        arguments: ["now": now])
+                }
+            }
         }
     }
 
@@ -242,6 +313,7 @@ extension Store {
             tags: joined.split(separator: " ").map(String.init),
             taggedSinceConsolidation: row["tagged_since_consolidation"],
             taggingEnabled: row["tagging_enabled"],
+            retagInProgress: row["retag_in_progress"],
             updatedAt: row["updated_at"])
     }
 
@@ -249,13 +321,15 @@ extension Store {
         try db.execute(
             sql: """
                 INSERT INTO \(Schema.taxonomy)
-                    (id, version, tags, tagged_since_consolidation, tagging_enabled, updated_at)
-                VALUES (1, :version, :tags, :tagged, :enabled, :now)
+                    (id, version, tags, tagged_since_consolidation, tagging_enabled,
+                     retag_in_progress, updated_at)
+                VALUES (1, :version, :tags, :tagged, :enabled, :retagging, :now)
                 ON CONFLICT(id) DO UPDATE SET
                     version = excluded.version,
                     tags = excluded.tags,
                     tagged_since_consolidation = excluded.tagged_since_consolidation,
                     tagging_enabled = excluded.tagging_enabled,
+                    retag_in_progress = excluded.retag_in_progress,
                     updated_at = excluded.updated_at
                 """,
             arguments: [
@@ -263,6 +337,7 @@ extension Store {
                 "tags": taxonomy.tags.joined(separator: " "),
                 "tagged": taxonomy.taggedSinceConsolidation,
                 "enabled": taxonomy.taggingEnabled,
+                "retagging": taxonomy.retagInProgress,
                 "now": taxonomy.updatedAt,
             ])
     }
