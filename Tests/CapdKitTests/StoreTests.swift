@@ -33,7 +33,7 @@ struct StoreTests {
                         "captures_on_created_at", "captures_on_host", "captures_on_url",
                         "captures_on_title", "captures_on_tags_version",
                     ])
-                #expect(applied == ["001", "002"])
+                #expect(applied == ["001", "002", "003"])
                 #expect(journalMode == "wal")
                 #expect(foreignKeys == 1)
             }
@@ -57,7 +57,7 @@ struct StoreTests {
                 let count = try Capture.fetchCount(db)
                 let survivor = try Capture.fetchOne(db)
 
-                #expect(applied == ["001", "002"])
+                #expect(applied == ["001", "002", "003"])
                 #expect(count == 1)
                 #expect(survivor?.title == "Durable")
             }
@@ -262,7 +262,7 @@ struct StoreTests {
             let store = try Store(paths: paths)
             try store.dbPool.write { db in
                 try db.execute(
-                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('003')")
+                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('004')")
             }
 
             #expect(throws: StoreError.databaseIsNewerThanApp) {

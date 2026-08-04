@@ -29,6 +29,30 @@ struct TaxonomyConsolidationTests {
         }
     }
 
+    @Test("A fixed full-library retag is never consolidated mid-pass")
+    func retaggingIsNotConsolidated() async throws {
+        try await withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            try seedTagged(store, [("A", "swift"), ("B", "databases")])
+            var taxonomy = try store.taxonomy()
+            taxonomy.tags = ["swift", "databases"]
+            taxonomy.taggedSinceConsolidation = TagService.consolidationInterval
+            taxonomy.retagInProgress = true
+            try store.saveTaxonomy(taxonomy)
+
+            let calls = Mutex(0)
+            let service = TagService(
+                store: store,
+                tagger: StubReviser { _ in
+                    calls.withLock { $0 += 1 }
+                    return TaxonomyRevision(keep: ["swift"], merges: [:])
+                })
+
+            #expect(try await service.consolidateIfNeeded() == false)
+            #expect(calls.withLock { $0 } == 0)
+        }
+    }
+
     @Test("A due sweep merges, drops, and requeues mechanically")
     func dueSweep() async throws {
         try await withTemporaryPaths { paths in

@@ -8,6 +8,7 @@ import Foundation
 public struct TagService: Sendable {
     public static let defaultBatch = 3
     public static let maxTagsPerCapture = 3
+    public static let retagSampleLimit = 12
     /// Taggings between consolidation sweeps: frequent enough that the taxonomy tracks
     /// what is actually being saved, rare enough that a sweep stays an exception.
     public static let consolidationInterval = 25
@@ -31,13 +32,30 @@ public struct TagService: Sendable {
         var taxonomy = try store.taxonomy()
         guard taxonomy.taggingEnabled else { return 0 }
 
-        _ = try store.consumeRetaggingRequest(now: now)
+        if try store.retaggingRequested() {
+            let captures = try store.retaggingSamples(limit: Self.retagSampleLimit)
+            let samples = captures.map(TaggingInput.init)
+            let planned: [String]
+            do {
+                planned = try await tagger.planTaxonomy(samples, existing: taxonomy.tags)
+            } catch let error as TaggingError where error == .contentRejected {
+                // A representative sample can itself trip a model refusal. Falling back to
+                // the existing vocabulary still lets the fixed full-library pass proceed.
+                planned = taxonomy.tags
+            }
+            let vocabulary = Self.sanitizeTags(planned)
+            _ = try store.prepareRetagging(
+                tags: vocabulary.isEmpty ? Self.sanitizeTags(taxonomy.tags) : vocabulary,
+                now: now)
+            taxonomy = try store.taxonomy()
+        }
 
         let candidates = try store.untaggedCaptures(limit: batch)
         var processed = 0
         for capture in candidates {
             guard let id = capture.id else { continue }
-            let mayInvent = taxonomy.tags.count < Taxonomy.maxTags
+            let mayInvent =
+                !taxonomy.retagInProgress && taxonomy.tags.count < Taxonomy.maxTags
 
             let accepted: [String]
             do {
@@ -50,7 +68,11 @@ public struct TagService: Sendable {
                 accepted = []
             }
 
-            taxonomy.taggedSinceConsolidation += 1
+            // The planned vocabulary already represents a consolidation of the library.
+            // Do not trigger another sweep immediately after the fixed pass finishes.
+            if !taxonomy.retagInProgress {
+                taxonomy.taggedSinceConsolidation += 1
+            }
             taxonomy.updatedAt = now
             try store.completeTagging(id: id, tags: accepted, taxonomy: taxonomy, now: now)
             processed += 1
@@ -67,6 +89,7 @@ public struct TagService: Sendable {
         guard tagger.availability() == .available else { return false }
         let taxonomy = try store.taxonomy()
         guard taxonomy.taggingEnabled else { return false }
+        guard !taxonomy.retagInProgress else { return false }
 
         let usage = try store.tagUsage(includePinned: false)
         let due =
@@ -110,6 +133,16 @@ public struct TagService: Sendable {
             mapping[source] = target
         }
         return (keep, mapping)
+    }
+
+    static func sanitizeTags(_ candidates: [String]) -> [String] {
+        var tags: [String] = []
+        for candidate in candidates {
+            guard tags.count < Taxonomy.maxTags else { break }
+            guard let tag = normalize(candidate), !tags.contains(tag) else { continue }
+            tags.append(tag)
+        }
+        return tags
     }
 
     /// Filters the model's candidates down to trustworthy tags: normalized, deduplicated,
