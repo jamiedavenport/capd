@@ -37,3 +37,11 @@ brew install jamiedavenport/tap/capd
 The extension finds `capd` inside the installed `capd.app` bundle, so a `.dmg` install works
 wherever you keep the app and no `PATH` setup is needed. If you keep `capd` somewhere unusual,
 set its full path in the extension's preferences.
+
+## Links
+
+- [Documentation](https://capd.jxd.dev) · [Capture](https://capd.jxd.dev/capture) ·
+  [Search](https://capd.jxd.dev/search) · [CLI and Raycast](https://capd.jxd.dev/cli)
+- [Source and releases](https://github.com/jamiedavenport/capd)
+- [Report an issue](https://github.com/jamiedavenport/capd/issues)
+- [Privacy](https://capd.jxd.dev/privacy)

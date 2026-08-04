@@ -6,6 +6,7 @@
   "icon": "extension-icon.png",
   "author": "jamie_davenport",
   "categories": ["Productivity", "Applications"],
+  "keywords": ["capd", "bookmarks", "bookmark manager", "read later", "pinboard", "full-text search"],
   "license": "MIT",
   "platforms": ["macOS"],
   "commands": [
