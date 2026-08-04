@@ -187,6 +187,7 @@ final class AppState {
         // flag cannot immediately write it back.
         settings.autoTagsCaptures = (try? store.taxonomy().taggingEnabled) ?? true
         settings.saveAutoTags = { try? store.setTaggingEnabled($0) }
+        settings.requestRetagging = { try? store.requestRetagging() }
         if case .unavailable(let reason) = FoundationModelTagger().availability() {
             settings.autoTagsUnavailableReason = reason.explanation
         }

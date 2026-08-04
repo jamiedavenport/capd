@@ -53,6 +53,74 @@ struct StoreTaggingTests {
         }
     }
 
+    @Test("A retag request resets automatic assignments but preserves imported tags")
+    func requestedRetagging() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let automaticallyTagged = makeCapture(
+                title: "Automatic", enrichmentState: .ok, tags: "swift")
+            var processedWithoutTags = makeCapture(
+                title: "No match", enrichmentState: .ok)
+            processedWithoutTags.tagsVersion = 1
+            var pinned = makeCapture(title: "Imported", enrichmentState: .ok, tags: "reading")
+            pinned.tagsVersion = Capture.pinnedTagsVersion
+            let ids = try seed(store, [automaticallyTagged, processedWithoutTags, pinned])
+
+            try store.requestRetagging()
+            #expect(try store.consumeRetaggingRequest() == 2)
+
+            let captures = try store.reader.read { db in try Capture.fetchAll(db) }
+            let automatic = captures.first { $0.id == ids[0] }
+            #expect(automatic?.tags == nil)
+            #expect(automatic?.tagsVersion == 0)
+            #expect(captures.first { $0.id == ids[1] }?.tagsVersion == 0)
+            #expect(captures.first { $0.id == ids[2] }?.tags == "reading")
+            #expect(
+                captures.first { $0.id == ids[2] }?.tagsVersion == Capture.pinnedTagsVersion)
+            #expect(try store.consumeRetaggingRequest() == 0)
+        }
+    }
+
+    @Test("Saving the taxonomy does not lose a concurrent retag request")
+    func taxonomySavePreservesRetagRequest() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            var capture = makeCapture(title: "Tagged", enrichmentState: .ok, tags: "swift")
+            capture.tagsVersion = 1
+            try seed(store, [capture])
+            let taxonomy = try store.taxonomy()
+
+            try store.requestRetagging()
+            try store.saveTaxonomy(taxonomy)
+
+            #expect(try store.consumeRetaggingRequest() == 1)
+        }
+    }
+
+    @Test("Migration 002 adds the retag request to an existing tagging store")
+    func migratesRetagRequest() throws {
+        try withTemporaryPaths { paths in
+            try paths.createDirectories()
+            do {
+                let pool = try DatabasePool(path: paths.databaseURL.path)
+                var migrator = DatabaseMigrator()
+                migrator.registerMigration("001", migrate: Migrations.createCaptures)
+                try migrator.migrate(pool)
+                try pool.close()
+            }
+
+            let store = try Store(paths: paths)
+            try store.requestRetagging()
+
+            let requested = try store.reader.read { db in
+                try Bool.fetchOne(
+                    db,
+                    sql: "SELECT retag_requested FROM \(Schema.taxonomy) WHERE id = 1")
+            }
+            #expect(requested == true)
+        }
+    }
+
     @Test("Only terminal untagged captures are offered for tagging, oldest first")
     func untaggedCaptures() throws {
         try withTemporaryPaths { paths in
