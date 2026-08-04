@@ -92,11 +92,32 @@ struct VersionCheckTests {
         let harness = Harness(tag: "v999.0.0")
         harness.settings.fetchesPageBodies = false
         harness.settings.checksForUpdates = false
+        harness.settings.contextualRemindersEnabled = true
 
         let relaunched = AppSettings(defaults: harness.defaults)
 
         #expect(relaunched.fetchesPageBodies == false)
         #expect(relaunched.checksForUpdates == false)
+        #expect(relaunched.contextualRemindersEnabled)
+    }
+
+    @Test("Contextual reminders default off")
+    func contextualRemindersDefaultOff() {
+        let harness = Harness(tag: "v999.0.0")
+
+        #expect(!harness.settings.contextualRemindersEnabled)
+    }
+
+    @Test("Changing contextual reminders updates the live monitor")
+    func contextualReminderCallback() {
+        let harness = Harness(tag: "v999.0.0")
+        var changes: [Bool] = []
+        harness.settings.contextualRemindersChanged = { changes.append($0) }
+
+        harness.settings.contextualRemindersEnabled = true
+        harness.settings.contextualRemindersEnabled = false
+
+        #expect(changes == [true, false])
     }
 
     @Test(

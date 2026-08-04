@@ -32,6 +32,19 @@ package struct SettingsView: View {
                     toggle($settings.checksForUpdates)
                 }
             }
+            section("Context") {
+                row("Contextual reminders") {
+                    toggle($settings.contextualRemindersEnabled)
+                }
+                Text(
+                    "Uses Accessibility to check the visible browser page locally after you pause. "
+                        + "Links opened from Capd include capd.jxd.dev attribution."
+                )
+                .font(.system(size: 10.5))
+                .foregroundStyle(Theme.textTertiary)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 8)
+            }
             section("Intelligence") {
                 row("Auto-tag captures on device") {
                     toggle($settings.autoTagsCaptures)

@@ -25,6 +25,8 @@ final class AppState {
     @ObservationIgnored private var search: SearchWindowController?
     @ObservationIgnored private var onboarding: OnboardingWindowController?
     @ObservationIgnored private var statusItemDrop: StatusItemDropTarget?
+    @ObservationIgnored private var contextMonitor: AmbientContextMonitor?
+    @ObservationIgnored private let contextSuppressions = ContextSuppressionRegistry()
     @ObservationIgnored private let dragMonitor = DragMonitor()
     @ObservationIgnored private var totalCaptures: (() -> Int)?
     @ObservationIgnored private var pinboardImporter: PinboardImporter?
@@ -186,10 +188,48 @@ final class AppState {
         }
 
         let searchService = SearchService(store: store)
+        let insightEngine = ContextInsightEngine(providers: [
+            PreviouslySavedInsightProvider(findCapture: { try searchService.capture(url: $0) })
+        ])
+        let contextMonitor = AmbientContextMonitor(
+            environment: AmbientContextEnvironment(
+                isSecureInputActive: {
+                    SystemSecureInputProbe().isSecureInputActive()
+                        || AXReader().isSecureInputActive()
+                },
+                frontmostTarget: { FrontmostTarget.current() },
+                browserTab: { _, target in
+                    await AXBrowserTabReader.read(processIdentifier: target.processIdentifier)
+                },
+                isSuppressed: { [contextSuppressions] in contextSuppressions.contains($0) },
+                insight: { await insightEngine.insight(for: $0) },
+                present: { insight in
+                    guard insight.kind == .previouslySaved else { return }
+                    hud.show(.previouslySaved(insight.capture, now: Date()))
+                },
+                now: Date.init))
+        self.contextMonitor = contextMonitor
+        settings.contextualRemindersChanged = { [weak contextMonitor] enabled in
+            if enabled {
+                contextMonitor?.start()
+            } else {
+                contextMonitor?.stop()
+            }
+        }
+        if settings.contextualRemindersEnabled {
+            contextMonitor.start()
+        }
+
         search = SearchWindowController(
             environment: .live(
                 searchService: searchService,
                 store: store,
+                openURL: { [settings, contextSuppressions] url in
+                    contextSuppressions.register(url)
+                    NSWorkspace.shared.open(
+                        CapdLinkAttribution.attributed(
+                            url, enabled: settings.contextualRemindersEnabled))
+                },
                 showHUD: { hud.show($0) }),
             favicons: favicons)
         totalCaptures = { (try? searchService.totalCaptureCount()) ?? 0 }
@@ -245,7 +285,7 @@ final class AppState {
         alert.informativeText =
             "macOS drops the grant when the app's code signature changes, such as after "
             + "an update. Until it's re-granted, capture can't read selected text and "
-            + "falls back to the clipboard."
+            + "falls back to the clipboard, and contextual reminders are suspended."
         alert.addButton(withTitle: "Open System Settings")
         alert.addButton(withTitle: "Later")
         NSApp.activate()
@@ -256,7 +296,9 @@ final class AppState {
 
     private func presentOnboarding() {
         let controller = OnboardingWindowController(
-            environment: .live(captureCount: { [weak self] in self?.totalCaptures?() ?? 0 }))
+            environment: .live(
+                settings: settings,
+                captureCount: { [weak self] in self?.totalCaptures?() ?? 0 }))
         controller.onFinished = { [weak self] in
             self?.settings.hasCompletedOnboarding = true
         }
@@ -279,7 +321,10 @@ extension PermissionMonitorEnvironment {
 }
 
 extension OnboardingEnvironment {
-    static func live(captureCount: @escaping @MainActor () -> Int) -> OnboardingEnvironment {
+    static func live(
+        settings: AppSettings,
+        captureCount: @escaping @MainActor () -> Int
+    ) -> OnboardingEnvironment {
         OnboardingEnvironment(
             shortcut: { KeyboardShortcuts.getShortcut(for: $0) },
             isShortcutTakenBySystem: { $0.isTakenBySystem },
@@ -320,6 +365,8 @@ extension OnboardingEnvironment {
                 }.value
             },
             captureCount: captureCount,
+            contextualRemindersEnabled: { settings.contextualRemindersEnabled },
+            setContextualRemindersEnabled: { settings.contextualRemindersEnabled = $0 },
             installAgent: { AgentBootstrap.installAgent() },
             isAgentLoaded: { AgentBootstrap.isAgentLoaded() })
     }
@@ -337,6 +384,7 @@ extension SearchEnvironment {
     static func live(
         searchService: SearchService,
         store: Store,
+        openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) },
         showHUD: @escaping @MainActor (HUDContent) -> Void
     ) -> SearchEnvironment {
         let answers = LibraryAnswerService(search: searchService)
@@ -350,7 +398,7 @@ extension SearchEnvironment {
             openCapture: { id in
                 guard let capture = try? searchService.capture(id: id) else { return }
                 if let rawURL = capture.url, let url = URL(string: rawURL) {
-                    NSWorkspace.shared.open(url)
+                    openURL(url)
                 } else if let path = capture.assetPath {
                     NSWorkspace.shared.open(store.paths.assetURL(forRelativePath: path))
                 } else if let text =
@@ -370,7 +418,7 @@ extension SearchEnvironment {
                 else { return }
                 NSWorkspace.shared.open(url)
             },
-            openURL: { NSWorkspace.shared.open($0) },
+            openURL: openURL,
             copyText: { text in
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()

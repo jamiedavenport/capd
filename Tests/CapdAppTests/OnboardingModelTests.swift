@@ -175,6 +175,17 @@ struct OnboardingModelTests {
         #expect(harness.model.hasSearched)
     }
 
+    @Test("Contextual reminders require an explicit onboarding choice")
+    func contextualReminderChoice() {
+        let harness = Harness()
+        #expect(!harness.model.contextualRemindersEnabled)
+
+        harness.model.setContextualRemindersEnabled(true)
+
+        #expect(harness.contextualRemindersEnabled)
+        #expect(harness.model.contextualRemindersEnabled)
+    }
+
     @Test("Finishing reports completion")
     func finishReports() {
         let harness = Harness()
@@ -213,6 +224,7 @@ private final class Harness {
     var captureCount = 0
     var installCalls = 0
     var agentLoaded = false
+    var contextualRemindersEnabled = false
     var finished = 0
     var deferred = 0
 
@@ -245,6 +257,10 @@ private final class Harness {
                     return promptResult
                 },
                 captureCount: { [unowned self] in captureCount },
+                contextualRemindersEnabled: { [unowned self] in contextualRemindersEnabled },
+                setContextualRemindersEnabled: { [unowned self] in
+                    contextualRemindersEnabled = $0
+                },
                 installAgent: { [unowned self] in installCalls += 1 },
                 isAgentLoaded: { [unowned self] in agentLoaded }))
         model.onFinished = { [unowned self] in finished += 1 }

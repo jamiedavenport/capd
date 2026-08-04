@@ -498,6 +498,24 @@ struct SearchServiceTests {
             #expect(try service.capture(id: ids[0] + 1) == nil)
         }
     }
+
+    @Test("A capture is fetchable by a normalized URL identity")
+    func captureByURL() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let captured = try CaptureService(store: store).ingest(
+                CaptureRequest(url: "https://Example.com/article?utm_source=newsletter#section")
+            )
+            .capture
+            let service = SearchService(store: store)
+
+            let revisited = try #require(
+                URL(string: "https://example.com/article?utm_source=capd.jxd.dev"))
+            #expect(try service.capture(url: revisited)?.id == captured.id)
+            #expect(
+                try service.capture(url: URL(string: "https://example.com/other")!) == nil)
+        }
+    }
 }
 
 private func withTemporaryPaths(_ body: (StoragePaths) throws -> Void) throws {

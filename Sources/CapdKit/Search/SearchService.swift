@@ -39,6 +39,14 @@ public struct SearchService: Sendable {
         try reader.read { db in try Capture.fetchOne(db, key: id) }
     }
 
+    /// Finds the saved page represented by a URL after applying capture's canonicalization.
+    public func capture(url: URL) throws -> Capture? {
+        let hash = CaptureIdentity.contentHash(for: url)
+        return try reader.read { db in
+            try Capture.filter(Capture.CodingKeys.contentHash == hash).fetchOne(db)
+        }
+    }
+
     /// The whole library's size, for the search window's "N of M captures" footer.
     public func totalCaptureCount() throws -> Int {
         try reader.read { db in try Capture.fetchCount(db) }

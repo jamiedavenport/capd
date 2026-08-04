@@ -29,11 +29,26 @@ so users can see the app has a deliberately small configuration surface.
 - **Fetch page content for link captures** disables Capd's own article fetches.
   Content read directly from an open browser tab is unaffected.
 - **Check weekly for a new version** disables the GitHub Releases check.
+- **Contextual reminders** watches the visible page in supported browsers and
+  reminds you when its normalized URL is already saved. It is off until you
+  explicitly enable it.
 - **Auto-tag captures on device** disables automatic topic tagging. Capd
   explains when Apple Intelligence is unavailable.
 
 There is no configuration file. `CAPD_DIR` is the only environment variable; it
 changes the shared storage root for the app, helper, and CLI.
+
+## Contextual reminders
+
+With contextual reminders enabled, Capd waits until you have stayed on a page
+for two seconds, then checks its normalized URL against the local capture
+database. A match shows the original capture date and note, or its saved title
+and revisit history when it has no note. Each page appears at most once per app
+session.
+
+The monitor does not save pages, increment capture counts, copy page content, or
+persist browsing history. Secure input suspends it. Opening a result from Capd
+suppresses the reminder because the saved context is already visible in search.
 
 ## Where your data lives
 
@@ -53,9 +68,10 @@ portable data export, but captured image files remain in `assets/`.
 
 Capd requests two optional macOS permissions:
 
-- **Accessibility** reads selected text, detects secure fields, and reads tab
-  details from Firefox-based browsers. Without it, the hotkey uses clipboard
-  fallback and cannot inspect a current Firefox-based tab.
+- **Accessibility** reads selected text, detects secure fields, and—when contextual
+  reminders are enabled—the visible tab details exposed by supported browsers.
+  Without it, the hotkey uses clipboard fallback and contextual reminders are
+  suspended.
 - **Automation** asks Safari, Chrome, and Arc for the front tab's address and
   title. macOS stores consent separately for each browser.
 

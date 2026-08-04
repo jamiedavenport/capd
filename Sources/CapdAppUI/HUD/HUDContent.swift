@@ -2,10 +2,11 @@ import CapdKit
 import Foundation
 
 /// What the toast says about one capture attempt.
-package struct HUDContent: Equatable {
-    enum Style: Equatable {
+package struct HUDContent: Equatable, Sendable {
+    enum Style: Equatable, Sendable {
         case captured
         case duplicate
+        case insight
         case copied
         case blocked
         case failed
@@ -66,6 +67,25 @@ package struct HUDContent: Equatable {
             host: capture.kind == .link ? capture.host : nil)
     }
 
+    package static func previouslySaved(_ capture: Capture, now: Date) -> HUDContent {
+        let age = relativeDescription(of: capture.createdAt, to: now)
+        let count = capture.seenCount > 1 ? " · seen \(capture.seenCount)×" : ""
+        let detail: String?
+        if let note = normalizedLine(capture.note) {
+            detail = "“\(note)”"
+        } else if capture.seenCount > 1 {
+            detail = "Last seen \(relativeDescription(of: capture.lastSeenAt, to: now))"
+        } else {
+            detail = subject(of: capture)
+        }
+        return HUDContent(
+            style: .insight,
+            headline: "Saved \(age)\(count)",
+            detail: detail,
+            kind: capture.kind,
+            host: capture.kind == .link ? capture.host : nil)
+    }
+
     package static func blocked() -> HUDContent {
         HUDContent(style: .blocked, headline: "Capture blocked", detail: "Secure input is active.")
     }
@@ -95,5 +115,13 @@ package struct HUDContent: Equatable {
     private static func joined(_ parts: String?...) -> String? {
         let joined = parts.compactMap { $0 }.joined(separator: "\n")
         return joined.isEmpty ? nil : joined
+    }
+
+    private static func normalizedLine(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let line = value.split(whereSeparator: \.isNewline).first?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let line, !line.isEmpty else { return nil }
+        return String(line.prefix(120))
     }
 }

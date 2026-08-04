@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 public enum CaptureError: Error, Equatable, Sendable {
@@ -99,7 +98,7 @@ public struct CaptureService: Sendable {
                 // A link captured with no fetch is born terminal, and `ok -> pending` stays a
                 // legal transition so a later refetch can put it back in the queue.
                 enrichmentState: request.fetchBody ? .pending : .ok,
-                contentHash: Self.hexDigest(of: Data(URLNormalizer.normalize(url).utf8)),
+                contentHash: CaptureIdentity.contentHash(for: url),
                 createdAt: request.capturedAt
             )
 
@@ -115,12 +114,12 @@ public struct CaptureService: Sendable {
                 tags: tags,
                 tagsVersion: tagsVersion,
                 enrichmentState: .ok,
-                contentHash: Self.hexDigest(of: Data(text.utf8)),
+                contentHash: CaptureIdentity.contentHash(for: Data(text.utf8)),
                 createdAt: request.capturedAt
             )
 
         case .image(let imageData):
-            let digest = Self.hexDigest(of: imageData)
+            let digest = CaptureIdentity.contentHash(for: imageData)
             return Capture(
                 kind: .image,
                 title: request.title,
@@ -165,9 +164,5 @@ public struct CaptureService: Sendable {
             return nil
         }
         return trimmed
-    }
-
-    private static func hexDigest(of data: Data) -> String {
-        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 }
