@@ -339,11 +339,37 @@ extension SearchEnvironment {
         store: Store,
         showHUD: @escaping @MainActor (HUDContent) -> Void
     ) -> SearchEnvironment {
-        SearchEnvironment(
+        let answers = LibraryAnswerService(search: searchService)
+        return SearchEnvironment(
             search: { try searchService.search($0) },
             totalCount: { try searchService.totalCaptureCount() },
             tags: { try store.tagUsage().map(\.tag) },
+            answerAvailability: { answers.availability() },
+            answer: { try await answers.answer($0) },
             delete: { _ = try store.deleteCaptures(ids: [$0]) },
+            openCapture: { id in
+                guard let capture = try? searchService.capture(id: id) else { return }
+                if let rawURL = capture.url, let url = URL(string: rawURL) {
+                    NSWorkspace.shared.open(url)
+                } else if let path = capture.assetPath {
+                    NSWorkspace.shared.open(store.paths.assetURL(forRelativePath: path))
+                } else if let text =
+                    capture.selection ?? capture.body ?? capture.ocrText ?? capture.note
+                    ?? capture.title
+                {
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(text, forType: .string)
+                    showHUD(.copied(capture))
+                }
+            },
+            openIntelligenceSettings: {
+                guard
+                    let url = URL(
+                        string: "x-apple.systempreferences:com.apple.Siri-Settings.extension")
+                else { return }
+                NSWorkspace.shared.open(url)
+            },
             openURL: { NSWorkspace.shared.open($0) },
             copyText: { text in
                 let pasteboard = NSPasteboard.general

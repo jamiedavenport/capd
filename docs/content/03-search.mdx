@@ -12,6 +12,28 @@ word is treated as a prefix, so `concur` can find *concurrency*.
 
 ![Search saved content in Capd](/search-window.gif)
 
+## Ask Cap
+
+When Apple Intelligence is available, every non-empty search includes an **Ask
+Cap** row above the matching captures. Click it to answer the query using the
+best matches from your library. You can also start a query with `?` and press
+Return:
+
+```text
+? Compare what I saved about local-first software
+```
+
+The answer replaces the result list while it is being assembled. Every claim
+has a numbered citation; click a citation or a source below the answer to open
+the original capture. Press Escape to return to the search results, or
+Command-Return to copy the answer with its citations.
+
+Retrieval and answer generation happen locally. Ask Cap uses Apple's on-device
+Foundation Model and works without a network connection once Apple Intelligence
+is ready. On an unsupported Mac the Ask Cap row is hidden. Starting a query
+with `?` explains why the feature is unavailable and, when appropriate, links
+to Apple Intelligence settings.
+
 ## Keyboard shortcuts
 
 | Key | Action |
@@ -21,7 +43,7 @@ word is treated as a prefix, so `concur` can find *concurrency*.
 | ↩ | Open a link or image; copy a text capture |
 | ⌘↩ | Copy the URL or captured text |
 | ⌘⇧⌫ | Delete the selected capture |
-| Esc | Close search |
+| Esc | Return from an answer, or close search |
 
 You can also click a tag to filter or click a result to open it.
 

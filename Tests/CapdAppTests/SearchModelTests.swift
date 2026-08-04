@@ -351,11 +351,101 @@ struct SearchModelTests {
         #expect(log.dismissed == 0)
         #expect(model.selectedIndex == 0)
     }
+
+    @Test("Ask Cap publishes a cited answer without dismissing search")
+    func askCapAnswers() async {
+        let answer = makeAnswer()
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [] },
+                answerAvailability: { .available },
+                answer: { question in
+                    #expect(question == "swift cancellation")
+                    return answer
+                }))
+        model.queryText = "swift cancellation"
+
+        model.askCap()
+        #expect(model.isAnswering)
+        await model.settle()
+
+        #expect(model.libraryAnswer == answer)
+        #expect(model.answerError == nil)
+        #expect(model.isAnswerMode)
+    }
+
+    @Test("A question-mark query makes Return ask instead of opening a result")
+    func questionMarkSubmit() async {
+        let log = ActionLog()
+        let seen = Mutex<[String]>([])
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [makeHit(id: 1)] },
+                answerAvailability: { .available },
+                answer: { question in
+                    seen.withLock { $0.append(question) }
+                    return makeAnswer()
+                },
+                openURL: { log.opened.append($0) }))
+        model.queryText = "? What did I save about Swift?"
+        await model.settle()
+
+        model.submit()
+        await model.settle()
+
+        #expect(seen.withLock { $0 } == ["What did I save about Swift?"])
+        #expect(log.opened.isEmpty)
+        #expect(model.libraryAnswer != nil)
+    }
+
+    @Test("Editing the query keeps a stale answer from publishing")
+    func editingCancelsAnswer() async {
+        let gate = Gate()
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [] },
+                answerAvailability: { .available },
+                answer: { _ in
+                    await gate.wait()
+                    return makeAnswer()
+                }))
+        model.queryText = "first question"
+        model.askCap()
+        #expect(model.isAnswering)
+
+        model.queryText = "second question"
+        gate.open()
+        await model.settle()
+
+        #expect(!model.isAnswerMode)
+        #expect(model.libraryAnswer == nil)
+    }
+
+    @Test("Citations open their capture and dismiss")
+    func openCitation() async {
+        let log = ActionLog()
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [] },
+                answerAvailability: { .available },
+                answer: { _ in makeAnswer() },
+                openCapture: { log.openedCaptures.append($0) }))
+        model.onDismiss = { log.dismissed += 1 }
+        model.queryText = "swift"
+        model.askCap()
+        await model.settle()
+
+        model.openAnswerSource(1)
+
+        #expect(log.openedCaptures == [42])
+        #expect(log.dismissed == 1)
+    }
 }
 
 @MainActor
 private final class ActionLog {
     var opened: [URL] = []
+    var openedCaptures: [Int64] = []
     var copied: [String] = []
     var deleted: [Int64] = []
     var toasts: [HUDContent] = []
@@ -424,7 +514,14 @@ extension SearchEnvironment {
         search: @escaping @Sendable (String) async throws -> [SearchHit],
         totalCount: @escaping @Sendable () async throws -> Int = { 0 },
         tags: @escaping @Sendable () async throws -> [String] = { [] },
+        answerAvailability: @escaping @Sendable () -> LibraryAnswerAvailability = {
+            .unavailable(.unknown)
+        },
+        answer: @escaping @Sendable (String) async throws -> LibraryAnswer = { _ in
+            throw LibraryAnswerError.unavailable(.unknown)
+        },
         delete: @escaping @MainActor (Int64) throws -> Void = { _ in },
+        openCapture: @escaping @MainActor (Int64) -> Void = { _ in },
         openURL: @escaping @MainActor (URL) -> Void = { _ in },
         copyText: @escaping @MainActor (String) -> Void = { _ in },
         assetFileURL: @escaping @MainActor (String) -> URL? = { _ in nil },
@@ -434,10 +531,31 @@ extension SearchEnvironment {
             search: search,
             totalCount: totalCount,
             tags: tags,
+            answerAvailability: answerAvailability,
+            answer: answer,
             delete: delete,
+            openCapture: openCapture,
             openURL: openURL,
             copyText: copyText,
             assetFileURL: assetFileURL,
             showHUD: showHUD)
     }
+}
+
+private func makeAnswer() -> LibraryAnswer {
+    LibraryAnswer(
+        question: "swift cancellation",
+        passages: [
+            .init(text: "Cancellation is cooperative.", citations: [1])
+        ],
+        sources: [
+            .init(
+                number: 1,
+                captureID: 42,
+                kind: .link,
+                title: "Swift cancellation",
+                url: "https://example.com/swift",
+                host: "example.com",
+                excerpt: "Cancellation is cooperative.")
+        ])
 }

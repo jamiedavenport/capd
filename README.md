@@ -19,6 +19,8 @@ No account. No subscription. No telemetry. Your library stays on your Mac.
   bar or notch, use the macOS share sheet, or run the `capd` CLI.
 - **Search more than bookmarks.** Capd indexes page titles, readable article
   text, selections, notes, and text recognized inside images.
+- **Ask your library.** Get private, on-device answers with clickable citations
+  to the captures behind each claim.
 - **Stay organized automatically.** On-device tagging groups captures into a
   small, useful vocabulary without sending their contents anywhere.
 - **Use your library everywhere.** Search in the native app, automate with the
@@ -69,6 +71,10 @@ Use natural keywords or narrow the results with site, tag, and date filters:
 swift concurrency site:swift.org tag:development after:2026-01-01
 ```
 
+Click **Ask Cap**, or prefix a question with `?`, to assemble an answer from the
+best matches. Apple Intelligence generates the answer on-device and every claim
+links back to its source capture.
+
 ![Search saved content in Capd](./docs/public/search-window.gif)
 
 [Learn how search works](https://capd.jxd.dev/search).
@@ -85,8 +91,8 @@ capd export --format markdown
 capd mcp
 ```
 
-`capd mcp` exposes read-only search tools to compatible AI assistants. The CLI
-also provides stable JSON output for scripts.
+`capd mcp` exposes read-only search and cited-answer tools to compatible AI
+assistants. The CLI also provides stable JSON output for scripts.
 
 [See the CLI reference](https://capd.jxd.dev/cli).
 
