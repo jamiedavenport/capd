@@ -160,7 +160,11 @@ final class AppState {
         coordinator = CaptureCoordinator(
             environment: .live(
                 fetchBody: { settings.fetchesPageBodies },
-                ingest: { try captureService.ingest($0) },
+                ingest: { [contextSuppressions] request in
+                    let outcome = try captureService.ingest(request)
+                    contextSuppressions.register(capture: outcome.capture)
+                    return outcome
+                },
                 enrich: { capture in
                     guard let id = capture.id else { return }
                     _ = try? await enrichment.process(captureID: id)

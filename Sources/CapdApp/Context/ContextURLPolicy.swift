@@ -69,6 +69,11 @@ final class ContextSuppressionRegistry {
         expirations[URLNormalizer.normalize(url)] = now.addingTimeInterval(lifetime)
     }
 
+    func register(capture: Capture, now: Date = Date()) {
+        guard let rawURL = capture.url, let url = URL(string: rawURL) else { return }
+        register(url, now: now)
+    }
+
     func contains(_ url: URL, now: Date = Date()) -> Bool {
         expirations = expirations.filter { $0.value > now }
         return expirations[URLNormalizer.normalize(url)] != nil
