@@ -6,7 +6,13 @@ import MCP
 /// client sees and the arguments the handler reads cannot drift apart.
 struct McpToolbox: Sendable {
     let service: SearchService
+    let answers: LibraryAnswerService
     private let parser = QueryParser()
+
+    init(service: SearchService, answers: LibraryAnswerService? = nil) {
+        self.service = service
+        self.answers = answers ?? LibraryAnswerService(search: service)
+    }
 
     /// Smaller than the CLI's 50: results land in a model's context window, where a
     /// screenful of hits is signal and three are noise.
@@ -14,20 +20,19 @@ struct McpToolbox: Sendable {
     static let recentLimit = 10
 
     var definitions: [Tool] {
-        [Self.searchCaptures, Self.getCapture, Self.listRecent].map { entry in
+        Self.entries.map { entry in
             var tool = entry.tool
             tool.annotations.readOnlyHint = true
             return tool
         }
     }
 
-    func call(name: String, arguments: [String: Value]) -> CallTool.Result {
-        let entries = [Self.searchCaptures, Self.getCapture, Self.listRecent]
-        guard let entry = entries.first(where: { $0.tool.name == name }) else {
+    func call(name: String, arguments: [String: Value]) async -> CallTool.Result {
+        guard let entry = Self.entries.first(where: { $0.tool.name == name }) else {
             return Self.failure("Unknown tool '\(name)'.")
         }
         do {
-            return try entry.handler(self, arguments)
+            return try await entry.handler(self, arguments)
         } catch let error as CLIError {
             return Self.failure(error.message)
         } catch {
@@ -37,7 +42,11 @@ struct McpToolbox: Sendable {
 
     private struct Entry: Sendable {
         let tool: Tool
-        let handler: @Sendable (McpToolbox, [String: Value]) throws -> CallTool.Result
+        let handler: @Sendable (McpToolbox, [String: Value]) async throws -> CallTool.Result
+    }
+
+    private static var entries: [Entry] {
+        [searchCaptures, getCapture, listRecent, askCap]
     }
 
     private static let searchCaptures = Entry(
@@ -121,6 +130,28 @@ struct McpToolbox: Sendable {
             ])),
         handler: { toolbox, arguments in try toolbox.recent(arguments) })
 
+    private static let askCap = Entry(
+        tool: Tool(
+            name: "ask_cap",
+            description: """
+                Answer a natural-language question across the user's capture library \
+                with Apple's on-device model. Returns concise claims, numbered citations, \
+                and the matching source metadata and excerpts. Use citations to show which \
+                capture supports each claim. No captured content leaves the Mac.
+                """,
+            inputSchema: .object([
+                "type": .string("object"),
+                "properties": .object([
+                    "question": .object([
+                        "type": .string("string"),
+                        "description": .string(
+                            "A question to answer using only the saved capture library."),
+                    ])
+                ]),
+                "required": .array([.string("question")]),
+            ])),
+        handler: { toolbox, arguments in try await toolbox.ask(arguments) })
+
     private func search(_ arguments: [String: Value]) throws -> CallTool.Result {
         let raw = arguments["query"]?.stringValue ?? ""
         var query = parser.parse(raw, limit: arguments["limit"]?.intValue ?? Self.searchLimit)
@@ -157,6 +188,13 @@ struct McpToolbox: Sendable {
     private func recent(_ arguments: [String: Value]) throws -> CallTool.Result {
         let query = SearchQuery(limit: arguments["limit"]?.intValue ?? Self.recentLimit)
         return try Self.success(service.search(query).map(Hit.init))
+    }
+
+    private func ask(_ arguments: [String: Value]) async throws -> CallTool.Result {
+        guard let question = arguments["question"]?.stringValue else {
+            return Self.failure("'question' expects a natural-language question.")
+        }
+        return try Self.success(try await answers.answer(question))
     }
 
     /// The compact per-hit shape; field names match the CLI's stable `--json` interface.

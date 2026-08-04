@@ -81,11 +81,13 @@ included as well.
 capd mcp
 ```
 
-`capd mcp` serves three read-only tools over the Model Context Protocol:
+`capd mcp` serves four read-only tools over the Model Context Protocol:
 
 - `search_captures` uses Capd's full-text search and filters.
 - `get_capture` returns one capture with its extracted page text.
 - `list_recent` returns the latest captures.
+- `ask_cap` answers across the library with numbered capture citations using
+  Apple's on-device model.
 
 Register it with Claude Code:
 

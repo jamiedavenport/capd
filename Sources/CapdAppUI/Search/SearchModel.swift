@@ -9,7 +9,11 @@ package struct SearchEnvironment {
     var search: @Sendable (String) async throws -> [SearchHit]
     var totalCount: @Sendable () async throws -> Int
     var tags: @Sendable () async throws -> [String]
+    var answerAvailability: @Sendable () -> LibraryAnswerAvailability
+    var answer: @Sendable (String) async throws -> LibraryAnswer
     var delete: @MainActor (Int64) throws -> Void
+    var openCapture: @MainActor (Int64) -> Void
+    var openIntelligenceSettings: @MainActor () -> Void
     var openURL: @MainActor (URL) -> Void
     var copyText: @MainActor (String) -> Void
     var assetFileURL: @MainActor (String) -> URL?
@@ -19,7 +23,15 @@ package struct SearchEnvironment {
         search: @escaping @Sendable (String) async throws -> [SearchHit],
         totalCount: @escaping @Sendable () async throws -> Int,
         tags: @escaping @Sendable () async throws -> [String] = { [] },
+        answerAvailability: @escaping @Sendable () -> LibraryAnswerAvailability = {
+            .unavailable(.unknown)
+        },
+        answer: @escaping @Sendable (String) async throws -> LibraryAnswer = { _ in
+            throw LibraryAnswerError.unavailable(.unknown)
+        },
         delete: @escaping @MainActor (Int64) throws -> Void,
+        openCapture: @escaping @MainActor (Int64) -> Void = { _ in },
+        openIntelligenceSettings: @escaping @MainActor () -> Void = {},
         openURL: @escaping @MainActor (URL) -> Void,
         copyText: @escaping @MainActor (String) -> Void,
         assetFileURL: @escaping @MainActor (String) -> URL?,
@@ -28,7 +40,11 @@ package struct SearchEnvironment {
         self.search = search
         self.totalCount = totalCount
         self.tags = tags
+        self.answerAvailability = answerAvailability
+        self.answer = answer
         self.delete = delete
+        self.openCapture = openCapture
+        self.openIntelligenceSettings = openIntelligenceSettings
         self.openURL = openURL
         self.copyText = copyText
         self.assetFileURL = assetFileURL
@@ -48,6 +64,7 @@ final class SearchModel {
             // Typing takes over from the cycled filter: two competing tag filters would
             // be impossible to reason about from the search field.
             activeTag = nil
+            clearAnswer()
             refresh()
         }
     }
@@ -60,6 +77,10 @@ final class SearchModel {
     private(set) var hits: [SearchHit] = []
     private(set) var totalCount = 0
     private(set) var selectedIndex = 0
+    private(set) var answerAvailability: LibraryAnswerAvailability
+    private(set) var libraryAnswer: LibraryAnswer?
+    private(set) var isAnswering = false
+    private(set) var answerError: String?
     /// False until the first query answers, so an open window shows nothing rather than
     /// flashing the wrong empty state.
     private(set) var hasLoaded = false
@@ -72,19 +93,51 @@ final class SearchModel {
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var inflight: [Int: Task<Void, Never>] = [:]
     @ObservationIgnored private var tagLoad: Task<Void, Never>?
+    @ObservationIgnored private var answerTask: Task<Void, Never>?
+    @ObservationIgnored private var answerGeneration = 0
 
     init(environment: SearchEnvironment) {
         self.environment = environment
+        answerAvailability = environment.answerAvailability()
     }
 
     var selectedHit: SearchHit? {
-        hits.indices.contains(selectedIndex) ? hits[selectedIndex] : nil
+        let captureIndex = selectedIndex - (showsAskOption ? 1 : 0)
+        return hits.indices.contains(captureIndex) ? hits[captureIndex] : nil
+    }
+
+    /// When available, Ask Cap is permanently the first item in the visible list.
+    var isAskSelected: Bool {
+        showsAskOption && selectedIndex == 0
+    }
+
+    var isAnswerMode: Bool {
+        isAnswering || libraryAnswer != nil || answerError != nil
+    }
+
+    var hasQuestion: Bool {
+        !LibraryAnswerService.normalizedQuestion(queryText).isEmpty
+    }
+
+    var explicitlyAsking: Bool {
+        queryText.trimmingCharacters(in: .whitespacesAndNewlines).first == "?"
+    }
+
+    var showsAskOption: Bool {
+        if case .available = answerAvailability { return true }
+        return false
+    }
+
+    var canAsk: Bool {
+        hasQuestion && showsAskOption
     }
 
     /// Called each time the window is summoned: fresh query, fresh recents, fresh tag
     /// cycle, focused field.
     func activate() {
         focusToken &+= 1
+        clearAnswer()
+        answerAvailability = environment.answerAvailability()
         let alreadyClear = queryText.isEmpty && activeTag == nil
         activeTag = nil
         queryText = ""
@@ -120,19 +173,114 @@ final class SearchModel {
     }
 
     func moveSelection(by delta: Int) {
-        guard !hits.isEmpty else { return }
-        selectedIndex = min(max(selectedIndex + delta, 0), hits.count - 1)
+        let itemCount = hits.count + (showsAskOption ? 1 : 0)
+        guard itemCount > 0 else { return }
+        selectedIndex = min(max(selectedIndex + delta, 0), itemCount - 1)
     }
 
-    func select(_ index: Int) {
-        guard hits.indices.contains(index) else { return }
-        selectedIndex = index
+    func select(_ captureIndex: Int) {
+        guard hits.indices.contains(captureIndex) else { return }
+        selectedIndex = captureIndex + (showsAskOption ? 1 : 0)
+    }
+
+    func isCaptureSelected(_ captureIndex: Int) -> Bool {
+        guard hits.indices.contains(captureIndex) else { return false }
+        return selectedIndex == captureIndex + (showsAskOption ? 1 : 0)
+    }
+
+    func selectAskCap() {
+        guard showsAskOption else { return }
+        selectedIndex = 0
     }
 
     /// Links open in the browser, images in their viewer; a bare text capture has nowhere
     /// to go, so its text lands on the pasteboard instead.
     func openSelected() {
         guard let capture = selectedHit?.capture else { return }
+        open(capture)
+    }
+
+    func submit() {
+        if explicitlyAsking || isAskSelected {
+            askCap()
+        } else {
+            openSelected()
+        }
+    }
+
+    func askCap() {
+        let question = LibraryAnswerService.normalizedQuestion(queryText)
+        guard !question.isEmpty, canAsk, !isAnswering else { return }
+
+        answerGeneration &+= 1
+        let expected = answerGeneration
+        let answer = environment.answer
+        libraryAnswer = nil
+        answerError = nil
+        isAnswering = true
+        answerTask?.cancel()
+        answerTask = Task { [weak self] in
+            do {
+                let result = try await answer(question)
+                guard let self, self.answerGeneration == expected, !Task.isCancelled else { return }
+                self.libraryAnswer = result
+                self.isAnswering = false
+                self.answerTask = nil
+            } catch {
+                guard let self, self.answerGeneration == expected, !Task.isCancelled else { return }
+                self.answerError = error.localizedDescription
+                self.isAnswering = false
+                self.answerTask = nil
+            }
+        }
+    }
+
+    func clearAnswer() {
+        answerGeneration &+= 1
+        answerTask?.cancel()
+        answerTask = nil
+        isAnswering = false
+        libraryAnswer = nil
+        answerError = nil
+    }
+
+    func handleEscape() {
+        if isAnswerMode {
+            clearAnswer()
+        } else {
+            dismiss()
+        }
+    }
+
+    func openAnswerSource(_ number: Int) {
+        guard
+            let source = libraryAnswer?.sources.first(where: { $0.number == number })
+        else { return }
+        environment.openCapture(source.captureID)
+        dismiss()
+    }
+
+    func copyAnswer() {
+        guard let answer = libraryAnswer else { return }
+        var lines = answer.passages.map { passage in
+            let citations = passage.citations.map { "[\($0)]" }.joined(separator: " ")
+            return "\(passage.text) \(citations)"
+        }
+        lines.append("")
+        lines.append("Sources")
+        lines.append(
+            contentsOf: answer.sources.map { source in
+                let location = source.url.map { " — \($0)" } ?? ""
+                return "[\(source.number)] \(source.title)\(location)"
+            })
+        environment.copyText(lines.joined(separator: "\n"))
+    }
+
+    func openIntelligenceSettings() {
+        environment.openIntelligenceSettings()
+    }
+
+    private func open(_ capture: Capture) {
         if let url = capture.url.flatMap(URL.init(string:)) {
             environment.openURL(url)
         } else if let path = capture.assetPath, let file = environment.assetFileURL(path) {
@@ -153,6 +301,7 @@ final class SearchModel {
     }
 
     func deleteSelected() {
+        guard !isAnswerMode else { return }
         guard let id = selectedHit?.capture.id else { return }
         do {
             try environment.delete(id)
@@ -172,6 +321,10 @@ final class SearchModel {
             await task.value
             tagLoad = nil
         }
+        if let task = answerTask {
+            await task.value
+            answerTask = nil
+        }
         while let (key, task) = inflight.first {
             await task.value
             inflight[key] = nil
@@ -183,7 +336,11 @@ final class SearchModel {
         let expected = generation
         // Appended after the typed text so a cycled tag always wins: the parser keeps
         // the last tag: token it sees.
-        let text = activeTag.map { "\(queryText) tag:\($0)" } ?? queryText
+        let searchText =
+            explicitlyAsking
+            ? LibraryAnswerService.normalizedQuestion(queryText)
+            : queryText
+        let text = activeTag.map { "\(searchText) tag:\($0)" } ?? searchText
         let search = environment.search
         let count = environment.totalCount
         inflight[expected] = Task { [weak self] in
@@ -200,7 +357,12 @@ final class SearchModel {
         self.hits = hits
         totalCount = total
         hasLoaded = true
-        selectedIndex = preservingSelection ? max(0, min(selectedIndex, hits.count - 1)) : 0
+        let itemCount = hits.count + (showsAskOption ? 1 : 0)
+        if preservingSelection {
+            selectedIndex = itemCount > 0 ? min(max(selectedIndex, 0), itemCount - 1) : 0
+        } else {
+            selectedIndex = 0
+        }
     }
 
     static func primaryText(of capture: Capture) -> String? {
