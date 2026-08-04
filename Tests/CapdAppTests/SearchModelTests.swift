@@ -374,6 +374,53 @@ struct SearchModelTests {
         #expect(model.isAnswerMode)
     }
 
+    @Test("Ask Cap stays at item zero and captures follow it")
+    func askCapIsFirstItem() async {
+        let hits = [makeHit(id: 1), makeHit(id: 2)]
+        let asked = Mutex<[String]>([])
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in hits },
+                answerAvailability: { .available },
+                answer: { question in
+                    asked.withLock { $0.append(question) }
+                    return makeAnswer()
+                }))
+
+        model.activate()
+        await model.settle()
+
+        #expect(model.showsAskOption)
+        #expect(model.selectedIndex == 0)
+        #expect(model.isAskSelected)
+        #expect(model.selectedHit == nil)
+
+        model.submit()
+        await model.settle()
+        #expect(asked.withLock { $0 }.isEmpty)
+
+        model.moveSelection(by: 1)
+        #expect(model.selectedIndex == 1)
+        #expect(model.selectedHit == hits[0])
+        #expect(model.isCaptureSelected(0))
+
+        model.moveSelection(by: 1)
+        #expect(model.selectedIndex == 2)
+        #expect(model.selectedHit == hits[1])
+        #expect(model.isCaptureSelected(1))
+
+        model.moveSelection(by: -2)
+        #expect(model.selectedIndex == 0)
+        #expect(model.isAskSelected)
+
+        model.queryText = "What did I save?"
+        await model.settle()
+        #expect(model.selectedIndex == 0)
+        model.submit()
+        await model.settle()
+        #expect(asked.withLock { $0 } == ["What did I save?"])
+    }
+
     @Test("A question-mark query makes Return ask instead of opening a result")
     func questionMarkSubmit() async {
         let log = ActionLog()

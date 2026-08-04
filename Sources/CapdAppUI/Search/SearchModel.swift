@@ -102,7 +102,13 @@ final class SearchModel {
     }
 
     var selectedHit: SearchHit? {
-        hits.indices.contains(selectedIndex) ? hits[selectedIndex] : nil
+        let captureIndex = selectedIndex - (showsAskOption ? 1 : 0)
+        return hits.indices.contains(captureIndex) ? hits[captureIndex] : nil
+    }
+
+    /// When available, Ask Cap is permanently the first item in the visible list.
+    var isAskSelected: Bool {
+        showsAskOption && selectedIndex == 0
     }
 
     var isAnswerMode: Bool {
@@ -117,10 +123,13 @@ final class SearchModel {
         queryText.trimmingCharacters(in: .whitespacesAndNewlines).first == "?"
     }
 
-    var canAsk: Bool {
-        guard hasQuestion else { return false }
+    var showsAskOption: Bool {
         if case .available = answerAvailability { return true }
         return false
+    }
+
+    var canAsk: Bool {
+        hasQuestion && showsAskOption
     }
 
     /// Called each time the window is summoned: fresh query, fresh recents, fresh tag
@@ -164,13 +173,24 @@ final class SearchModel {
     }
 
     func moveSelection(by delta: Int) {
-        guard !hits.isEmpty else { return }
-        selectedIndex = min(max(selectedIndex + delta, 0), hits.count - 1)
+        let itemCount = hits.count + (showsAskOption ? 1 : 0)
+        guard itemCount > 0 else { return }
+        selectedIndex = min(max(selectedIndex + delta, 0), itemCount - 1)
     }
 
-    func select(_ index: Int) {
-        guard hits.indices.contains(index) else { return }
-        selectedIndex = index
+    func select(_ captureIndex: Int) {
+        guard hits.indices.contains(captureIndex) else { return }
+        selectedIndex = captureIndex + (showsAskOption ? 1 : 0)
+    }
+
+    func isCaptureSelected(_ captureIndex: Int) -> Bool {
+        guard hits.indices.contains(captureIndex) else { return false }
+        return selectedIndex == captureIndex + (showsAskOption ? 1 : 0)
+    }
+
+    func selectAskCap() {
+        guard showsAskOption else { return }
+        selectedIndex = 0
     }
 
     /// Links open in the browser, images in their viewer; a bare text capture has nowhere
@@ -181,7 +201,7 @@ final class SearchModel {
     }
 
     func submit() {
-        if explicitlyAsking {
+        if explicitlyAsking || isAskSelected {
             askCap()
         } else {
             openSelected()
@@ -337,7 +357,12 @@ final class SearchModel {
         self.hits = hits
         totalCount = total
         hasLoaded = true
-        selectedIndex = preservingSelection ? max(0, min(selectedIndex, hits.count - 1)) : 0
+        let itemCount = hits.count + (showsAskOption ? 1 : 0)
+        if preservingSelection {
+            selectedIndex = itemCount > 0 ? min(max(selectedIndex, 0), itemCount - 1) : 0
+        } else {
+            selectedIndex = 0
+        }
     }
 
     static func primaryText(of capture: Capture) -> String? {

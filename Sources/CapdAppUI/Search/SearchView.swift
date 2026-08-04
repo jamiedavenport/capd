@@ -11,7 +11,6 @@ struct SearchView: View {
 
     @FocusState private var searchFieldFocused: Bool
     @Namespace private var selectionNamespace
-    @State private var askCapHovered = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -154,52 +153,22 @@ struct SearchView: View {
 
     private var searchContent: some View {
         VStack(spacing: 0) {
-            if showsAskAffordance {
-                askCapAffordance
+            if showsAvailabilityNudge {
+                availabilityNudge
                 hairline
             }
             results
         }
     }
 
-    private var showsAskAffordance: Bool {
-        guard model.hasQuestion else { return false }
-        switch model.answerAvailability {
-        case .available: return true
-        case .unavailable: return model.explicitlyAsking
-        }
+    private var showsAvailabilityNudge: Bool {
+        guard model.hasQuestion, model.explicitlyAsking else { return false }
+        if case .unavailable = model.answerAvailability { return true }
+        return false
     }
 
-    @ViewBuilder private var askCapAffordance: some View {
-        switch model.answerAvailability {
-        case .available:
-            Button(action: model.askCap) {
-                HStack(spacing: 10) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Theme.accent)
-                        .frame(width: 22, height: 22)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Ask Cap")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Theme.text)
-                        Text("Answer from the best matches, with citations.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                    Text("Click to ask")
-                        .font(Theme.mono(10, weight: .regular))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .background(askCapHovered ? Theme.raised : Color.clear)
-            .onHover { askCapHovered = $0 }
-        case .unavailable(let reason) where model.explicitlyAsking:
+    @ViewBuilder private var availabilityNudge: some View {
+        if case .unavailable(let reason) = model.answerAvailability {
             HStack(spacing: 10) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 13, weight: .medium))
@@ -223,15 +192,13 @@ struct SearchView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-        case .unavailable:
-            EmptyView()
         }
     }
 
     @ViewBuilder private var results: some View {
         if !model.hasLoaded {
             Color.clear
-        } else if model.hits.isEmpty {
+        } else if model.hits.isEmpty && !model.showsAskOption {
             emptyState
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -239,14 +206,26 @@ struct SearchView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 1) {
+                        if model.showsAskOption {
+                            AskCapResultRow(
+                                isSelected: model.isAskSelected,
+                                hasQuestion: model.hasQuestion,
+                                namespace: selectionNamespace
+                            )
+                            .id(0)
+                            .onTapGesture {
+                                model.selectAskCap()
+                                model.submit()
+                            }
+                        }
                         ForEach(model.hits.indices, id: \.self) { index in
                             SearchResultRow(
                                 content: SearchRowContent(model.hits[index], now: now),
-                                isSelected: index == model.selectedIndex,
+                                isSelected: model.isCaptureSelected(index),
                                 activeTag: model.activeTag,
                                 namespace: selectionNamespace
                             )
-                            .id(index)
+                            .id(index + (model.showsAskOption ? 1 : 0))
                             .onTapGesture {
                                 model.select(index)
                                 model.openSelected()
@@ -490,11 +469,20 @@ struct SearchView: View {
                     ShortcutHint(label: "Tags", keys: ["⇥"])
                     statusDivider
                 }
-                ShortcutHint(label: "Open", keys: ["↩"])
-                statusDivider
-                ShortcutHint(label: "Copy URL", keys: ["⌘", "↩"])
-                statusDivider
-                ShortcutHint(label: "Delete", keys: ["⌘", "⇧", "⌫"])
+                if model.isAskSelected {
+                    if model.hasQuestion {
+                        ShortcutHint(label: "Ask", keys: ["↩"])
+                    } else {
+                        Text("Type a question to ask")
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                } else {
+                    ShortcutHint(label: "Open", keys: ["↩"])
+                    statusDivider
+                    ShortcutHint(label: "Copy URL", keys: ["⌘", "↩"])
+                    statusDivider
+                    ShortcutHint(label: "Delete", keys: ["⌘", "⇧", "⌫"])
+                }
             }
         }
         .font(.system(size: 11))
@@ -510,6 +498,60 @@ struct SearchView: View {
         Rectangle()
             .fill(Theme.border)
             .frame(width: 1, height: 12)
+    }
+}
+
+private struct AskCapResultRow: View {
+    let isSelected: Bool
+    let hasQuestion: Bool
+    let namespace: Namespace.ID
+
+    @State private var isHovered = false
+
+    private var rowShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Theme.accent)
+                .frame(width: 22, height: 22)
+                .background(Theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Ask Cap")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.text)
+                Text(
+                    hasQuestion
+                        ? "Answer from the best matches, with citations."
+                        : "Type a question to ask your library."
+                )
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.textTertiary)
+                .lineLimit(1)
+            }
+            Spacer(minLength: 12)
+            if isSelected && hasQuestion {
+                Text("↩")
+                    .font(Theme.mono(10, weight: .regular))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .contentShape(rowShape)
+        .background {
+            if isSelected {
+                rowShape
+                    .fill(Theme.selection)
+                    .matchedGeometryEffect(id: "selection", in: namespace)
+            } else if isHovered {
+                rowShape.fill(Theme.raised)
+            }
+        }
+        .onHover { isHovered = $0 }
     }
 }
 
