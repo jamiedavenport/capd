@@ -52,6 +52,34 @@ jobs:
       - name: Test
         run: swift test --parallel
 
+  raycast:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: raycast
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: raycast/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # `ray build` needs the Raycast app and a signed-in account, so CI checks the
+      # extension the way it can: types, lint, and the CLI-contract tests.
+      - name: Check
+        run: |
+          npx tsc --noEmit
+          npx eslint .
+          npx prettier --check "src/**/*.{ts,tsx}" "test/**/*.ts"
+          npx vitest run
+
   performance:
     runs-on: macos-26
     steps:

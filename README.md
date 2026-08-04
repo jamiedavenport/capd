@@ -23,8 +23,9 @@ No account. No subscription. No telemetry. Your library stays on your Mac.
   to the captures behind each claim.
 - **Stay organized automatically.** On-device tagging groups captures into a
   small, useful vocabulary without sending their contents anywhere.
-- **Use your library everywhere.** Search in the native app, automate with the
-  CLI, export your data, or give an AI assistant read-only access over MCP.
+- **Use your library everywhere.** Search in the native app or Raycast, automate
+  with the CLI, export your data, or give an AI assistant read-only access over
+  MCP.
 - **Keep control of your data.** Everything lives in a local SQLite database and
   assets folder. Network behavior is limited and documented in full.
 
@@ -93,6 +94,9 @@ capd mcp
 
 `capd mcp` exposes read-only search and cited-answer tools to compatible AI
 assistants. The CLI also provides stable JSON output for scripts.
+
+The Raycast extension in [`raycast/`](./raycast) adds **Capd: Search** and
+**Capd: Capture** commands to Raycast, backed by the same local library.
 
 [See the CLI reference](https://capd.jxd.dev/cli).
 

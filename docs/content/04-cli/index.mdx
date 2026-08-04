@@ -109,6 +109,22 @@ Capd's MCP server cannot add, edit, or delete captures. It communicates over
 standard input and output; review the privacy policy of the assistant receiving
 the results to understand whether that assistant sends them elsewhere.
 
+## Use Raycast
+
+The Capd extension for Raycast is another client for the same local library. It
+adds two commands:
+
+- **Capd: Search** searches your captures and accepts the same `site:`, `tag:`,
+  `after:`, and `before:` filters as the app. An empty search bar lists your most
+  recent captures.
+- **Capd: Capture** saves a link or text from a command argument, the current
+  selection, or the clipboard. Set it as a Raycast fallback command to capture
+  whatever you type into root search.
+
+The extension runs the bundled `capd` command and nothing else, so captures and
+searches stay on your Mac. It locates `capd` inside the installed `capd.app`,
+which means a direct `.dmg` install works without adding anything to your `PATH`.
+
 ## Check health
 
 ```sh
