@@ -1,0 +1,3 @@
+Tests/CapdKitTests/Fixtures/** linguist-vendored
+Sources/CapdKit/Resources/Readability.js linguist-vendored
+docs/** linguist-documentation

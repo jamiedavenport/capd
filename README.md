@@ -11,6 +11,9 @@ No account. No subscription. No telemetry. Your library stays on your Mac.
 [Download the latest release](https://github.com/jamiedavenport/capd/releases/latest)
 · [Read the documentation](https://capd.jxd.dev)
 
+If Capd is useful to you, [star the repository](https://github.com/jamiedavenport/capd)
+to help other Mac users discover it.
+
 ![Capture a page, then find it again with full-text search](./docs/public/capture-to-search.gif)
 
 ## Why Capd?
