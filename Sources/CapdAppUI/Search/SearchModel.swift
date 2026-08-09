@@ -11,6 +11,7 @@ package struct SearchEnvironment {
     var tags: @Sendable () async throws -> [String]
     var answerAvailability: @Sendable () -> LibraryAnswerAvailability
     var answer: @Sendable (String) async throws -> LibraryAnswer
+    var setRating: @MainActor (Int64, Int) throws -> Void
     var delete: @MainActor (Int64) throws -> Void
     var openCapture: @MainActor (Int64) -> Void
     var openIntelligenceSettings: @MainActor () -> Void
@@ -29,6 +30,7 @@ package struct SearchEnvironment {
         answer: @escaping @Sendable (String) async throws -> LibraryAnswer = { _ in
             throw LibraryAnswerError.unavailable(.unknown)
         },
+        setRating: @escaping @MainActor (Int64, Int) throws -> Void = { _, _ in },
         delete: @escaping @MainActor (Int64) throws -> Void,
         openCapture: @escaping @MainActor (Int64) -> Void = { _ in },
         openIntelligenceSettings: @escaping @MainActor () -> Void = {},
@@ -42,6 +44,7 @@ package struct SearchEnvironment {
         self.tags = tags
         self.answerAvailability = answerAvailability
         self.answer = answer
+        self.setRating = setRating
         self.delete = delete
         self.openCapture = openCapture
         self.openIntelligenceSettings = openIntelligenceSettings
@@ -104,6 +107,10 @@ final class SearchModel {
     var selectedHit: SearchHit? {
         let captureIndex = selectedIndex - (showsAskOption ? 1 : 0)
         return hits.indices.contains(captureIndex) ? hits[captureIndex] : nil
+    }
+
+    var canRateSelection: Bool {
+        !isAnswerMode && selectedHit?.capture.id != nil
     }
 
     /// When available, Ask Cap is permanently the first item in the visible list.
@@ -300,6 +307,30 @@ final class SearchModel {
         dismiss()
     }
 
+    func changeRating(by delta: Int) {
+        guard !isAnswerMode, delta != 0 else { return }
+        let captureIndex = selectedIndex - (showsAskOption ? 1 : 0)
+        guard hits.indices.contains(captureIndex) else { return }
+
+        let hit = hits[captureIndex]
+        guard let id = hit.capture.id else { return }
+        let rating = min(
+            max(hit.capture.rating + delta, Capture.ratingRange.lowerBound),
+            Capture.ratingRange.upperBound)
+        guard rating != hit.capture.rating else { return }
+
+        do {
+            try environment.setRating(id, rating)
+        } catch {
+            return
+        }
+
+        var capture = hit.capture
+        capture.rating = rating
+        hits[captureIndex] = SearchHit(capture: capture, snippet: hit.snippet, score: hit.score)
+        refresh(preservingCaptureID: id)
+    }
+
     func deleteSelected() {
         guard !isAnswerMode else { return }
         guard let id = selectedHit?.capture.id else { return }
@@ -331,7 +362,10 @@ final class SearchModel {
         }
     }
 
-    private func refresh(preservingSelection: Bool = false) {
+    private func refresh(
+        preservingSelection: Bool = false,
+        preservingCaptureID: Int64? = nil
+    ) {
         generation &+= 1
         let expected = generation
         // Appended after the typed text so a cycled tag always wins: the parser keeps
@@ -349,16 +383,29 @@ final class SearchModel {
             guard let self else { return }
             self.inflight[expected] = nil
             guard self.generation == expected else { return }
-            self.apply(hits: hits, total: total, preservingSelection: preservingSelection)
+            self.apply(
+                hits: hits,
+                total: total,
+                preservingSelection: preservingSelection,
+                preservingCaptureID: preservingCaptureID)
         }
     }
 
-    private func apply(hits: [SearchHit], total: Int, preservingSelection: Bool) {
+    private func apply(
+        hits: [SearchHit],
+        total: Int,
+        preservingSelection: Bool,
+        preservingCaptureID: Int64?
+    ) {
         self.hits = hits
         totalCount = total
         hasLoaded = true
         let itemCount = hits.count + (showsAskOption ? 1 : 0)
-        if preservingSelection {
+        if let preservingCaptureID,
+            let captureIndex = hits.firstIndex(where: { $0.capture.id == preservingCaptureID })
+        {
+            selectedIndex = captureIndex + (showsAskOption ? 1 : 0)
+        } else if preservingSelection {
             selectedIndex = itemCount > 0 ? min(max(selectedIndex, 0), itemCount - 1) : 0
         } else {
             selectedIndex = 0

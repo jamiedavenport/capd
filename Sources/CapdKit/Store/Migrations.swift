@@ -7,7 +7,26 @@ enum Migrations {
         migrator.registerMigration("001", migrate: createCaptures)
         migrator.registerMigration("002", migrate: addRetagRequest)
         migrator.registerMigration("003", migrate: addRetagProgress)
+        migrator.registerMigration("004", migrate: addCaptureRating)
         return migrator
+    }
+
+    static func addCaptureRating(_ db: Database) throws {
+        try db.alter(table: Schema.captures) { t in
+            t.add(column: Capture.CodingKeys.rating.rawValue, .integer)
+                .notNull().defaults(to: Capture.defaultRating)
+                .check {
+                    $0 >= Capture.ratingRange.lowerBound && $0 <= Capture.ratingRange.upperBound
+                }
+        }
+        try db.create(
+            index: "captures_on_rating",
+            on: Schema.captures,
+            columns: [
+                Capture.CodingKeys.rating.rawValue,
+                Capture.CodingKeys.createdAt.rawValue,
+                Capture.CodingKeys.id.rawValue,
+            ])
     }
 
     static func addRetagProgress(_ db: Database) throws {

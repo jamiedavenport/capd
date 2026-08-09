@@ -31,9 +31,9 @@ struct StoreTests {
                     indexes == [
                         "captures_on_content_hash", "captures_on_enrichment_state",
                         "captures_on_created_at", "captures_on_host", "captures_on_url",
-                        "captures_on_title", "captures_on_tags_version",
+                        "captures_on_title", "captures_on_tags_version", "captures_on_rating",
                     ])
-                #expect(applied == ["001", "002", "003"])
+                #expect(applied == ["001", "002", "003", "004"])
                 #expect(journalMode == "wal")
                 #expect(foreignKeys == 1)
             }
@@ -57,10 +57,45 @@ struct StoreTests {
                 let count = try Capture.fetchCount(db)
                 let survivor = try Capture.fetchOne(db)
 
-                #expect(applied == ["001", "002", "003"])
+                #expect(applied == ["001", "002", "003", "004"])
                 #expect(count == 1)
                 #expect(survivor?.title == "Durable")
             }
+        }
+    }
+
+    @Test("Migration 004 gives existing captures a neutral rating")
+    func migratesCaptureRatings() throws {
+        try withTemporaryPaths { paths in
+            try paths.createDirectories()
+            do {
+                let pool = try DatabasePool(path: paths.databaseURL.path)
+                var migrator = DatabaseMigrator()
+                migrator.registerMigration("001", migrate: Migrations.createCaptures)
+                migrator.registerMigration("002", migrate: Migrations.addRetagRequest)
+                migrator.registerMigration("003", migrate: Migrations.addRetagProgress)
+                try migrator.migrate(pool)
+                try pool.write { db in
+                    let now = Date(timeIntervalSince1970: 1_700_000_000)
+                    try db.execute(
+                        sql: """
+                            INSERT INTO captures (
+                                kind, tags_version, enrichment_state, body_status,
+                                attempt_count, created_at, updated_at, last_seen_at, seen_count
+                            ) VALUES (?, 0, ?, ?, 0, ?, ?, ?, 1)
+                            """,
+                        arguments: [
+                            CaptureKind.text, EnrichmentState.pending, BodyStatus.none,
+                            now, now, now,
+                        ])
+                }
+                try pool.close()
+            }
+
+            let store = try Store(paths: paths)
+            let capture = try store.reader.read { db in try Capture.fetchOne(db) }
+
+            #expect(capture?.rating == Capture.defaultRating)
         }
     }
 
@@ -99,6 +134,28 @@ struct StoreTests {
                         try db.execute(
                             sql: "UPDATE captures SET \(column) = 'bogus' WHERE id = ?",
                             arguments: [id])
+                    }
+                }
+            }
+        }
+    }
+
+    @Test("The database rejects ratings outside 1 through 5")
+    func checkConstraintRejectsInvalidRatings() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let id = try store.dbPool.write { db -> Int64 in
+                var capture = makeCapture(title: "Guarded rating")
+                try capture.insert(db)
+                return capture.id!
+            }
+
+            for rating in [0, 6] {
+                #expect(throws: DatabaseError.self) {
+                    try store.dbPool.write { db in
+                        try db.execute(
+                            sql: "UPDATE captures SET rating = ? WHERE id = ?",
+                            arguments: [rating, id])
                     }
                 }
             }
@@ -262,7 +319,7 @@ struct StoreTests {
             let store = try Store(paths: paths)
             try store.dbPool.write { db in
                 try db.execute(
-                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('004')")
+                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('005')")
             }
 
             #expect(throws: StoreError.databaseIsNewerThanApp) {
@@ -306,6 +363,7 @@ struct StoreTests {
                 ocrText: "Text lifted off the pixels",
                 assetPath: "ab/cd.png",
                 sourceAppBundleID: "com.apple.Safari",
+                rating: 5,
                 enrichmentState: .thin,
                 bodyStatus: .thin,
                 bodySource: .tab,
@@ -361,6 +419,7 @@ struct StoreTests {
         #expect(defaulted.updatedAt == created)
         #expect(defaulted.lastSeenAt == created)
         #expect(defaulted.seenCount == 1)
+        #expect(defaulted.rating == Capture.defaultRating)
         #expect(defaulted.enrichmentState == .pending)
         #expect(defaulted.bodyStatus == BodyStatus.none)
 
@@ -368,6 +427,24 @@ struct StoreTests {
             kind: .text, createdAt: created, updatedAt: later, lastSeenAt: later)
         #expect(explicit.updatedAt == later)
         #expect(explicit.lastSeenAt == later)
+    }
+
+    @Test("Updating a rating persists it and touches the capture")
+    func updateRating() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let original = try store.upsertCapture(makeCapture(title: "Rate me")).capture
+            let changedAt = original.updatedAt.addingTimeInterval(60)
+
+            let updated = try store.updateRating(id: original.id!, rating: 5, now: changedAt)
+
+            #expect(updated.rating == 5)
+            #expect(updated.updatedAt == changedAt)
+            #expect(try SearchService(store: store).capture(id: original.id!)?.rating == 5)
+            #expect(throws: RatingError.outOfRange(0)) {
+                try store.updateRating(id: original.id!, rating: 0)
+            }
+        }
     }
 
     @Test("Deleting captures removes rows, index entries, and assets")

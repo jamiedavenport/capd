@@ -109,6 +109,13 @@ struct SearchView: View {
             return .handled
         }
 
+        if model.canRateSelection,
+            let delta = Self.ratingDelta(for: press.key, modifiers: press.modifiers)
+        {
+            model.changeRating(by: delta)
+            return .handled
+        }
+
         switch press.key {
         case .upArrow:
             model.moveSelection(by: -1)
@@ -137,6 +144,18 @@ struct SearchView: View {
             return false
         }
         return nil
+    }
+
+    static func ratingDelta(
+        for key: KeyEquivalent,
+        modifiers: EventModifiers
+    ) -> Int? {
+        guard modifiers.isEmpty else { return nil }
+        switch key {
+        case .leftArrow: return -1
+        case .rightArrow: return 1
+        default: return nil
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -595,6 +614,7 @@ private struct SearchResultRow: View {
             ForEach(content.tags, id: \.self) { tag in
                 TagChip(tag: tag, isActive: tag == activeTag)
             }
+            RatingBubbles(rating: content.rating)
             Text(content.age)
                 .font(Theme.mono(10, weight: .regular))
                 .foregroundStyle(Theme.textTertiary)
@@ -627,6 +647,33 @@ private struct SearchResultRow: View {
         case .link: .blue
         case .text: .orange
         case .image: .purple
+        }
+    }
+}
+
+private struct RatingBubbles: View {
+    let rating: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(Capture.ratingRange, id: \.self) { value in
+                Circle()
+                    .fill(value <= rating ? color : Theme.textTertiary.opacity(0.45))
+                    .frame(width: 5, height: 5)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Rating")
+        .accessibilityValue("\(rating) out of 5")
+    }
+
+    private var color: Color {
+        switch rating {
+        case 1: Color(red: 0.96, green: 0.32, blue: 0.35)
+        case 2: Color(red: 1.0, green: 0.52, blue: 0.25)
+        case 3: Color(red: 0.95, green: 0.72, blue: 0.25)
+        case 4: Color(red: 0.32, green: 0.75, blue: 0.64)
+        default: Theme.success
         }
     }
 }

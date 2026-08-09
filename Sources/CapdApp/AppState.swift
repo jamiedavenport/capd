@@ -399,6 +399,9 @@ extension SearchEnvironment {
             tags: { try store.tagUsage().map(\.tag) },
             answerAvailability: { answers.availability() },
             answer: { try await answers.answer($0) },
+            setRating: { id, rating in
+                _ = try store.updateRating(id: id, rating: rating)
+            },
             delete: { _ = try store.deleteCaptures(ids: [$0]) },
             openCapture: { id in
                 guard let capture = try? searchService.capture(id: id) else { return }

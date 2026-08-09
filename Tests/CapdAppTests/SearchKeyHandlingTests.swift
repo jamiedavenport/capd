@@ -23,4 +23,17 @@ struct SearchKeyHandlingTests {
     func unrelatedKeyIsIgnored() {
         #expect(SearchView.tagCycleForward(for: .return, modifiers: []) == nil)
     }
+
+    @Test("Unmodified horizontal arrows adjust ratings")
+    func horizontalArrowsAdjustRatings() {
+        #expect(SearchView.ratingDelta(for: .leftArrow, modifiers: []) == -1)
+        #expect(SearchView.ratingDelta(for: .rightArrow, modifiers: []) == 1)
+    }
+
+    @Test("Modified horizontal arrows retain text-field behavior")
+    func modifiedHorizontalArrowsAreIgnored() {
+        #expect(SearchView.ratingDelta(for: .leftArrow, modifiers: [.command]) == nil)
+        #expect(SearchView.ratingDelta(for: .rightArrow, modifiers: [.option]) == nil)
+        #expect(SearchView.ratingDelta(for: .upArrow, modifiers: []) == nil)
+    }
 }

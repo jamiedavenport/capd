@@ -46,6 +46,44 @@ struct SearchServiceTests {
         }
     }
 
+    @Test("A liked capture is prioritised ahead of a disliked text match")
+    func ratingPrioritisesFullTextResults() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(title: "Swift internals", rating: 1),
+                    makeCapture(title: "Other notes", body: "Swift internals", rating: 5),
+                ])
+
+            let hits = try SearchService(store: store).search("swift")
+
+            #expect(hits.map(\.capture.id) == [ids[1], ids[0]])
+        }
+    }
+
+    @Test("Ratings prioritise filter-only and recent results")
+    func ratingPrioritisesScannedResults() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(
+                        title: "Older favourite", rating: 5,
+                        createdAt: instant(2026, 1, 1)),
+                    makeCapture(
+                        title: "Newer neutral", rating: 3,
+                        createdAt: instant(2026, 3, 1)),
+                ])
+
+            let hits = try SearchService(store: store).search("")
+
+            #expect(hits.map(\.capture.id) == [ids[0], ids[1]])
+        }
+    }
+
     @Test("Full-text hits come before substring-only hits")
     func rankedLegLeadsTheFallback() throws {
         try withTemporaryPaths { paths in
@@ -65,6 +103,29 @@ struct SearchServiceTests {
             #expect(hits[0].score != nil)
             #expect(hits[1].score == nil)
             #expect(hits[1].snippet == nil)
+        }
+    }
+
+    @Test("A liked URL-only match is prioritised across search paths")
+    func ratingPrioritisesAcrossSearchPaths() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let ids = try seed(
+                store,
+                [
+                    makeCapture(
+                        url: "https://example.com/pangolin-path", title: "Unrelated", rating: 5),
+                    makeCapture(title: "Pangolin reference", rating: 1),
+                ])
+
+            let hits = try SearchService(store: store).search("pangolin")
+
+            #expect(hits.map(\.capture.id) == [ids[0], ids[1]])
+            #expect(hits[0].score == nil)
+            #expect(hits[1].score != nil)
+            #expect(
+                try SearchService(store: store).search("pangolin", limit: 1).map(\.capture.id)
+                    == [ids[0]])
         }
     }
 
@@ -559,6 +620,7 @@ private func makeCapture(
     title: String? = nil,
     body: String? = nil,
     tags: String? = nil,
+    rating: Int = Capture.defaultRating,
     createdAt: Date = Date()
 ) -> Capture {
     Capture(
@@ -569,6 +631,7 @@ private func makeCapture(
         body: body,
         tags: tags,
         tagsVersion: tags == nil ? 0 : 1,
+        rating: rating,
         createdAt: createdAt
     )
 }

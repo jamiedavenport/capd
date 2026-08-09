@@ -14,6 +14,7 @@ struct SearchRowContent: Equatable {
     var age: String
     var host: String?
     var tags: [String]
+    var rating: Int
 }
 
 extension SearchRowContent {
@@ -26,6 +27,7 @@ extension SearchRowContent {
         age = Self.compactAge(from: capture.createdAt, to: now)
         host = Self.host(for: capture)
         tags = Array(capture.tagList.prefix(Self.displayedTags))
+        rating = capture.rating
     }
 
     static func host(for capture: Capture) -> String? {

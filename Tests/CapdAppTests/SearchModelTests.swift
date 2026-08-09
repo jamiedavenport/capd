@@ -88,6 +88,67 @@ struct SearchModelTests {
         #expect(model.selectedIndex == 2)
     }
 
+    @Test("Rating changes persist, re-sort results, and keep the capture selected")
+    func ratingChangeKeepsSelection() async {
+        let box = ResultsBox([makeHit(id: 1), makeHit(id: 2)])
+        let log = ActionLog()
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in
+                    box.hits.sorted { $0.capture.rating > $1.capture.rating }
+                },
+                setRating: { id, rating in
+                    log.ratings.append(RatingAction(id: id, rating: rating))
+                    box.updateRating(id: id, rating: rating)
+                }))
+        model.queryText = "x"
+        await model.settle()
+        model.select(1)
+
+        model.changeRating(by: 1)
+        #expect(model.selectedHit?.capture.rating == 4)
+        await model.settle()
+
+        #expect(log.ratings == [RatingAction(id: 2, rating: 4)])
+        #expect(model.hits.map(\.capture.id) == [2, 1])
+        #expect(model.selectedIndex == 0)
+        #expect(model.selectedHit?.capture.id == 2)
+    }
+
+    @Test("Ratings clamp at the ends of the scale")
+    func ratingClamps() async {
+        let log = ActionLog()
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [makeHit(id: 1, rating: 5)] },
+                setRating: { id, rating in
+                    log.ratings.append(RatingAction(id: id, rating: rating))
+                }))
+        model.queryText = "x"
+        await model.settle()
+
+        model.changeRating(by: 1)
+
+        #expect(log.ratings.isEmpty)
+        #expect(model.selectedHit?.capture.rating == 5)
+    }
+
+    @Test("Only a selected capture can be rated")
+    func ratingAvailabilityTracksSelection() async {
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [makeHit(id: 1)] },
+                answerAvailability: { .available }))
+        model.queryText = "x"
+        await model.settle()
+
+        #expect(model.isAskSelected)
+        #expect(!model.canRateSelection)
+
+        model.moveSelection(by: 1)
+        #expect(model.canRateSelection)
+    }
+
     @Test("Opening a link opens its URL and dismisses")
     func openLink() async {
         let log = ActionLog()
@@ -495,8 +556,14 @@ private final class ActionLog {
     var openedCaptures: [Int64] = []
     var copied: [String] = []
     var deleted: [Int64] = []
+    var ratings: [RatingAction] = []
     var toasts: [HUDContent] = []
     var dismissed = 0
+}
+
+private struct RatingAction: Equatable {
+    let id: Int64
+    let rating: Int
 }
 
 /// Result state shared between the `@Sendable` search closure and main-actor mutations.
@@ -513,6 +580,16 @@ private final class ResultsBox: Sendable {
 
     func remove(id: Int64) {
         storage.withLock { hits in hits.removeAll { $0.capture.id == id } }
+    }
+
+    func updateRating(id: Int64, rating: Int) {
+        storage.withLock { hits in
+            guard let index = hits.firstIndex(where: { $0.capture.id == id }) else { return }
+            let hit = hits[index]
+            var capture = hit.capture
+            capture.rating = rating
+            hits[index] = SearchHit(capture: capture, snippet: hit.snippet, score: hit.score)
+        }
     }
 }
 
@@ -540,7 +617,8 @@ private func makeHit(
     url: String? = "https://example.com/x",
     title: String? = "A page",
     selection: String? = nil,
-    assetPath: String? = nil
+    assetPath: String? = nil,
+    rating: Int = Capture.defaultRating
 ) -> SearchHit {
     SearchHit(
         capture: Capture(
@@ -550,6 +628,7 @@ private func makeHit(
             title: title,
             selection: selection,
             assetPath: assetPath,
+            rating: rating,
             createdAt: Date(timeIntervalSince1970: 1_000_000)),
         snippet: nil,
         score: nil)
@@ -567,6 +646,7 @@ extension SearchEnvironment {
         answer: @escaping @Sendable (String) async throws -> LibraryAnswer = { _ in
             throw LibraryAnswerError.unavailable(.unknown)
         },
+        setRating: @escaping @MainActor (Int64, Int) throws -> Void = { _, _ in },
         delete: @escaping @MainActor (Int64) throws -> Void = { _ in },
         openCapture: @escaping @MainActor (Int64) -> Void = { _ in },
         openURL: @escaping @MainActor (URL) -> Void = { _ in },
@@ -580,6 +660,7 @@ extension SearchEnvironment {
             tags: tags,
             answerAvailability: answerAvailability,
             answer: answer,
+            setRating: setRating,
             delete: delete,
             openCapture: openCapture,
             openURL: openURL,

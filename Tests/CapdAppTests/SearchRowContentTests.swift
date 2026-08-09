@@ -114,6 +114,16 @@ struct SearchRowContentTests {
             now: Date(timeIntervalSince1970: 1_000_000))
         #expect(bare.tags.isEmpty)
     }
+
+    @Test("Rows surface the capture rating")
+    func ratingSurfaced() {
+        let capture = makeCapture(kind: .link, url: "https://example.com/a", rating: 5)
+        let content = SearchRowContent(
+            SearchHit(capture: capture, snippet: nil, score: nil),
+            now: Date(timeIntervalSince1970: 1_000_000))
+
+        #expect(content.rating == 5)
+    }
 }
 
 private func makeCapture(
@@ -124,7 +134,8 @@ private func makeCapture(
     selection: String? = nil,
     body: String? = nil,
     ocrText: String? = nil,
-    tags: String? = nil
+    tags: String? = nil,
+    rating: Int = Capture.defaultRating
 ) -> Capture {
     Capture(
         kind: kind,
@@ -135,5 +146,6 @@ private func makeCapture(
         body: body,
         ocrText: ocrText,
         tags: tags,
+        rating: rating,
         createdAt: Date(timeIntervalSince1970: 1_000_000))
 }

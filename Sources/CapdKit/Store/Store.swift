@@ -7,6 +7,19 @@ public enum StoreError: Error, Equatable {
     case databaseIsNewerThanApp
 }
 
+public enum RatingError: Error, Equatable, Sendable {
+    case outOfRange(Int)
+}
+
+extension RatingError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .outOfRange(let rating):
+            "A capture rating must be from 1 through 5, not \(rating)."
+        }
+    }
+}
+
 extension StoreError: LocalizedError {
     public var errorDescription: String? {
         switch self {
@@ -87,6 +100,23 @@ public final class Store: Sendable {
             }
             var updated = current
             updated.note = note
+            updated.updatedAt = now
+            try updated.updateChanges(db, from: current)
+            return updated
+        }
+    }
+
+    /// Changes the user's preference for a capture and returns the persisted row.
+    public func updateRating(id: Int64, rating: Int, now: Date = Date()) throws -> Capture {
+        guard Capture.ratingRange.contains(rating) else {
+            throw RatingError.outOfRange(rating)
+        }
+        return try dbPool.write { db in
+            guard let current = try Capture.fetchOne(db, key: id) else {
+                throw CaptureError.notFound(id)
+            }
+            var updated = current
+            updated.rating = rating
             updated.updatedAt = now
             try updated.updateChanges(db, from: current)
             return updated

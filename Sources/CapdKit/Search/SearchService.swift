@@ -14,14 +14,20 @@ public struct SearchHit: Equatable, Sendable, Identifiable {
     /// Raw bm25, where lower is a better match. Nil for rows the full-text index did not return.
     public let score: Double?
 
+    public init(capture: Capture, snippet: Snippet?, score: Double?) {
+        self.capture = capture
+        self.snippet = snippet
+        self.score = score
+    }
+
     public var id: Int64? { capture.id }
 }
 
 /// The one read path into the capture store.
 ///
 /// The search window, the CLI, and any extension all go through this, so a query means the
-/// same thing everywhere: full-text hits ranked by bm25 first, then a substring pass over
-/// URLs and titles for what the porter tokenizer cannot reach.
+/// same thing everywhere: the user's rating first, then full-text relevance, with a substring
+/// pass over URLs and titles for what the porter tokenizer cannot reach.
 public struct SearchService: Sendable {
     private let reader: any DatabaseReader
     private let parser: QueryParser
@@ -72,19 +78,32 @@ public struct SearchService: Sendable {
         // are only legal in a query whose every arm matches the full-text index.
         return try reader.read { db in
             var hits = try rankedHits(query, limit: limit, in: db)
-            guard hits.count < limit else { return hits }
 
-            let matched = Set(hits.compactMap(\.capture.id))
-            // A full limit, not the shortfall: up to `hits.count` of these are rows the ranked
-            // leg already returned, and the merge below drops them.
-            let extra = try scannedHits(query, limit: limit, in: db)
+            // No fallback can outrank a full page of maximum-rated full-text hits. Avoiding
+            // that indexed LIKE scan keeps the common case on the fast path.
+            guard
+                hits.count < limit
+                    || hits.contains(where: {
+                        $0.capture.rating < Capture.ratingRange.upperBound
+                    })
+            else {
+                return hits
+            }
+
+            var matched = Set(hits.compactMap(\.capture.id))
+            let minimumRating = hits.count == limit ? hits.map(\.capture.rating).min() : nil
+            let extra = try scannedHits(
+                query,
+                limit: limit,
+                ratingGreaterThan: minimumRating,
+                in: db)
 
             for hit in extra {
                 guard let id = hit.capture.id, !matched.contains(id) else { continue }
                 hits.append(hit)
-                if hits.count == limit { break }
+                matched.insert(id)
             }
-            return hits
+            return Array(hits.sorted(by: Self.prioritizes).prefix(limit))
         }
     }
 
@@ -113,7 +132,7 @@ public struct SearchService: Sendable {
                 FROM \(Schema.captures)
                 JOIN \(Schema.capturesFTS) ON \(Schema.capturesFTS).rowid = \(Self.column(.id))
                 \(conditions.whereSQL)
-                ORDER BY \(Self.rankColumn)
+                ORDER BY \(Self.column(.rating)) DESC, \(Self.rankColumn)
                 LIMIT ?
                 """,
             arguments: StatementArguments(conditions.arguments))
@@ -135,9 +154,15 @@ public struct SearchService: Sendable {
     private func scannedHits(
         _ query: SearchQuery,
         limit: Int,
+        ratingGreaterThan minimumRating: Int? = nil,
         in db: Database
     ) throws -> [SearchHit] {
         var conditions = filters(query)
+
+        if let minimumRating {
+            conditions.clauses.append("\(Self.column(.rating)) > ?")
+            conditions.arguments.append(minimumRating)
+        }
 
         if !query.text.isEmpty {
             let needle = "%\(Self.escapingWildcards(query.text))%"
@@ -160,7 +185,9 @@ public struct SearchService: Sendable {
             sql: """
                 SELECT * FROM \(Schema.captures)
                 \(conditions.whereSQL)
-                ORDER BY \(Self.column(.createdAt)) DESC, \(Self.column(.id)) DESC
+                ORDER BY \(Self.column(.rating)) DESC,
+                         \(Self.column(.createdAt)) DESC,
+                         \(Self.column(.id)) DESC
                 LIMIT ?
                 """,
             arguments: StatementArguments(conditions.arguments))
@@ -230,6 +257,25 @@ extension SearchService {
 
     private static func column(_ key: Capture.CodingKeys) -> String {
         "\(Schema.captures).\(key.rawValue)"
+    }
+
+    private static func prioritizes(_ lhs: SearchHit, _ rhs: SearchHit) -> Bool {
+        if lhs.capture.rating != rhs.capture.rating {
+            return lhs.capture.rating > rhs.capture.rating
+        }
+        switch (lhs.score, rhs.score) {
+        case (.some(let lhsScore), .some(let rhsScore)) where lhsScore != rhsScore:
+            return lhsScore < rhsScore
+        case (.some, .none):
+            return true
+        case (.none, .some):
+            return false
+        default:
+            if lhs.capture.createdAt != rhs.capture.createdAt {
+                return lhs.capture.createdAt > rhs.capture.createdAt
+            }
+            return (lhs.capture.id ?? 0) > (rhs.capture.id ?? 0)
+        }
     }
 
     /// Column `-1` lets FTS5 pick whichever indexed column matched best.

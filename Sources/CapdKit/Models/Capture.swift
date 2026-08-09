@@ -55,6 +55,9 @@ public enum BodySource: String, Codable, Sendable, CaseIterable, DatabaseValueCo
 }
 
 public struct Capture: Codable, Sendable, Equatable, Identifiable {
+    public static let defaultRating = 3
+    public static let ratingRange = 1...5
+
     public var id: Int64?
     public var kind: CaptureKind
 
@@ -75,6 +78,8 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
     /// needs tagging, which is what lets nil tags mean "nothing applied" rather than
     /// "not yet processed". ``pinnedTagsVersion`` marks tags supplied by the capturer.
     public var tagsVersion: Int
+    /// The user's preference for this capture: 1 is most disliked and 5 is most liked.
+    public var rating: Int
 
     /// The `tagsVersion` of tags supplied with the capture itself — an import keeping the
     /// user's own tags — rather than assigned by the agent. Pinned tags sit outside the
@@ -108,6 +113,7 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         sourceAppBundleID: String? = nil,
         tags: String? = nil,
         tagsVersion: Int = 0,
+        rating: Int = Capture.defaultRating,
         enrichmentState: EnrichmentState = .pending,
         bodyStatus: BodyStatus = .none,
         bodySource: BodySource? = nil,
@@ -132,6 +138,7 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         self.sourceAppBundleID = sourceAppBundleID
         self.tags = tags
         self.tagsVersion = tagsVersion
+        self.rating = rating
         self.enrichmentState = enrichmentState
         self.bodyStatus = bodyStatus
         self.bodySource = bodySource
@@ -166,6 +173,7 @@ extension Capture: FetchableRecord, MutablePersistableRecord {
         case sourceAppBundleID = "source_app_bundle_id"
         case tags
         case tagsVersion = "tags_version"
+        case rating
         case enrichmentState = "enrichment_state"
         case bodyStatus = "body_status"
         case bodySource = "body_source"
