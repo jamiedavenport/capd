@@ -24,6 +24,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+private struct SettingsMenuItem: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Button {
+            openSettings()
+            NSApp.activate()
+        } label: {
+            Label("Settings…", systemImage: "gearshape")
+        }
+        .keyboardShortcut(",")
+    }
+}
+
 /// The Capd menu-bar app.
 ///
 /// Building this target produces a bare executable, which is enough to compile and
@@ -105,10 +119,7 @@ struct CapdApp: App {
                     Label("Release Notes", systemImage: "newspaper")
                 }
                 Divider()
-                SettingsLink {
-                    Label("Settings…", systemImage: "gearshape")
-                }
-                .keyboardShortcut(",")
+                SettingsMenuItem()
                 Button("Quit Capd", systemImage: "power") {
                     NSApplication.shared.terminate(nil)
                 }
