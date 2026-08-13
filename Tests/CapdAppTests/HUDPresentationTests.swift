@@ -59,6 +59,14 @@ struct HUDPresentationTests {
         #expect(presentation.show(insight) == .restart(.seconds(6)))
     }
 
+    @Test("A reminder stays long enough to act on")
+    func reminderDuration() {
+        var presentation = HUDPresentation()
+        let reminder = HUDContent(style: .reminder, headline: "Reminder")
+
+        #expect(presentation.show(reminder) == .restart(.seconds(6)))
+    }
+
     @Test("A copied toast gets the success duration and no streak")
     func copiedDuration() {
         var presentation = HUDPresentation()

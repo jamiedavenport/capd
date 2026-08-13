@@ -123,6 +123,46 @@ public final class Store: Sendable {
         }
     }
 
+    public func scheduleReminder(id: Int64, at date: Date, now: Date = Date()) throws -> Capture {
+        try dbPool.write { db in
+            guard let current = try Capture.fetchOne(db, key: id) else {
+                throw CaptureError.notFound(id)
+            }
+            var updated = current
+            updated.reminderAt = date
+            updated.updatedAt = now
+            try updated.updateChanges(db, from: current)
+            return updated
+        }
+    }
+
+    public func claimNextDueReminder(now: Date = Date()) throws -> Capture? {
+        try dbPool.write { db in
+            guard
+                let due =
+                    try Capture
+                    .filter(Capture.CodingKeys.reminderAt != nil)
+                    .filter(Capture.CodingKeys.reminderAt <= now)
+                    .order(Capture.CodingKeys.reminderAt.asc)
+                    .fetchOne(db), let id = due.id
+            else { return nil }
+            try Capture.filter(Capture.CodingKeys.id == id).updateAll(
+                db,
+                Capture.CodingKeys.reminderAt.set(to: nil),
+                Capture.CodingKeys.updatedAt.set(to: now))
+            return due
+        }
+    }
+
+    public func nextReminderDate() throws -> Date? {
+        try dbPool.read { db in
+            try Date.fetchOne(
+                db,
+                sql: "SELECT MIN(\(Capture.CodingKeys.reminderAt.rawValue)) FROM \(Schema.captures)"
+            )
+        }
+    }
+
     /// Emits the number of captures whose enrichment failed, first immediately and then on
     /// every change, so the menu bar can badge without polling.
     public func failedEnrichmentCounts() -> AsyncValueObservation<Int> {

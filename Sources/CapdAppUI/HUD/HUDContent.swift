@@ -7,6 +7,7 @@ package struct HUDContent: Equatable, Sendable {
         case captured
         case duplicate
         case insight
+        case reminder
         case copied
         case blocked
         case failed
@@ -19,9 +20,10 @@ package struct HUDContent: Equatable, Sendable {
     var kind: CaptureKind? = nil
     var note: String? = nil
     var host: String? = nil
+    var actionURL: URL? = nil
 
     var canAnnotate: Bool {
-        captureID != nil
+        captureID != nil && style != .reminder
     }
 
     /// The note text to persist when the drawer closes, or nil when there is nothing
@@ -82,6 +84,26 @@ package struct HUDContent: Equatable, Sendable {
             style: .insight,
             headline: "Saved \(age)\(count)",
             detail: detail,
+            kind: capture.kind,
+            host: capture.kind == .link ? capture.host : nil)
+    }
+
+    package static func reminder(_ capture: Capture) -> HUDContent {
+        HUDContent(
+            style: .reminder,
+            captureID: capture.id,
+            headline: "Reminder",
+            detail: subject(of: capture),
+            kind: capture.kind,
+            host: capture.kind == .link ? capture.host : nil,
+            actionURL: capture.url.flatMap(URL.init(string:)))
+    }
+
+    package static func reminderScheduled(_ capture: Capture, at date: Date) -> HUDContent {
+        HUDContent(
+            style: .reminder,
+            headline: "Reminder set",
+            detail: date.formatted(date: .abbreviated, time: .shortened),
             kind: capture.kind,
             host: capture.kind == .link ? capture.host : nil)
     }

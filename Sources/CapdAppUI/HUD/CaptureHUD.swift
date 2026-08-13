@@ -31,6 +31,7 @@ struct CaptureHUDView: View {
     var beginAnnotation: () -> Void
     var saveNote: () -> Void
     var dismiss: () -> Void
+    var performAction: () -> Void = {}
     var hoverChanged: (Bool) -> Void
 
     @FocusState private var noteFieldFocused: Bool
@@ -176,6 +177,12 @@ struct CaptureHUDView: View {
                 .lineLimit(1)
                 .contentTransition(.numericText())
             statusBadge
+            if model.content?.actionURL != nil {
+                Button("Open", action: performAction)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Theme.accent)
+            }
             if model.content?.canAnnotate == true, !model.isAnnotating {
                 ShortcutHint(label: "Note", keys: [annotateShortcutLabel])
                     .font(.system(size: 11))
@@ -286,6 +293,7 @@ struct CaptureHUDView: View {
         case .copied: "doc.on.doc"
         case .duplicate: "clock.arrow.circlepath"
         case .insight: "sparkles"
+        case .reminder: "bell.fill"
         case .blocked: "lock.fill"
         case .failed: "exclamationmark.triangle.fill"
         }
@@ -295,7 +303,7 @@ struct CaptureHUDView: View {
         switch model.content?.style {
         case .captured, .copied, .none: Theme.success
         case .duplicate: .gray
-        case .insight: Theme.accent
+        case .insight, .reminder: Theme.accent
         case .blocked, .failed: Theme.warning
         }
     }
@@ -330,6 +338,7 @@ private final class HUDPanel: NSPanel {
 package final class HUDPanelController {
     private let model = HUDModel()
     private let saveNote: (Int64, String) -> Void
+    private let openURL: (URL) -> Void
     private let panel: HUDPanel
     private var hosting: NSHostingView<AnyView>!
     private var presentation = HUDPresentation()
@@ -346,8 +355,13 @@ package final class HUDPanelController {
     private var dropPending = false
     private var dropWithdrawTask: Task<Void, Never>?
 
-    package init(favicons: FaviconStore?, saveNote: @escaping (Int64, String) -> Void) {
+    package init(
+        favicons: FaviconStore?,
+        saveNote: @escaping (Int64, String) -> Void,
+        openURL: @escaping (URL) -> Void = { _ in }
+    ) {
         self.saveNote = saveNote
+        self.openURL = openURL
 
         let panel = HUDPanel(
             contentRect: .zero,
@@ -373,6 +387,7 @@ package final class HUDPanelController {
                     beginAnnotation: { [weak self] in self?.beginAnnotation() },
                     saveNote: { [weak self] in self?.saveNoteAndDismiss() },
                     dismiss: { [weak self] in self?.requestDismiss() },
+                    performAction: { [weak self] in self?.performAction() },
                     hoverChanged: { [weak self] in self?.hoverChanged($0) }
                 )
                 .environment(\.faviconStore, favicons)))
@@ -532,6 +547,12 @@ package final class HUDPanelController {
             saveNote(id, note)
         }
         requestDismiss()
+    }
+
+    private func performAction() {
+        guard let url = model.content?.actionURL else { return }
+        requestDismiss()
+        openURL(url)
     }
 
     private func requestDismiss() {

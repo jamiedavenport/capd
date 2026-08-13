@@ -6,7 +6,7 @@ import Testing
 @testable import CapdKit
 
 @MainActor
-@Suite("Search key handling")
+@Suite("Search key handling", .serialized)
 struct SearchKeyHandlingTests {
     @Test("Tab cycles tags forward")
     func tabCyclesForward() {
@@ -76,6 +76,55 @@ struct SearchKeyHandlingTests {
 
         #expect(window.performKeyEquivalent(with: event))
         #expect(recordedRating == 5)
+        window.orderOut(nil)
+    }
+
+    @Test("Command-R opens the reminder picker for the selected capture")
+    func commandROpensReminderPicker() async throws {
+        let capture = Capture(
+            id: 1,
+            kind: .link,
+            url: "https://example.com",
+            title: "Example",
+            createdAt: Date())
+        let hit = SearchHit(capture: capture, snippet: nil, score: nil)
+        let model = SearchModel(
+            environment: SearchEnvironment(
+                search: { _ in [hit] },
+                totalCount: { 1 },
+                delete: { _ in },
+                openURL: { _ in },
+                copyText: { _ in },
+                assetFileURL: { _ in nil },
+                showHUD: { _ in }))
+        model.queryText = "example"
+        await model.settle()
+
+        let hosting = NSHostingView(rootView: SearchView(model: model))
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 640, height: 470),
+            styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = hosting
+        hosting.layoutSubtreeIfNeeded()
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(hosting)
+        try await Task.sleep(for: .milliseconds(50))
+
+        let event = try #require(
+            NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: .command,
+                timestamp: 0,
+                windowNumber: window.windowNumber,
+                context: nil,
+                characters: "r",
+                charactersIgnoringModifiers: "r",
+                isARepeat: false,
+                keyCode: 15))
+
+        #expect(window.performKeyEquivalent(with: event))
+        #expect(model.reminderCapture?.id == 1)
         window.orderOut(nil)
     }
 }

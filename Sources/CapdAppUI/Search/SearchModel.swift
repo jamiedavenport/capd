@@ -13,12 +13,14 @@ package struct SearchEnvironment {
     var answer: @Sendable (String) async throws -> LibraryAnswer
     var setRating: @MainActor (Int64, Int) throws -> Void
     var delete: @MainActor (Int64) throws -> Void
+    var setReminder: @MainActor (Int64, Date) throws -> Void
     var openCapture: @MainActor (Int64) -> Void
     var openIntelligenceSettings: @MainActor () -> Void
     var openURL: @MainActor (URL) -> Void
     var copyText: @MainActor (String) -> Void
     var assetFileURL: @MainActor (String) -> URL?
     var showHUD: @MainActor (HUDContent) -> Void
+    var now: @MainActor () -> Date
 
     package init(
         search: @escaping @Sendable (String) async throws -> [SearchHit],
@@ -32,12 +34,14 @@ package struct SearchEnvironment {
         },
         setRating: @escaping @MainActor (Int64, Int) throws -> Void = { _, _ in },
         delete: @escaping @MainActor (Int64) throws -> Void,
+        setReminder: @escaping @MainActor (Int64, Date) throws -> Void = { _, _ in },
         openCapture: @escaping @MainActor (Int64) -> Void = { _ in },
         openIntelligenceSettings: @escaping @MainActor () -> Void = {},
         openURL: @escaping @MainActor (URL) -> Void,
         copyText: @escaping @MainActor (String) -> Void,
         assetFileURL: @escaping @MainActor (String) -> URL?,
-        showHUD: @escaping @MainActor (HUDContent) -> Void
+        showHUD: @escaping @MainActor (HUDContent) -> Void,
+        now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.search = search
         self.totalCount = totalCount
@@ -46,12 +50,14 @@ package struct SearchEnvironment {
         self.answer = answer
         self.setRating = setRating
         self.delete = delete
+        self.setReminder = setReminder
         self.openCapture = openCapture
         self.openIntelligenceSettings = openIntelligenceSettings
         self.openURL = openURL
         self.copyText = copyText
         self.assetFileURL = assetFileURL
         self.showHUD = showHUD
+        self.now = now
     }
 }
 
@@ -84,6 +90,9 @@ final class SearchModel {
     private(set) var libraryAnswer: LibraryAnswer?
     private(set) var isAnswering = false
     private(set) var answerError: String?
+    private(set) var reminderCapture: Capture?
+    var reminderDate = Date()
+    private(set) var reminderError: String?
     /// False until the first query answers, so an open window shows nothing rather than
     /// flashing the wrong empty state.
     private(set) var hasLoaded = false
@@ -111,6 +120,14 @@ final class SearchModel {
 
     var canRateSelection: Bool {
         !isAnswerMode && selectedHit?.capture.id != nil
+    }
+
+    var canRemindSelection: Bool {
+        !isAnswerMode && reminderCapture == nil && selectedHit?.capture.id != nil
+    }
+
+    var isReminderMode: Bool {
+        reminderCapture != nil
     }
 
     /// When available, Ask Cap is permanently the first item in the visible list.
@@ -145,6 +162,7 @@ final class SearchModel {
         focusToken &+= 1
         clearAnswer()
         answerAvailability = environment.answerAvailability()
+        cancelReminder()
         let alreadyClear = queryText.isEmpty && activeTag == nil
         activeTag = nil
         queryText = ""
@@ -252,11 +270,45 @@ final class SearchModel {
     }
 
     func handleEscape() {
-        if isAnswerMode {
+        if isReminderMode {
+            cancelReminder()
+        } else if isAnswerMode {
             clearAnswer()
         } else {
             dismiss()
         }
+    }
+
+    func beginReminder() {
+        guard canRemindSelection, let capture = selectedHit?.capture else { return }
+        reminderCapture = capture
+        reminderDate = Self.defaultReminderDate(after: environment.now())
+        reminderError = nil
+    }
+
+    func cancelReminder() {
+        let wasPresenting = reminderCapture != nil
+        reminderCapture = nil
+        reminderError = nil
+        if wasPresenting { focusToken &+= 1 }
+    }
+
+    func scheduleReminder() {
+        guard let capture = reminderCapture, let id = capture.id else { return }
+        guard reminderDate > environment.now() else {
+            reminderError = "Choose a time in the future."
+            return
+        }
+        do {
+            try environment.setReminder(id, reminderDate)
+        } catch {
+            reminderError = error.localizedDescription
+            return
+        }
+        environment.showHUD(.reminderScheduled(capture, at: reminderDate))
+        reminderCapture = nil
+        reminderError = nil
+        dismiss()
     }
 
     func openAnswerSource(_ number: Int) {
@@ -411,5 +463,10 @@ final class SearchModel {
 
     static func primaryText(of capture: Capture) -> String? {
         capture.selection ?? capture.body ?? capture.ocrText ?? capture.note ?? capture.title
+    }
+
+    static func defaultReminderDate(after now: Date, calendar: Calendar = .current) -> Date {
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
+        return calendar.date(byAdding: .hour, value: 9, to: tomorrow)!
     }
 }

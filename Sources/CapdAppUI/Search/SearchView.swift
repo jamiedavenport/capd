@@ -13,6 +13,22 @@ struct SearchView: View {
     @Namespace private var selectionNamespace
 
     var body: some View {
+        Group {
+            if model.isReminderMode {
+                reminderView
+            } else {
+                searchLayout
+            }
+        }
+        .frame(width: 640, height: 470)
+        .background(Theme.background, in: PanelStyle.shape)
+        .overlay(PanelStyle.shape.strokeBorder(Theme.border, lineWidth: 1))
+        .contentShape(PanelStyle.shape)
+        .onExitCommand { model.handleEscape() }
+        .background { keyboardCommands }
+    }
+
+    private var searchLayout: some View {
         VStack(spacing: 0) {
             searchBar
             if !model.isAnswerMode && !model.availableTags.isEmpty {
@@ -23,29 +39,81 @@ struct SearchView: View {
             hairline
             statusBar
         }
-        .frame(width: 640, height: 470)
-        .background(Theme.background, in: PanelStyle.shape)
-        .overlay(PanelStyle.shape.strokeBorder(Theme.border, lineWidth: 1))
-        .contentShape(PanelStyle.shape)
-        .background {
-            ZStack {
-                Button(action: model.deleteSelected) { EmptyView() }
-                    .keyboardShortcut(.delete, modifiers: [.command, .shift])
-                ForEach(Capture.ratingRange, id: \.self) { rating in
-                    Button {
-                        model.setRating(rating)
-                    } label: {
-                        EmptyView()
-                    }
-                    .keyboardShortcut(
-                        KeyEquivalent(Character(String(rating))), modifiers: .command
-                    )
-                    .disabled(!model.canRateSelection)
+    }
+
+    private var keyboardCommands: some View {
+        ZStack {
+            Button(action: model.deleteSelected) { EmptyView() }
+                .keyboardShortcut(.delete, modifiers: [.command, .shift])
+            Button(action: model.beginReminder) { EmptyView() }
+                .keyboardShortcut("r", modifiers: .command)
+                .disabled(!model.canRemindSelection)
+            ForEach(Capture.ratingRange, id: \.self) { rating in
+                Button {
+                    model.setRating(rating)
+                } label: {
+                    EmptyView()
+                }
+                .keyboardShortcut(
+                    KeyEquivalent(Character(String(rating))), modifiers: .command
+                )
+                .disabled(!model.canRateSelection)
+            }
+        }
+        .buttonStyle(.plain)
+        .opacity(0)
+        .accessibilityHidden(true)
+    }
+
+    private var reminderView: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "bell")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.accent)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Remind me")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.text)
+                    Text(model.reminderCapture?.title ?? model.reminderCapture?.host ?? "Bookmark")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            hairline
+
+            VStack(spacing: 20) {
+                DatePicker(
+                    "Reminder date and time",
+                    selection: $model.reminderDate,
+                    in: Date()...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.graphical)
+                .labelsHidden()
+                .tint(Theme.accent)
+
+                if let error = model.reminderError {
+                    Text(error)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.warning)
+                }
+
+                HStack(spacing: 10) {
+                    Button("Cancel", action: model.cancelReminder)
+                        .keyboardShortcut(.cancelAction)
+                    Button("Set Reminder", action: model.scheduleReminder)
+                        .keyboardShortcut(.defaultAction)
                 }
             }
-            .buttonStyle(.plain)
-            .opacity(0)
-            .accessibilityHidden(true)
+            .buttonStyle(.bordered)
+            .padding(20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -67,7 +135,6 @@ struct SearchView: View {
         .focused($searchFieldFocused)
         .onSubmit { model.submit() }
         .onKeyPress(action: handleKey)
-        .onExitCommand { model.handleEscape() }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)
         .onChange(of: model.focusToken, initial: true) {
@@ -487,6 +554,8 @@ struct SearchView: View {
                     }
                 } else {
                     ShortcutHint(label: "Open", keys: ["↩"])
+                    statusDivider
+                    ShortcutHint(label: "Remind", keys: ["⌘", "R"])
                     statusDivider
                     ShortcutHint(label: "Rate", keys: ["⌘", "1–5"])
                     statusDivider

@@ -275,6 +275,56 @@ struct SearchModelTests {
         #expect(model.totalCount == 2)
     }
 
+    @Test("A reminder is scheduled for the selected capture and closes search")
+    func schedulesReminder() async {
+        let log = ActionLog()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let reminder = now.addingTimeInterval(3_600)
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [makeHit(id: 7)] },
+                setReminder: { id, date in
+                    log.reminders.append(ReminderAction(id: id, date: date))
+                },
+                showHUD: { log.toasts.append($0) },
+                now: { now }))
+        model.onDismiss = { log.dismissed += 1 }
+        model.queryText = "page"
+        await model.settle()
+
+        model.beginReminder()
+        model.reminderDate = reminder
+        model.scheduleReminder()
+
+        #expect(log.reminders == [ReminderAction(id: 7, date: reminder)])
+        #expect(log.toasts.map(\.headline) == ["Reminder set"])
+        #expect(log.dismissed == 1)
+        #expect(!model.isReminderMode)
+    }
+
+    @Test("A past reminder stays open with a validation error")
+    func rejectsPastReminder() async {
+        let log = ActionLog()
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let model = SearchModel(
+            environment: .stub(
+                search: { _ in [makeHit(id: 7)] },
+                setReminder: { id, date in
+                    log.reminders.append(ReminderAction(id: id, date: date))
+                },
+                now: { now }))
+        model.queryText = "page"
+        await model.settle()
+
+        model.beginReminder()
+        model.reminderDate = now
+        model.scheduleReminder()
+
+        #expect(log.reminders.isEmpty)
+        #expect(model.reminderError == "Choose a time in the future.")
+        #expect(model.isReminderMode)
+    }
+
     @Test("Tab cycles every tag with all-captures as the stop between the ends")
     func tabCycle() async {
         let model = SearchModel(
@@ -559,6 +609,7 @@ private final class ActionLog {
     var copied: [String] = []
     var deleted: [Int64] = []
     var ratings: [RatingAction] = []
+    var reminders: [ReminderAction] = []
     var toasts: [HUDContent] = []
     var dismissed = 0
 }
@@ -566,6 +617,11 @@ private final class ActionLog {
 private struct RatingAction: Equatable {
     let id: Int64
     let rating: Int
+}
+
+private struct ReminderAction: Equatable {
+    let id: Int64
+    let date: Date
 }
 
 /// Result state shared between the `@Sendable` search closure and main-actor mutations.
@@ -649,12 +705,14 @@ extension SearchEnvironment {
             throw LibraryAnswerError.unavailable(.unknown)
         },
         setRating: @escaping @MainActor (Int64, Int) throws -> Void = { _, _ in },
+        setReminder: @escaping @MainActor (Int64, Date) throws -> Void = { _, _ in },
         delete: @escaping @MainActor (Int64) throws -> Void = { _ in },
         openCapture: @escaping @MainActor (Int64) -> Void = { _ in },
         openURL: @escaping @MainActor (URL) -> Void = { _ in },
         copyText: @escaping @MainActor (String) -> Void = { _ in },
         assetFileURL: @escaping @MainActor (String) -> URL? = { _ in nil },
-        showHUD: @escaping @MainActor (HUDContent) -> Void = { _ in }
+        showHUD: @escaping @MainActor (HUDContent) -> Void = { _ in },
+        now: @escaping @MainActor () -> Date = Date.init
     ) -> SearchEnvironment {
         SearchEnvironment(
             search: search,
@@ -664,11 +722,13 @@ extension SearchEnvironment {
             answer: answer,
             setRating: setRating,
             delete: delete,
+            setReminder: setReminder,
             openCapture: openCapture,
             openURL: openURL,
             copyText: copyText,
             assetFileURL: assetFileURL,
-            showHUD: showHUD)
+            showHUD: showHUD,
+            now: now)
     }
 }
 

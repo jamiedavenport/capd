@@ -97,4 +97,23 @@ struct HUDContentTests {
         #expect(content.headline.contains("seen 3×"))
         #expect(content.detail?.hasPrefix("Last seen ") == true)
     }
+
+    @Test("A bookmark reminder offers its page as a HUD action")
+    func reminderOffersOpenAction() {
+        let capture = Capture(
+            id: 4,
+            kind: .link,
+            url: "https://example.com/a",
+            host: "example.com",
+            title: "A page",
+            createdAt: Date())
+
+        let content = HUDContent.reminder(capture)
+
+        #expect(content.style == .reminder)
+        #expect(content.headline == "Reminder")
+        #expect(content.detail == "A page")
+        #expect(content.actionURL == URL(string: "https://example.com/a"))
+        #expect(!content.canAnnotate)
+    }
 }

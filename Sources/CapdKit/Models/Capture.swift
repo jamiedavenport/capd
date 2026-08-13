@@ -94,6 +94,7 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
 
     /// Hash of the normalized URL, or of the content for captures with no URL.
     public var contentHash: String?
+    public var reminderAt: Date?
     public var createdAt: Date
     public var updatedAt: Date
     public var lastSeenAt: Date
@@ -120,6 +121,7 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         attemptCount: Int = 0,
         lastAttemptAt: Date? = nil,
         contentHash: String? = nil,
+        reminderAt: Date? = nil,
         createdAt: Date,
         updatedAt: Date? = nil,
         lastSeenAt: Date? = nil,
@@ -145,6 +147,7 @@ public struct Capture: Codable, Sendable, Equatable, Identifiable {
         self.attemptCount = attemptCount
         self.lastAttemptAt = lastAttemptAt
         self.contentHash = contentHash
+        self.reminderAt = reminderAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt
         self.lastSeenAt = lastSeenAt ?? createdAt
@@ -180,6 +183,7 @@ extension Capture: FetchableRecord, MutablePersistableRecord {
         case attemptCount = "attempt_count"
         case lastAttemptAt = "last_attempt_at"
         case contentHash = "content_hash"
+        case reminderAt = "reminder_at"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
         case lastSeenAt = "last_seen_at"

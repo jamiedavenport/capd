@@ -26,6 +26,7 @@ final class AppState {
     @ObservationIgnored private var onboarding: OnboardingWindowController?
     @ObservationIgnored private var statusItemDrop: StatusItemDropTarget?
     @ObservationIgnored private var contextMonitor: AmbientContextMonitor?
+    @ObservationIgnored private var reminderScheduler: ReminderScheduler?
     @ObservationIgnored private let contextSuppressions = ContextSuppressionRegistry()
     @ObservationIgnored private let dragMonitor = DragMonitor()
     @ObservationIgnored private var totalCaptures: (() -> Int)?
@@ -145,6 +146,13 @@ final class AppState {
             guards: [SecureInputGuard(probes: [SystemSecureInputProbe(), AXReader()])])
         let enrichment = EnrichmentService(store: store, steps: [TabFirstBodyStep()])
         let favicons = FaviconStore(paths: store.paths)
+        let settings = self.settings
+        let openURL: @MainActor (URL) -> Void = { [settings, contextSuppressions] url in
+            contextSuppressions.register(url)
+            NSWorkspace.shared.open(
+                CapdLinkAttribution.attributed(
+                    url, enabled: settings.contextualRemindersEnabled))
+        }
         // Ungated: the secure-input guard protects reading the screen, and an import
         // reads a file the user just picked.
         pinboardImporter = PinboardImporter(captures: CaptureService(store: store))
@@ -153,10 +161,10 @@ final class AppState {
             favicons: favicons,
             saveNote: { id, note in
                 _ = try? captureService.annotate(id, note: note)
-            })
+            },
+            openURL: openURL)
         self.hud = hud
 
-        let settings = self.settings
         coordinator = CaptureCoordinator(
             environment: .live(
                 fetchBody: { settings.fetchesPageBodies },
@@ -225,18 +233,25 @@ final class AppState {
             contextMonitor.start()
         }
 
+        let reminderScheduler = ReminderScheduler(
+            environment: ReminderScheduler.Environment(
+                claimNextDue: { try store.claimNextDueReminder(now: $0) },
+                nextDate: { try store.nextReminderDate() },
+                present: { hud.show(.reminder($0)) }))
+        self.reminderScheduler = reminderScheduler
+
         search = SearchWindowController(
             environment: .live(
                 searchService: searchService,
                 store: store,
-                openURL: { [settings, contextSuppressions] url in
-                    contextSuppressions.register(url)
-                    NSWorkspace.shared.open(
-                        CapdLinkAttribution.attributed(
-                            url, enabled: settings.contextualRemindersEnabled))
+                setReminder: { id, date in
+                    _ = try store.scheduleReminder(id: id, at: date)
+                    reminderScheduler.reload()
                 },
+                openURL: openURL,
                 showHUD: { hud.show($0) }),
             favicons: favicons)
+        reminderScheduler.start()
         totalCaptures = { (try? searchService.totalCaptureCount()) ?? 0 }
 
         KeyboardShortcuts.onKeyDown(for: .capture) { [weak self] in
@@ -389,6 +404,7 @@ extension SearchEnvironment {
     static func live(
         searchService: SearchService,
         store: Store,
+        setReminder: (@MainActor (Int64, Date) throws -> Void)? = nil,
         openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) },
         showHUD: @escaping @MainActor (HUDContent) -> Void
     ) -> SearchEnvironment {
@@ -403,6 +419,9 @@ extension SearchEnvironment {
                 _ = try store.updateRating(id: id, rating: rating)
             },
             delete: { _ = try store.deleteCaptures(ids: [$0]) },
+            setReminder: setReminder ?? { id, date in
+                _ = try store.scheduleReminder(id: id, at: date)
+            },
             openCapture: { id in
                 guard let capture = try? searchService.capture(id: id) else { return }
                 if let rawURL = capture.url, let url = URL(string: rawURL) {

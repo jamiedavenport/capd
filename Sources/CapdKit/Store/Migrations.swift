@@ -8,7 +8,19 @@ enum Migrations {
         migrator.registerMigration("002", migrate: addRetagRequest)
         migrator.registerMigration("003", migrate: addRetagProgress)
         migrator.registerMigration("004", migrate: addCaptureRating)
+        migrator.registerMigration("005", migrate: addCaptureReminder)
         return migrator
+    }
+
+    static func addCaptureReminder(_ db: Database) throws {
+        try db.alter(table: Schema.captures) { t in
+            t.add(column: Capture.CodingKeys.reminderAt.rawValue, .datetime)
+        }
+        try db.create(
+            index: "captures_on_reminder_at",
+            on: Schema.captures,
+            columns: [Capture.CodingKeys.reminderAt.rawValue],
+            condition: Capture.CodingKeys.reminderAt != nil)
     }
 
     static func addCaptureRating(_ db: Database) throws {

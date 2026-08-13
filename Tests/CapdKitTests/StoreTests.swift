@@ -32,8 +32,9 @@ struct StoreTests {
                         "captures_on_content_hash", "captures_on_enrichment_state",
                         "captures_on_created_at", "captures_on_host", "captures_on_url",
                         "captures_on_title", "captures_on_tags_version", "captures_on_rating",
+                        "captures_on_reminder_at",
                     ])
-                #expect(applied == ["001", "002", "003", "004"])
+                #expect(applied == ["001", "002", "003", "004", "005"])
                 #expect(journalMode == "wal")
                 #expect(foreignKeys == 1)
             }
@@ -57,7 +58,7 @@ struct StoreTests {
                 let count = try Capture.fetchCount(db)
                 let survivor = try Capture.fetchOne(db)
 
-                #expect(applied == ["001", "002", "003", "004"])
+                #expect(applied == ["001", "002", "003", "004", "005"])
                 #expect(count == 1)
                 #expect(survivor?.title == "Durable")
             }
@@ -319,7 +320,7 @@ struct StoreTests {
             let store = try Store(paths: paths)
             try store.dbPool.write { db in
                 try db.execute(
-                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('005')")
+                    sql: "INSERT INTO grdb_migrations (identifier) VALUES ('006')")
             }
 
             #expect(throws: StoreError.databaseIsNewerThanApp) {
@@ -444,6 +445,28 @@ struct StoreTests {
             #expect(throws: RatingError.outOfRange(0)) {
                 try store.updateRating(id: original.id!, rating: 0)
             }
+        }
+    }
+
+    @Test("Reminders persist, fire in order, and are claimed once")
+    func remindersAreClaimedOnce() throws {
+        try withTemporaryPaths { paths in
+            let store = try Store(paths: paths)
+            let first = try store.upsertCapture(makeCapture(title: "First reminder")).capture
+            let second = try store.upsertCapture(makeCapture(title: "Second reminder")).capture
+            let now = Date(timeIntervalSince1970: 1_800_000_000)
+            let firstDate = now.addingTimeInterval(-60)
+            let secondDate = now.addingTimeInterval(60)
+
+            _ = try store.scheduleReminder(id: second.id!, at: secondDate)
+            _ = try store.scheduleReminder(id: first.id!, at: firstDate)
+
+            #expect(try store.nextReminderDate() == firstDate)
+            #expect(try store.claimNextDueReminder(now: now)?.id == first.id)
+            #expect(try store.nextReminderDate() == secondDate)
+            #expect(try store.claimNextDueReminder(now: now) == nil)
+            #expect(try store.claimNextDueReminder(now: secondDate)?.id == second.id)
+            #expect(try store.nextReminderDate() == nil)
         }
     }
 
