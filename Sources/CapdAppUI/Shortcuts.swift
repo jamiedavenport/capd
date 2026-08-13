@@ -10,4 +10,7 @@ extension KeyboardShortcuts.Name {
 
     package static let annotate = Self(
         "annotate", initial: .init(.n, modifiers: [.control, .option]))
+
+    package static let openReminder = Self(
+        "openReminder", initial: .init(.o, modifiers: [.control, .option]))
 }

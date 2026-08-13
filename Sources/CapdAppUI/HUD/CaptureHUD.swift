@@ -178,10 +178,11 @@ struct CaptureHUDView: View {
                 .contentTransition(.numericText())
             statusBadge
             if model.content?.actionURL != nil {
-                Button("Open", action: performAction)
-                    .buttonStyle(.plain)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Theme.accent)
+                Button(action: performAction) {
+                    ShortcutHint(label: "Open", keys: openReminderShortcutKeys)
+                }
+                .buttonStyle(.plain)
+                .font(.system(size: 11))
             }
             if model.content?.canAnnotate == true, !model.isAnnotating {
                 ShortcutHint(label: "Note", keys: [annotateShortcutLabel])
@@ -193,6 +194,10 @@ struct CaptureHUDView: View {
 
     private var annotateShortcutLabel: String {
         KeyboardShortcuts.getShortcut(for: .annotate).map { "\($0)" } ?? "⌃⌥N"
+    }
+
+    private var openReminderShortcutKeys: [String] {
+        KeyboardShortcuts.getShortcut(for: .openReminder).map { ["\($0)"] } ?? []
     }
 
     /// The outcome badge doubles as the dismiss button while the pointer is on the bar.
@@ -549,7 +554,7 @@ package final class HUDPanelController {
         requestDismiss()
     }
 
-    private func performAction() {
+    package func performAction() {
         guard let url = model.content?.actionURL else { return }
         requestDismiss()
         openURL(url)

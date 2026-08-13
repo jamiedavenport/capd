@@ -22,6 +22,10 @@ package struct SettingsView: View {
                 row("Search") {
                     KeyboardShortcuts.Recorder("", name: .search)
                 }
+                hairline
+                row("Open HUD reminder") {
+                    KeyboardShortcuts.Recorder("", name: .openReminder)
+                }
             }
             section("Network") {
                 row("Fetch page content for link captures") {

@@ -262,6 +262,10 @@ final class AppState {
             self?.hud?.beginAnnotation()
         }
 
+        KeyboardShortcuts.onKeyDown(for: .openReminder) { [weak self] in
+            self?.hud?.performAction()
+        }
+
         KeyboardShortcuts.onKeyDown(for: .search) { [weak self] in
             self?.onboarding?.noteSearchOpened()
             self?.search?.toggle()
