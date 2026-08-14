@@ -1,5 +1,6 @@
 # AI
 .gstack
+graphify-out/
 
 # Swift
 .build/
