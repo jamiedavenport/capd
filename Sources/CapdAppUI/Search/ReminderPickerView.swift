@@ -1,5 +1,48 @@
 import SwiftUI
 
+enum ReminderQuickAction: CaseIterable, Identifiable {
+    case tomorrow
+    case nextWeek
+    case nextMonth
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .tomorrow: "Tomorrow"
+        case .nextWeek: "Next Week"
+        case .nextMonth: "Next Month"
+        }
+    }
+
+    func date(
+        after referenceDate: Date,
+        preservingTimeFrom selectedDate: Date,
+        calendar: Calendar = .current
+    ) -> Date {
+        let offset: (component: Calendar.Component, value: Int) =
+            switch self {
+            case .tomorrow: (.day, 1)
+            case .nextWeek: (.weekOfYear, 1)
+            case .nextMonth: (.month, 1)
+            }
+        guard
+            let targetDate = calendar.date(
+                byAdding: offset.component,
+                value: offset.value,
+                to: referenceDate
+            )
+        else { return selectedDate }
+        let time = calendar.dateComponents([.hour, .minute, .second], from: selectedDate)
+        return calendar.date(
+            bySettingHour: time.hour ?? 0,
+            minute: time.minute ?? 0,
+            second: time.second ?? 0,
+            of: targetDate
+        ) ?? targetDate
+    }
+}
+
 /// A compact, Mac-native reminder editor. Keeping it independent from `SearchModel`
 /// makes every visual state available in the preview canvas.
 struct ReminderPickerView: View {
@@ -63,6 +106,7 @@ struct ReminderPickerView: View {
                 }
 
                 pickerFields
+                quickActions
 
                 if let error {
                     Label(error, systemImage: "exclamationmark.circle.fill")
@@ -130,6 +174,31 @@ struct ReminderPickerView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .strokeBorder(Theme.border, lineWidth: 1))
+    }
+
+    private var quickActions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Quick select")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
+
+            HStack(spacing: 8) {
+                ForEach(ReminderQuickAction.allCases) { action in
+                    Button {
+                        date = action.date(
+                            after: minimumDate,
+                            preservingTimeFrom: date
+                        )
+                    } label: {
+                        Text(action.title)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func fieldLabel(_ title: String, systemImage: String) -> some View {
