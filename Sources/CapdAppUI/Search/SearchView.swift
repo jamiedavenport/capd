@@ -66,55 +66,13 @@ struct SearchView: View {
     }
 
     private var reminderView: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "bell")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(Theme.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Remind me")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.text)
-                    Text(model.reminderCapture?.title ?? model.reminderCapture?.host ?? "Bookmark")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.textSecondary)
-                        .lineLimit(1)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            hairline
-
-            VStack(spacing: 20) {
-                DatePicker(
-                    "Reminder date and time",
-                    selection: $model.reminderDate,
-                    in: Date()...,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .tint(Theme.accent)
-
-                if let error = model.reminderError {
-                    Text(error)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.warning)
-                }
-
-                HStack(spacing: 10) {
-                    Button("Cancel", action: model.cancelReminder)
-                        .keyboardShortcut(.cancelAction)
-                    Button("Set Reminder", action: model.scheduleReminder)
-                        .keyboardShortcut(.defaultAction)
-                }
-            }
-            .buttonStyle(.bordered)
-            .padding(20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        ReminderPickerView(
+            captureTitle: model.reminderCapture?.title ?? model.reminderCapture?.host ?? "Bookmark",
+            date: $model.reminderDate,
+            minimumDate: Date(),
+            error: model.reminderError,
+            cancel: model.cancelReminder,
+            schedule: model.scheduleReminder)
     }
 
     private var hairline: some View {
