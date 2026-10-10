@@ -43,7 +43,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-5-5
             --max-turns 40
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(swift build:*),Bash(swift test:*),Bash(swift format:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*),Bash(gh pr list:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(swift build:*),Bash(swift test:*),Bash(swift format:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin claude/issue-:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr create:*),Bash(gh pr list:*)"
           prompt: |
             You are triaging issue #${{ github.event.issue.number }} in ${{ github.repository }}.
             Read it with `gh issue view ${{ github.event.issue.number }} --comments`.
@@ -59,7 +59,7 @@ jobs:
                - `git switch -c claude/issue-${{ github.event.issue.number }}`
                - Make the minimal fix, adding a test where practical.
                - Run `swift format --in-place --recursive Sources Tests` and `swift test --parallel`.
-               - Commit, push, and open a draft PR with `gh pr create --draft` whose body
+               - Commit, `git push -u origin claude/issue-${{ github.event.issue.number }}`, and open a draft PR with `gh pr create --draft` whose body
                  explains the cause and the fix and contains `Fixes #${{ github.event.issue.number }}`.
                - Comment on the issue linking the PR.
 
