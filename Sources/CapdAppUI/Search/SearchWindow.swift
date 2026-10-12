@@ -44,10 +44,17 @@ package final class SearchWindowController: NSObject, NSWindowDelegate {
         let hosting = NSHostingView(
             rootView: SearchView(model: model).environment(\.faviconStore, favicons))
         panel.contentView = hosting
-        hosting.layoutSubtreeIfNeeded()
-        panel.setContentSize(hosting.fittingSize)
         panel.delegate = self
         panel.onCancel = { [weak self] in self?.hide() }
+        // On the macOS 27 SDK the query field's editor consumes arrows, Return and Tab
+        // before SwiftUI's onKeyPress or onSubmit see them, so they are taken at the window.
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let handled = MainActor.assumeIsolated {
+                guard let self, event.window === self.panel else { return false }
+                return self.model.handleKey(event)
+            }
+            return handled ? nil : event
+        }
         model.onDismiss = { [weak self] in self?.hide() }
     }
 
@@ -100,5 +107,36 @@ package final class SearchWindowController: NSObject, NSWindowDelegate {
             x: visible.midX - size.width / 2,
             y: max(visible.minY, visible.maxY - visible.height * 0.25 - size.height))
         panel.setFrameOrigin(origin)
+    }
+}
+
+extension SearchModel {
+    /// Navigates, opens, copies and cycles tags while the query field keeps focus, so the
+    /// keyboard never has to leave the query. Returns false for keys the field should get.
+    func handleKey(_ event: NSEvent) -> Bool {
+        guard !isReminderMode, let key = event.specialKey else { return false }
+        let command = event.modifierFlags.contains(.command)
+        switch key {
+        case .carriageReturn, .enter:
+            if !command {
+                submit()
+            } else if !isAnswerMode {
+                copySelected()
+            } else if libraryAnswer != nil {
+                copyAnswer()
+            } else {
+                return false
+            }
+        case .upArrow, .downArrow:
+            guard !isAnswerMode else { return false }
+            moveSelection(by: key == .upArrow ? -1 : 1)
+        // AppKit sends Shift-Tab as either Tab plus Shift or the legacy Backtab character.
+        case .tab, .backTab:
+            guard !isAnswerMode else { return false }
+            cycleTag(forward: key == .tab && !event.modifierFlags.contains(.shift))
+        default:
+            return false
+        }
+        return true
     }
 }

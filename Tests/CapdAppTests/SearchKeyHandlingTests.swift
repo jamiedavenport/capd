@@ -8,22 +8,45 @@ import Testing
 @MainActor
 @Suite("Search key handling", .serialized)
 struct SearchKeyHandlingTests {
-    @Test("Tab cycles tags forward")
-    func tabCyclesForward() {
-        #expect(SearchView.tagCycleForward(for: .tab, modifiers: []) == true)
+    @Test("Arrows move the selection and Return opens it")
+    func arrowsAndReturnOpenSelection() async throws {
+        var opened: [URL] = []
+        let model = try await makeModel(openURL: { opened.append($0) })
+
+        #expect(model.handleKey(try keyEvent(.downArrow)))
+        #expect(model.isCaptureSelected(1))
+        #expect(model.handleKey(try keyEvent(.upArrow)))
+        #expect(model.isCaptureSelected(0))
+        #expect(model.handleKey(try keyEvent(.downArrow)))
+        #expect(model.handleKey(try keyEvent(.carriageReturn)))
+        #expect(opened == [URL(string: "https://example.com/2")])
     }
 
-    @Test("Shift-Tab cycles tags backward in both macOS representations")
-    func shiftTabCyclesBackward() {
-        #expect(SearchView.tagCycleForward(for: .tab, modifiers: [.shift]) == false)
-        #expect(
-            SearchView.tagCycleForward(
-                for: KeyEquivalent(Character("\u{19}")), modifiers: [.shift]) == false)
+    @Test("Command-Return copies the selection")
+    func commandReturnCopiesSelection() async throws {
+        var copied: [String] = []
+        let model = try await makeModel(copyText: { copied.append($0) })
+
+        #expect(model.handleKey(try keyEvent(.carriageReturn, modifiers: .command)))
+        #expect(copied == ["https://example.com/1"])
     }
 
-    @Test("Unrelated keys are ignored by tag cycling")
-    func unrelatedKeyIsIgnored() {
-        #expect(SearchView.tagCycleForward(for: .return, modifiers: []) == nil)
+    @Test("Tab cycles tags forward, Shift-Tab backward in both macOS representations")
+    func tabCyclesTags() async throws {
+        let model = try await makeModel(tags: ["a", "b"])
+
+        #expect(model.handleKey(try keyEvent(.tab)))
+        #expect(model.activeTag == "a")
+        #expect(model.handleKey(try keyEvent(.tab, modifiers: .shift)))
+        #expect(model.activeTag == nil)
+        #expect(model.handleKey(try keyEvent(.backTab)))
+        #expect(model.activeTag == "b")
+    }
+
+    @Test("Other keys stay with the query field")
+    func unrelatedKeyIsIgnored() async throws {
+        let model = try await makeModel()
+        #expect(!model.handleKey(try keyEvent(.leftArrow)))
     }
 
     @Test("Command-number rates while the search field has focus")
@@ -126,5 +149,44 @@ struct SearchKeyHandlingTests {
         #expect(window.performKeyEquivalent(with: event))
         #expect(model.reminderCapture?.id == 1)
         window.orderOut(nil)
+    }
+
+    private func makeModel(
+        tags: [String] = [],
+        openURL: @escaping @MainActor (URL) -> Void = { _ in },
+        copyText: @escaping @MainActor (String) -> Void = { _ in }
+    ) async throws -> SearchModel {
+        let hits = (1...2).map { id in
+            SearchHit(
+                capture: Capture(
+                    id: Int64(id), kind: .link, url: "https://example.com/\(id)",
+                    title: "Example \(id)", createdAt: Date()),
+                snippet: nil, score: nil)
+        }
+        let model = SearchModel(
+            environment: SearchEnvironment(
+                search: { _ in hits },
+                totalCount: { hits.count },
+                tags: { tags },
+                delete: { _ in },
+                openURL: openURL,
+                copyText: copyText,
+                assetFileURL: { _ in nil },
+                showHUD: { _ in }))
+        model.activate()
+        model.queryText = "example"
+        await model.settle()
+        return model
+    }
+
+    private func keyEvent(
+        _ key: NSEvent.SpecialKey, modifiers: NSEvent.ModifierFlags = []
+    ) throws -> NSEvent {
+        let character = String(Character(UnicodeScalar(key.rawValue)!))
+        return try #require(
+            NSEvent.keyEvent(
+                with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+                windowNumber: 0, context: nil, characters: character,
+                charactersIgnoringModifiers: character, isARepeat: false, keyCode: 0))
     }
 }
