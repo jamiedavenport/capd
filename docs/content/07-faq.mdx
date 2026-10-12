@@ -18,7 +18,7 @@ macOS can revoke Accessibility when an app's code signature changes. Open
 System Settings → Privacy & Security → Accessibility, remove the existing Capd
 entry, and add the app again. `capd doctor` reports the current permission state.
 
-### Why does macOS ask about Safari, Chrome, and Arc separately?
+### Why does macOS ask about Safari, Chrome, Arc, and Helium separately?
 
 Those browsers share their current tab through Automation, and macOS stores
 permission per app. Declining one browser means Capd cannot capture its current
@@ -41,7 +41,7 @@ The fetch may have timed out, exceeded 10 MB, or reached a page that requires a
 login. Very short responses are marked thin rather than treated as full
 articles. The URL, title, selection, and note remain searchable.
 
-Capturing a page from Safari, Chrome, or Arc can preserve content already
+Capturing a page from Safari, Chrome, Arc, or Helium can preserve content already
 rendered in your signed-in browser. You can also retry with `capd refetch`.
 
 ### Can I capture a screenshot region?

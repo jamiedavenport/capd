@@ -8,6 +8,7 @@ extension Browser {
         case .safari: "Safari"
         case .chrome: "Chrome"
         case .arc: "Arc"
+        case .helium: "Helium"
         case .firefox: "Firefox"
         case .zen: "Zen"
         case .librewolf: "LibreWolf"

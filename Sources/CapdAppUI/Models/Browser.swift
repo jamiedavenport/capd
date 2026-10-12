@@ -4,6 +4,7 @@ package enum Browser: String, CaseIterable {
     case safari = "com.apple.Safari"
     case chrome = "com.google.Chrome"
     case arc = "company.thebrowser.Browser"
+    case helium = "net.imput.helium"
     case firefox = "org.mozilla.firefox"
     case zen = "app.zen-browser.zen"
     case librewolf = "org.mozilla.librewolf"
@@ -17,7 +18,7 @@ package enum Browser: String, CaseIterable {
     /// Accessibility instead, and the body over the network fetch.
     package var isGecko: Bool {
         switch self {
-        case .safari, .chrome, .arc: false
+        case .safari, .chrome, .arc, .helium: false
         case .firefox, .zen, .librewolf, .waterfox: true
         }
     }

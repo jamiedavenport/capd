@@ -22,7 +22,7 @@ struct TabExtractor {
             switch browser {
             case .safari:
                 "do JavaScript \"\(literal)\" in current tab of front window"
-            case .chrome, .arc:
+            case .chrome, .arc, .helium:
                 "execute active tab of front window javascript \"\(literal)\""
             case .firefox, .zen, .librewolf, .waterfox:
                 ""

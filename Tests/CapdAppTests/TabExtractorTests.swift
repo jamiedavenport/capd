@@ -24,7 +24,7 @@ struct TabExtractorTests {
 
     @Test(
         "Chromium browsers share a dialect and differ only in bundle id",
-        arguments: [Browser.chrome, Browser.arc])
+        arguments: [Browser.chrome, Browser.arc, Browser.helium])
     func chromiumScript(browser: Browser) throws {
         let script = try #require(
             TabExtractor.script(for: browser, javaScript: TabExtractor.documentHTMLJavaScript))
@@ -55,6 +55,7 @@ struct TabExtractorTests {
             ("com.apple.Safari", Browser.safari),
             ("com.google.Chrome", Browser.chrome),
             ("company.thebrowser.Browser", Browser.arc),
+            ("net.imput.helium", Browser.helium),
             ("org.mozilla.firefox", Browser.firefox),
             ("app.zen-browser.zen", Browser.zen),
             ("org.mozilla.librewolf", Browser.librewolf),

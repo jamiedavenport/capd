@@ -23,7 +23,7 @@ struct BrowserTabReaderTests {
 
     @Test(
         "Chromium browsers share a dialect and differ only in bundle id",
-        arguments: [Browser.chrome, Browser.arc])
+        arguments: [Browser.chrome, Browser.arc, Browser.helium])
     func chromiumScript(browser: Browser) throws {
         let script = try #require(BrowserTabReader.script(for: browser))
 
