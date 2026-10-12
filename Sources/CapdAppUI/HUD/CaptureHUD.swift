@@ -184,10 +184,11 @@ struct CaptureHUDView: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
             }
-            if model.content?.canAnnotate == true, !model.isAnnotating {
-                ShortcutHint(label: "Note", keys: [annotateShortcutLabel])
+            if model.content?.canAnnotate == true {
+                // Hidden rather than removed so opening the note drawer keeps the bar's width.
+                ShortcutHint(label: "Note", keys: Self.keycaps(annotateShortcutLabel))
                     .font(.system(size: 11))
-                    .transition(.opacity)
+                    .opacity(model.isAnnotating ? 0 : 1)
             }
         }
     }
@@ -197,7 +198,13 @@ struct CaptureHUDView: View {
     }
 
     private var openReminderShortcutKeys: [String] {
-        KeyboardShortcuts.getShortcut(for: .openReminder).map { ["\($0)"] } ?? []
+        KeyboardShortcuts.getShortcut(for: .openReminder).map { Self.keycaps("\($0)") } ?? []
+    }
+
+    /// One chip per modifier plus one for the key, e.g. "⇧⌘N" → ["⇧", "⌘", "N"].
+    nonisolated static func keycaps(_ shortcut: String) -> [String] {
+        let modifiers = shortcut.prefix { "⌃⌥⇧⌘".contains($0) }
+        return modifiers.map(String.init) + [String(shortcut.dropFirst(modifiers.count))]
     }
 
     /// The outcome badge doubles as the dismiss button while the pointer is on the bar.
@@ -526,8 +533,20 @@ package final class HUDPanelController {
     private func configureVariant() {
         let screen = screenUnderMouse()
         anchorScreen = screen
+        // Boring Notch draws its closed notch wider than the physical one, and draws a
+        // notch of its own on screens without one.
+        let boringNotch = NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == "theboringteam.boringnotch"
+        }
         if let screen, let notch = NotchGeometry(screen: screen) {
-            model.variant = .notch(gap: notch.notchWidth, height: notch.notchHeight)
+            model.variant = .notch(
+                gap: notch.notchWidth + (boringNotch ? 68 : 0), height: notch.notchHeight)
+        } else if let screen, boringNotch {
+            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
+            // shortcut: assumes Boring Notch's default 185pt width; read its settings if that varies.
+            model.variant = .notch(
+                gap: 185 + 68,
+                height: menuBarHeight > 0 ? menuBarHeight : NSStatusBar.system.thickness)
         } else {
             model.variant = .pill
         }
