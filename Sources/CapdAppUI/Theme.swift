@@ -111,7 +111,7 @@ struct Keycap: View {
             .font(Theme.mono(10))
             .foregroundStyle(Theme.textSecondary)
             .frame(minWidth: 16, minHeight: 16)
-            .padding(.horizontal, 2)
+            .padding(.horizontal, 4)
             .background(Theme.raised, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -134,5 +134,7 @@ struct ShortcutHint: View {
                 }
             }
         }
+        .lineLimit(1)
+        .fixedSize()
     }
 }
