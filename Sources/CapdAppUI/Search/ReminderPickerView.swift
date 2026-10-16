@@ -236,7 +236,7 @@ private struct ReminderPickerPreview: View {
             cancel: {},
             schedule: {}
         )
-        .frame(width: 640, height: 470)
+        .frame(width: 760, height: 470)
         .background(Theme.background, in: PanelStyle.shape)
         .overlay(PanelStyle.shape.strokeBorder(Theme.border, lineWidth: 1))
         .preferredColorScheme(.dark)

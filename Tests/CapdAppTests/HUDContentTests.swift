@@ -7,6 +7,12 @@ import Testing
 
 @Suite("HUDContent")
 struct HUDContentTests {
+    @Test("A shortcut splits into one keycap per modifier plus the key")
+    func shortcutSplitsIntoKeycaps() {
+        #expect(CaptureHUDView.keycaps("⇧⌘N") == ["⇧", "⌘", "N"])
+        #expect(CaptureHUDView.keycaps("⌃⌥Space") == ["⌃", "⌥", "Space"])
+    }
+
     @Test("A typed note is trimmed and saved")
     func noteEditSavesTrimmed() {
         let content = HUDContent(style: .captured, captureID: 1, headline: "Captured")

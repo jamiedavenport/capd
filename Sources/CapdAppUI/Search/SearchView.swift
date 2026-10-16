@@ -20,7 +20,7 @@ struct SearchView: View {
                 searchLayout
             }
         }
-        .frame(width: 640, height: 470)
+        .frame(width: 760, height: 470)
         .background(Theme.background, in: PanelStyle.shape)
         .overlay(PanelStyle.shape.strokeBorder(Theme.border, lineWidth: 1))
         .contentShape(PanelStyle.shape)
@@ -91,8 +91,6 @@ struct SearchView: View {
         .foregroundStyle(Theme.text)
         .tint(Theme.text)
         .focused($searchFieldFocused)
-        .onSubmit { model.submit() }
-        .onKeyPress(action: handleKey)
         .padding(.horizontal, 16)
         .padding(.vertical, 13)
         .onChange(of: model.focusToken, initial: true) {
@@ -125,54 +123,6 @@ struct SearchView: View {
                 }
             }
         }
-    }
-
-    /// Arrows and the command chords are steered here while the field keeps focus, so
-    /// navigating never means leaving the keyboard or the query. Tab is claimed before
-    /// AppKit spends it on focus traversal — the field is the only focusable thing here.
-    private func handleKey(_ press: KeyPress) -> KeyPress.Result {
-        if model.isAnswerMode {
-            if press.key == .return, press.modifiers.contains(.command), model.libraryAnswer != nil
-            {
-                model.copyAnswer()
-                return .handled
-            }
-            return .ignored
-        }
-
-        if let forward = Self.tagCycleForward(for: press.key, modifiers: press.modifiers) {
-            model.cycleTag(forward: forward)
-            return .handled
-        }
-
-        switch press.key {
-        case .upArrow:
-            model.moveSelection(by: -1)
-            return .handled
-        case .downArrow:
-            model.moveSelection(by: 1)
-            return .handled
-        case .return where press.modifiers.contains(.command):
-            model.copySelected()
-            return .handled
-        default:
-            return .ignored
-        }
-    }
-
-    /// AppKit may represent Shift-Tab as either Tab plus the Shift modifier or as the
-    /// legacy Backtab control character. Accept both forms so the field editor cannot
-    /// turn reverse tag navigation into focus traversal.
-    static func tagCycleForward(
-        for key: KeyEquivalent, modifiers: EventModifiers
-    ) -> Bool? {
-        if key == .tab {
-            return !modifiers.contains(.shift)
-        }
-        if key == KeyEquivalent(Character("\u{19}")) {
-            return false
-        }
-        return nil
     }
 
     @ViewBuilder private var content: some View {

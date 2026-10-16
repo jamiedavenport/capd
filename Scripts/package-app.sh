@@ -21,7 +21,7 @@ fi
 
 swift build -c release --arch arm64 --arch x86_64
 
-BIN=.build/apple/Products/Release
+BIN=$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)
 APP=dist/capd.app
 
 rm -rf dist
@@ -49,7 +49,7 @@ done
 
 for binary in "$APP/Contents/MacOS/CapdApp" "$APP/Contents/MacOS/capd" \
     "$APP/Contents/MacOS/capd-agent" "$APPEX/Contents/MacOS/CapdShareExtension"; do
-    lipo "$binary" -verify_arch arm64 x86_64 || {
+    { lipo "$binary" -verify_arch arm64 && lipo "$binary" -verify_arch x86_64; } || {
         echo "error: $(basename "$binary") is not a universal binary" >&2
         exit 1
     }

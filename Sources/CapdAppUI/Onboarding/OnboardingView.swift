@@ -13,6 +13,7 @@ extension Browser {
         case .zen: "Zen"
         case .librewolf: "LibreWolf"
         case .waterfox: "Waterfox"
+        case .search: "Search"
         }
     }
 }

@@ -6,8 +6,10 @@ import ApplicationServices
 /// comes back nil. Browsers may build their accessibility tree lazily on the first query,
 /// so a failed attempt gets one short-delay retry before giving up.
 enum AXBrowserTabReader {
-    static func read(processIdentifier pid: pid_t, isGecko: Bool) async -> BrowserTab? {
-        if let tab = attempt(pid) { return tab }
+    static func read(
+        processIdentifier pid: pid_t, isGecko: Bool, useDescriptionForTitle: Bool = false
+    ) async -> BrowserTab? {
+        if let tab = attempt(pid, useDescriptionForTitle: useDescriptionForTitle) { return tab }
         if isGecko {
             // Gecko builds its web content tree only once an assistive app asks for it. It
             // reports this attribute as unsupported yet still builds the tree. Chromium is
@@ -17,10 +19,10 @@ enum AXBrowserTabReader {
                 kCFBooleanTrue)
         }
         try? await Task.sleep(for: .milliseconds(isGecko ? 300 : 150))
-        return attempt(pid)
+        return attempt(pid, useDescriptionForTitle: useDescriptionForTitle)
     }
 
-    private static func attempt(_ pid: pid_t) -> BrowserTab? {
+    private static func attempt(_ pid: pid_t, useDescriptionForTitle: Bool) -> BrowserTab? {
         let app = AXUIElementCreateApplication(pid)
         guard
             let window = element(of: app, kAXFocusedWindowAttribute)
@@ -28,9 +30,25 @@ enum AXBrowserTabReader {
             let webArea = largestWebArea(under: window),
             let url = string(of: webArea, kAXURLAttribute), !url.isEmpty
         else { return nil }
-        let title = string(of: webArea, kAXTitleAttribute)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return BrowserTab(url: url, title: title?.isEmpty == false ? title : nil)
+        let title = resolvedTitle(
+            string(of: webArea, kAXTitleAttribute),
+            accessibilityDescription: useDescriptionForTitle
+                ? string(of: webArea, kAXDescriptionAttribute) : nil)
+        return BrowserTab(url: url, title: title)
+    }
+
+    static func resolvedTitle(
+        _ title: String?, accessibilityDescription: String?
+    ) -> String? {
+        if let title = title?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            return title
+        }
+        guard
+            let description = accessibilityDescription?.trimmingCharacters(
+                in: .whitespacesAndNewlines),
+            !description.isEmpty
+        else { return nil }
+        return description
     }
 
     /// Bounds the walk so a pathological window cannot stall the hotkey path.
