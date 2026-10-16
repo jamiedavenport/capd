@@ -41,10 +41,10 @@ struct TabExtractorTests {
     }
 
     @Test(
-        "Gecko browsers have no tab extraction and route to the network fetch",
-        arguments: [Browser.firefox, .zen, .librewolf, .waterfox])
-    func geckoHasNoScript(browser: Browser) {
-        #expect(browser.isGecko)
+        "Accessibility-only browsers use network fetching instead of tab extraction",
+        arguments: [Browser.firefox, .zen, .librewolf, .waterfox, .search])
+    func accessibilityOnlyBrowsersHaveNoScript(browser: Browser) {
+        #expect(browser.usesAccessibilityTabReader)
         #expect(browser.supportsTabExtraction == false)
         #expect(TabExtractor.script(for: browser, javaScript: "1 + 1") == nil)
     }
@@ -59,6 +59,7 @@ struct TabExtractorTests {
             ("app.zen-browser.zen", Browser.zen),
             ("org.mozilla.librewolf", Browser.librewolf),
             ("net.waterfox.waterfox", Browser.waterfox),
+            ("com.officecommun.search", Browser.search),
         ])
     func bundleIDsMapExactly(bundleID: String, expected: Browser) {
         #expect(Browser(bundleID: bundleID) == expected)

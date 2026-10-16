@@ -88,7 +88,7 @@ struct OnboardingModelTests {
     @Test("Only browsers with an Apple Events path appear, with their consent state")
     func browserConsents() async {
         let harness = Harness()
-        harness.running = [.safari, .firefox, .chrome]
+        harness.running = [.safari, .firefox, .chrome, .search]
         harness.statuses = [.safari: .granted, .chrome: .undetermined]
         harness.model.refresh()
 

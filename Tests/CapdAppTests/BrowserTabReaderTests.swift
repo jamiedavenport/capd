@@ -39,9 +39,9 @@ struct BrowserTabReaderTests {
     }
 
     @Test(
-        "Gecko browsers have no tab script",
-        arguments: [Browser.firefox, .zen, .librewolf, .waterfox])
-    func geckoHasNoScript(browser: Browser) {
+        "Accessibility-only browsers have no Apple Events tab script",
+        arguments: [Browser.firefox, .zen, .librewolf, .waterfox, .search])
+    func accessibilityBrowsersHaveNoScript(browser: Browser) {
         #expect(BrowserTabReader.script(for: browser) == nil)
     }
 
@@ -65,6 +65,41 @@ struct BrowserTabReaderTests {
         #expect(
             BrowserTabReader.parse("https://example.com/a")
                 == BrowserTab(url: "https://example.com/a", title: nil))
+    }
+
+    @Test("Accessibility title fallback keeps a nonempty page title first")
+    func resolvedTitlePrefersPageTitle() {
+        #expect(
+            AXBrowserTabReader.resolvedTitle(
+                "  Page title  ", accessibilityDescription: "Capture - Capd")
+                == "Page title")
+    }
+
+    @Test("Accessibility title fallback trims whitespace and uses the description")
+    func resolvedTitleUsesDescriptionWhenPageTitleIsBlank() {
+        #expect(
+            AXBrowserTabReader.resolvedTitle(
+                "  \n", accessibilityDescription: "  Capture - Capd  "
+            )
+                == "Capture - Capd")
+    }
+
+    @Test("Accessibility title fallback uses a nonempty description when title is missing")
+    func resolvedTitleUsesDescriptionWhenTitleIsMissing() {
+        #expect(
+            AXBrowserTabReader.resolvedTitle(
+                nil, accessibilityDescription: "Capture - Capd")
+                == "Capture - Capd")
+    }
+
+    @Test("Accessibility title fallback is nil when both values are missing or blank")
+    func resolvedTitleIsNilWithoutEitherValue() {
+        #expect(
+            AXBrowserTabReader.resolvedTitle(
+                nil, accessibilityDescription: nil) == nil)
+        #expect(
+            AXBrowserTabReader.resolvedTitle(
+                "  ", accessibilityDescription: "\n") == nil)
     }
 
     @Test("Empty output is not a tab")

@@ -24,7 +24,7 @@ struct TabExtractor {
                 "do JavaScript \"\(literal)\" in current tab of front window"
             case .chrome, .arc:
                 "execute active tab of front window javascript \"\(literal)\""
-            case .firefox, .zen, .librewolf, .waterfox:
+            case .firefox, .zen, .librewolf, .waterfox, .search:
                 ""
             }
         return """

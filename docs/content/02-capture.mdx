@@ -14,16 +14,18 @@ content it can read.
 | Frontmost app | What the hotkey can save | Page content for search |
 |---|---|---|
 | Safari, Chrome, Arc | Current URL, title, and selected text | Read from the rendered tab |
-| Firefox, Zen, LibreWolf, Waterfox | Current URL, title, and selected text | Fetched from the website |
+| Firefox, Zen, LibreWolf, Waterfox, Search | Current URL, title, and selected text | Fetched from the website |
 | Other apps | Selected text or clipboard content | Not applicable |
 
 For Safari, Chrome, and Arc, reading the rendered tab means content already
 visible to you—including many signed-in or paywalled pages—can be indexed
 without Capd making another page request.
 
-Firefox-based browsers expose their current tab through Accessibility rather
-than Automation. Capd can capture the address and title, then fetch readable
-page content separately when page fetching is enabled.
+Firefox, Zen, LibreWolf, Waterfox, and Search expose their current tab through
+Accessibility rather than Automation. Capd can capture the address and title,
+then fetch readable page content separately when page fetching is enabled. Fetched
+content does not use the browser's login or cookies, so signed-in pages may not be
+enriched.
 
 ## Drag to capture
 
