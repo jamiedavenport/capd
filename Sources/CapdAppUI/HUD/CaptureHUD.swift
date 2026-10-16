@@ -481,7 +481,7 @@ package final class HUDPanelController {
         dropPending = false
         dismissTask?.cancel()
         anchorScreen = screen
-        model.variant = .notch(gap: notch.notchWidth, height: notch.notchHeight)
+        model.variant = .notch(gap: notchGap(notch), height: notch.notchHeight)
         if let container = panel.contentView, dropView.superview == nil {
             dropView.frame = container.bounds
             dropView.autoresizingMask = [.width, .height]
@@ -533,23 +533,19 @@ package final class HUDPanelController {
     private func configureVariant() {
         let screen = screenUnderMouse()
         anchorScreen = screen
-        // Boring Notch draws its closed notch wider than the physical one, and draws a
-        // notch of its own on screens without one.
-        let boringNotch = NSWorkspace.shared.runningApplications.contains {
-            $0.bundleIdentifier == "theboringteam.boringnotch"
-        }
         if let screen, let notch = NotchGeometry(screen: screen) {
-            model.variant = .notch(
-                gap: notch.notchWidth + (boringNotch ? 68 : 0), height: notch.notchHeight)
-        } else if let screen, boringNotch {
-            let menuBarHeight = screen.frame.maxY - screen.visibleFrame.maxY
-            // shortcut: assumes Boring Notch's default 185pt width; read its settings if that varies.
-            model.variant = .notch(
-                gap: 185 + 68,
-                height: menuBarHeight > 0 ? menuBarHeight : NSStatusBar.system.thickness)
+            model.variant = .notch(gap: notchGap(notch), height: notch.notchHeight)
         } else {
             model.variant = .pill
         }
+    }
+
+    /// Boring Notch draws its closed notch wider than the physical one.
+    private func notchGap(_ notch: NotchGeometry) -> CGFloat {
+        let boringNotch = NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == "theboringteam.boringnotch"
+        }
+        return notch.notchWidth + (boringNotch ? 68 : 0)
     }
 
     package func beginAnnotation() {
