@@ -51,12 +51,18 @@ struct CapdApp: App {
     private static let releaseNotesURL =
         URL(string: "https://github.com/jamiedavenport/capd/releases")!
 
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var state = AppState()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @State private(set) var state: AppState
 
     init() {
-        AgentBootstrap.installAgent()
-        let state = self.state
+        self.init(installAgent: AgentBootstrap.installAgent, makeState: AppState.init)
+    }
+
+    /// Allows startup and handoff wiring to be exercised with caller-owned services.
+    init(installAgent: () -> Void, makeState: () -> AppState) {
+        installAgent()
+        let state = makeState()
+        _state = State(initialValue: state)
         delegate.openURLs = { state.capture(handoffs: $0) }
     }
 

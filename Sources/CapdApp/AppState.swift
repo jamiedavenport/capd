@@ -28,7 +28,7 @@ final class AppState {
     @ObservationIgnored private var contextMonitor: AmbientContextMonitor?
     @ObservationIgnored private var reminderScheduler: ReminderScheduler?
     @ObservationIgnored private let contextSuppressions = ContextSuppressionRegistry()
-    @ObservationIgnored private let dragMonitor = DragMonitor()
+    @ObservationIgnored private lazy var dragMonitor = DragMonitor()
     @ObservationIgnored private var totalCaptures: (() -> Int)?
     @ObservationIgnored private var pinboardImporter: PinboardImporter?
     @ObservationIgnored private var importTask: Task<Void, Never>?
@@ -52,11 +52,16 @@ final class AppState {
         return .normal
     }
 
-    init() {
-        let settings = AppSettings()
+    /// Initializes caller-owned capture components without starting live services.
+    init(settings: AppSettings, coordinator: CaptureCoordinator?) {
         self.settings = settings
         updates = UpdateChecker(settings: settings, client: .gitHubReleases)
         permissions = PermissionMonitor(environment: .live(settings: settings))
+        self.coordinator = coordinator
+    }
+
+    convenience init() {
+        self.init(settings: AppSettings(), coordinator: nil)
 
         do {
             try start()
