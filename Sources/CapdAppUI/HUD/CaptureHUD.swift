@@ -184,10 +184,11 @@ struct CaptureHUDView: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
             }
-            if model.content?.canAnnotate == true, !model.isAnnotating {
-                ShortcutHint(label: "Note", keys: [annotateShortcutLabel])
+            if model.content?.canAnnotate == true {
+                // Hidden rather than removed so opening the note drawer keeps the bar's width.
+                ShortcutHint(label: "Note", keys: Self.keycaps(annotateShortcutLabel))
                     .font(.system(size: 11))
-                    .transition(.opacity)
+                    .opacity(model.isAnnotating ? 0 : 1)
             }
         }
     }
@@ -197,7 +198,13 @@ struct CaptureHUDView: View {
     }
 
     private var openReminderShortcutKeys: [String] {
-        KeyboardShortcuts.getShortcut(for: .openReminder).map { ["\($0)"] } ?? []
+        KeyboardShortcuts.getShortcut(for: .openReminder).map { Self.keycaps("\($0)") } ?? []
+    }
+
+    /// One chip per modifier plus one for the key, e.g. "⇧⌘N" → ["⇧", "⌘", "N"].
+    nonisolated static func keycaps(_ shortcut: String) -> [String] {
+        let modifiers = shortcut.prefix { "⌃⌥⇧⌘".contains($0) }
+        return modifiers.map(String.init) + [String(shortcut.dropFirst(modifiers.count))]
     }
 
     /// The outcome badge doubles as the dismiss button while the pointer is on the bar.
@@ -474,7 +481,7 @@ package final class HUDPanelController {
         dropPending = false
         dismissTask?.cancel()
         anchorScreen = screen
-        model.variant = .notch(gap: notch.notchWidth, height: notch.notchHeight)
+        model.variant = .notch(gap: notchGap(notch), height: notch.notchHeight)
         if let container = panel.contentView, dropView.superview == nil {
             dropView.frame = container.bounds
             dropView.autoresizingMask = [.width, .height]
@@ -527,10 +534,18 @@ package final class HUDPanelController {
         let screen = screenUnderMouse()
         anchorScreen = screen
         if let screen, let notch = NotchGeometry(screen: screen) {
-            model.variant = .notch(gap: notch.notchWidth, height: notch.notchHeight)
+            model.variant = .notch(gap: notchGap(notch), height: notch.notchHeight)
         } else {
             model.variant = .pill
         }
+    }
+
+    /// Boring Notch draws its closed notch wider than the physical one.
+    private func notchGap(_ notch: NotchGeometry) -> CGFloat {
+        let boringNotch = NSWorkspace.shared.runningApplications.contains {
+            $0.bundleIdentifier == "theboringteam.boringnotch"
+        }
+        return notch.notchWidth + (boringNotch ? 68 : 0)
     }
 
     package func beginAnnotation() {
