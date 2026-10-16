@@ -51,6 +51,10 @@ package final class SearchWindowController: NSObject, NSWindowDelegate {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let handled = MainActor.assumeIsolated {
                 guard let self, event.window === self.panel else { return false }
+                // Return, arrows and Tab commit or pick IME candidates while text is marked.
+                if (self.panel.firstResponder as? NSTextView)?.hasMarkedText() == true {
+                    return false
+                }
                 return self.model.handleKey(event)
             }
             return handled ? nil : event
@@ -68,6 +72,9 @@ package final class SearchWindowController: NSObject, NSWindowDelegate {
 
     /// Summons with a short fade-and-settle; dismissal is instant, like Spotlight.
     package func show() {
+        if let contentView = panel.contentView {
+            panel.setContentSize(contentView.fittingSize)
+        }
         model.activate()
         position()
         let final = panel.frame
