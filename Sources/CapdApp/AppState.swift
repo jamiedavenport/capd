@@ -216,8 +216,9 @@ final class AppState {
                         || AXReader().isSecureInputActive()
                 },
                 frontmostTarget: { FrontmostTarget.current() },
-                browserTab: { _, target in
-                    await AXBrowserTabReader.read(processIdentifier: target.processIdentifier)
+                browserTab: { browser, target in
+                    await AXBrowserTabReader.read(
+                        processIdentifier: target.processIdentifier, isGecko: browser.isGecko)
                 },
                 isSuppressed: { [contextSuppressions] in contextSuppressions.contains($0) },
                 insight: { await insightEngine.insight(for: $0) },
@@ -482,7 +483,7 @@ extension CaptureEnvironment {
             browserTab: { browser, target in
                 browser.usesAccessibilityTabReader
                     ? await AXBrowserTabReader.read(
-                        processIdentifier: target.processIdentifier,
+                        processIdentifier: target.processIdentifier, isGecko: browser.isGecko,
                         useDescriptionForTitle: browser == .search)
                     : BrowserTabReader.read(browser)
             },

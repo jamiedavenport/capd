@@ -7,10 +7,18 @@ import ApplicationServices
 /// so a failed attempt gets one short-delay retry before giving up.
 enum AXBrowserTabReader {
     static func read(
-        processIdentifier pid: pid_t, useDescriptionForTitle: Bool = false
+        processIdentifier pid: pid_t, isGecko: Bool, useDescriptionForTitle: Bool = false
     ) async -> BrowserTab? {
         if let tab = attempt(pid, useDescriptionForTitle: useDescriptionForTitle) { return tab }
-        try? await Task.sleep(for: .milliseconds(150))
+        if isGecko {
+            // Gecko builds its web content tree only once an assistive app asks for it. It
+            // reports this attribute as unsupported yet still builds the tree. Chromium is
+            // left alone: the same flag switches on its costly full accessibility mode.
+            AXUIElementSetAttributeValue(
+                AXUIElementCreateApplication(pid), "AXEnhancedUserInterface" as CFString,
+                kCFBooleanTrue)
+        }
+        try? await Task.sleep(for: .milliseconds(isGecko ? 300 : 150))
         return attempt(pid, useDescriptionForTitle: useDescriptionForTitle)
     }
 
@@ -120,6 +128,6 @@ enum AXBrowserTabReader {
 
 enum GeckoTabReader {
     static func read(processIdentifier pid: pid_t) async -> BrowserTab? {
-        await AXBrowserTabReader.read(processIdentifier: pid)
+        await AXBrowserTabReader.read(processIdentifier: pid, isGecko: true)
     }
 }
