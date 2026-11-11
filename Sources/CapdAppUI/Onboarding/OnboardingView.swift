@@ -2,22 +2,6 @@ import CapdKit
 import KeyboardShortcuts
 import SwiftUI
 
-extension Browser {
-    var displayName: String {
-        switch self {
-        case .safari: "Safari"
-        case .chrome: "Chrome"
-        case .arc: "Arc"
-        case .helium: "Helium"
-        case .firefox: "Firefox"
-        case .zen: "Zen"
-        case .librewolf: "LibreWolf"
-        case .waterfox: "Waterfox"
-        case .search: "Search"
-        }
-    }
-}
-
 extension OnboardingStep {
     fileprivate var title: String {
         switch self {

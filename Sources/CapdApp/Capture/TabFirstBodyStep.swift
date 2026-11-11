@@ -1,3 +1,4 @@
+import CapdAppUI
 import CapdKit
 import Foundation
 
@@ -5,6 +6,17 @@ import Foundation
 /// browser it came from, fall back to the network fetch silently, record what happened.
 /// Never throws — a capture that cannot be enriched stays a capture.
 struct TabFirstBodyStep: ProcessingStep {
+    var tabHTML: @MainActor @Sendable (Browser) -> String? = {
+        try? TabExtractor().extractHTML(from: $0)
+    }
+    var extractFromTab: @MainActor @Sendable (_ html: String, URL) async -> BodyExtractionResult =
+        {
+            await BodyExtractionPipeline().extract(tabHTML: $0, url: $1)
+        }
+    var fetch: @MainActor @Sendable (URL) async -> BodyExtractionResult = {
+        await BodyExtractionPipeline().extract(url: $0)
+    }
+
     func applies(to capture: Capture) -> Bool {
         capture.kind == .link && capture.url != nil
     }
@@ -18,16 +30,15 @@ struct TabFirstBodyStep: ProcessingStep {
     }
 
     @MainActor
-    private func extract(for capture: Capture, url: URL) async -> BodyExtractionResult {
-        let pipeline = BodyExtractionPipeline()
-        if let bundleID = capture.sourceAppBundleID,
-            let tabHTML = try? TabExtractor().extractHTML(fromBrowserWithBundleID: bundleID)
+    func extract(for capture: Capture, url: URL) async -> BodyExtractionResult {
+        if let browser = capture.sourceAppBundleID.flatMap(Browser.init(bundleID:)),
+            let html = tabHTML(browser)
         {
-            let fromTab = await pipeline.extract(tabHTML: tabHTML, url: url)
+            let fromTab = await extractFromTab(html, url)
             if fromTab.status != .failed {
                 return fromTab
             }
         }
-        return await pipeline.extract(url: url)
+        return await fetch(url)
     }
 }

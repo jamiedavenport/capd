@@ -1,28 +1,29 @@
 import ApplicationServices
+import CapdAppUI
 
 /// Reads the frontmost browser document over Accessibility from the largest `AXWebArea`.
 ///
 /// Best-effort like the other AX readers — a missing grant or a window with no web area
 /// comes back nil. Browsers may build their accessibility tree lazily on the first query,
 /// so a failed attempt gets one short-delay retry before giving up.
-enum AXBrowserTabReader {
-    static func read(
-        processIdentifier pid: pid_t, isGecko: Bool, useDescriptionForTitle: Bool = false
-    ) async -> BrowserTab? {
-        if let tab = attempt(pid, useDescriptionForTitle: useDescriptionForTitle) { return tab }
-        if isGecko {
-            // Gecko builds its web content tree only once an assistive app asks for it. It
-            // reports this attribute as unsupported yet still builds the tree. Chromium is
-            // left alone: the same flag switches on its costly full accessibility mode.
+enum AccessibilityTabReader {
+    static func read(processIdentifier pid: pid_t, options: AccessibilityTabOptions) async
+        -> BrowserTab?
+    {
+        if let tab = attempt(pid, options: options) { return tab }
+        if options.primesTree {
+            // Gecko reports this attribute as unsupported yet still builds the tree.
+            // Chromium is left alone: the same flag switches on its costly full
+            // accessibility mode.
             AXUIElementSetAttributeValue(
                 AXUIElementCreateApplication(pid), "AXEnhancedUserInterface" as CFString,
                 kCFBooleanTrue)
         }
-        try? await Task.sleep(for: .milliseconds(isGecko ? 300 : 150))
-        return attempt(pid, useDescriptionForTitle: useDescriptionForTitle)
+        try? await Task.sleep(for: .milliseconds(options.primesTree ? 300 : 150))
+        return attempt(pid, options: options)
     }
 
-    private static func attempt(_ pid: pid_t, useDescriptionForTitle: Bool) -> BrowserTab? {
+    private static func attempt(_ pid: pid_t, options: AccessibilityTabOptions) -> BrowserTab? {
         let app = AXUIElementCreateApplication(pid)
         guard
             let window = element(of: app, kAXFocusedWindowAttribute)
@@ -32,7 +33,7 @@ enum AXBrowserTabReader {
         else { return nil }
         let title = resolvedTitle(
             string(of: webArea, kAXTitleAttribute),
-            accessibilityDescription: useDescriptionForTitle
+            accessibilityDescription: options.titleFromDescription
                 ? string(of: webArea, kAXDescriptionAttribute) : nil)
         return BrowserTab(url: url, title: title)
     }
@@ -123,11 +124,5 @@ enum AXBrowserTabReader {
         var size = CGSize.zero
         guard AXValueGetValue((value as! AXValue), .cgSize, &size) else { return 0 }
         return size.width * size.height
-    }
-}
-
-enum GeckoTabReader {
-    static func read(processIdentifier pid: pid_t) async -> BrowserTab? {
-        await AXBrowserTabReader.read(processIdentifier: pid, isGecko: true)
     }
 }

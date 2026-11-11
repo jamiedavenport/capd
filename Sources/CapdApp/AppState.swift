@@ -217,8 +217,8 @@ final class AppState {
                 },
                 frontmostTarget: { FrontmostTarget.current() },
                 browserTab: { browser, target in
-                    await AXBrowserTabReader.read(
-                        processIdentifier: target.processIdentifier, isGecko: browser.isGecko)
+                    await FrontTabReader.live.read(
+                        browser, target: target, route: .accessibilityOnly)
                 },
                 isSuppressed: { [contextSuppressions] in contextSuppressions.contains($0) },
                 insight: { await insightEngine.insight(for: $0) },
@@ -481,11 +481,7 @@ extension CaptureEnvironment {
                 SelectionReader().selectedText(inAppWithProcessIdentifier: $0.processIdentifier)
             },
             browserTab: { browser, target in
-                browser.usesAccessibilityTabReader
-                    ? await AXBrowserTabReader.read(
-                        processIdentifier: target.processIdentifier, isGecko: browser.isGecko,
-                        useDescriptionForTitle: browser == .search)
-                    : BrowserTabReader.read(browser)
+                await FrontTabReader.live.read(browser, target: target)
             },
             pasteboardFallback: { await PasteboardFallback().copySelection() },
             fetchBody: fetchBody,
